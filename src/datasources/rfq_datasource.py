@@ -80,6 +80,23 @@ class RfqDatasource:
         self.session.refresh(rfq)
         return rfq
 
+    def get_next_code(self, prefix: str) -> str:
+        """Generate the next sequential RFQ code for the given prefix (e.g. IF-0001)."""
+        import re
+        # Find the max existing code with this prefix
+        latest = (
+            self.session.query(RFQ.rfq_code)
+            .filter(RFQ.rfq_code.like(f"{prefix}-%"))
+            .order_by(RFQ.rfq_code.desc())
+            .first()
+        )
+        if latest and latest[0]:
+            match = re.search(r'-(\d+)$', latest[0])
+            next_num = int(match.group(1)) + 1 if match else 1
+        else:
+            next_num = 1
+        return f"{prefix}-{next_num:04d}"
+
     def get_stats(self) -> dict:
         """Dashboard KPIs (#5): total_rfqs_12m, open_rfqs, critical_rfqs, avg_cycle_days."""
         from datetime import date, timedelta
@@ -94,14 +111,14 @@ class RfqDatasource:
 
         open_rfqs = (
             self.session.query(func.count(RFQ.id))
-            .filter(RFQ.status.in_(["In preparation", "Submitted", "Under review"]))
+            .filter(RFQ.status.in_(["In preparation", "Submitted"]))
             .scalar() or 0
         )
 
         critical = (
             self.session.query(func.count(RFQ.id))
             .filter(RFQ.priority == "critical")
-            .filter(RFQ.status.in_(["In preparation", "Submitted", "Under review"]))
+            .filter(RFQ.status.in_(["In preparation", "Submitted"]))
             .scalar() or 0
         )
 
@@ -119,7 +136,7 @@ class RfqDatasource:
             "total_rfqs_12m": total,
             "open_rfqs": open_rfqs,
             "critical_rfqs": critical,
-            "avg_cycle_days": round(avg_cycle, 1) if avg_cycle else 0.0,
+            "avg_cycle_days": int(round(avg_cycle)) if avg_cycle else 0,
         }
 
     def get_analytics(self) -> dict:

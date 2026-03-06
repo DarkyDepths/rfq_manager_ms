@@ -1,0 +1,1043 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Create RFQ – GHI Tender Manager</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="styles.css" />
+  <style>
+/* Layout tweaks */
+    .page-content {
+      display: flex;
+      flex-direction: column;
+      gap: 1.75rem;
+    }
+
+    /* Hero header card */
+    .rfq-hero {
+      background: radial-gradient(circle at top left, rgba(62,166,255,0.25), transparent 55%),
+                  radial-gradient(circle at top right, rgba(56,189,248,0.18), transparent 55%),
+                  linear-gradient(135deg, rgba(15,23,42,0.95), rgba(17,24,39,0.98));
+      border-radius: 20px;
+      padding: 1.25rem 1.5rem;
+      border: 1px solid rgba(148,163,184,0.25);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1.5rem;
+      box-shadow: 0 18px 40px rgba(15,23,42,0.9);
+    }
+
+    .rfq-hero-left {
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+    }
+
+    .rfq-hero-title {
+      font-size: 1.35rem;
+      font-weight: 650;
+      letter-spacing: 0.02em;
+    }
+
+    .rfq-hero-subtitle {
+      font-size: 0.9rem;
+      color: #9ca3af;
+    }
+
+    .rfq-hero-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+      margin-top: 0.25rem;
+    }
+
+    .hero-chip {
+      font-size: 0.75rem;
+      padding: 0.2rem 0.5rem;
+      border-radius: 999px;
+      border: 1px solid rgba(148,163,184,0.45);
+      color: #e5e7eb;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+      background: linear-gradient(135deg, rgba(15,23,42,0.95), rgba(30,64,175,0.6));
+    }
+
+    .rfq-hero-right {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 0.25rem;
+    }
+
+    .hero-stepper {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      font-size: 0.8rem;
+      color: #9ca3af;
+    }
+
+    .hero-step-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 999px;
+      background: #22c55e;
+      box-shadow: 0 0 8px rgba(34,197,94,0.9);
+    }
+
+    .hero-deadline-pill {
+      padding: 0.4rem 0.8rem;
+      border-radius: 999px;
+      font-size: 0.8rem;
+      background: rgba(15,23,42,0.85);
+      border: 1px solid rgba(148,163,184,0.55);
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .hero-deadline-pill span {
+      color: #e5e7eb;
+    }
+
+    .hero-deadline-value {
+      font-weight: 600;
+      color: #38bdf8;
+    }
+
+    /* Basic RFQ info card */
+    .panel.rfq-basic {
+      border-radius: 18px;
+      box-shadow: 0 18px 40px rgba(15,23,42,0.75);
+    }
+
+    .form-row {
+      display: flex;
+      gap: 1.8rem;
+      margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+    }
+
+    .form-field {
+      flex: 1;
+      min-width: 220px;
+    }
+
+    .form-field.full-width {
+      flex: 1 1 100%;
+    }
+
+    .form-grid {
+      width: 100%;
+    }
+
+    .field-label {
+      margin-bottom: 0.4rem;
+      display: block;
+      font-weight: 600;
+      font-size: 0.83rem;
+      color: #e5e7eb;
+    }
+
+    .field-input,
+    textarea.field-input,
+    select.field-input {
+      background: rgba(15,23,42,0.9);
+      border: 1px solid #1f2937;
+      color: #e5e7eb;
+      padding: 0.7rem 0.9rem;
+      border-radius: 10px;
+      font-size: 0.9rem;
+      width: 100%;
+      transition: all 0.18s ease-in-out;
+    }
+
+    .field-input::placeholder,
+    textarea.field-input::placeholder {
+      color: #6b7280;
+    }
+
+    .field-input:focus,
+    textarea.field-input:focus,
+    select.field-input:focus {
+      outline: none;
+      border-color: #3ea6ff;
+      background: #020617;
+      box-shadow: 0 0 0 1px rgba(62,166,255,0.35);
+    }
+
+    textarea.field-input {
+      min-height: 96px;
+      resize: vertical;
+    }
+
+    /* Two column section: workflow + summary */
+    .two-cols {
+      display: grid;
+      grid-template-columns: minmax(0, 1.6fr) minmax(0, 1.1fr);
+      gap: 1.5rem;
+      align-items: flex-start;
+    }
+
+    @media (max-width: 1100px) {
+      .two-cols {
+        grid-template-columns: minmax(0, 1fr);
+      }
+    }
+
+    .panel {
+      border-radius: 18px;
+    }
+
+    .panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 1rem;
+    }
+
+    .panel-title {
+      font-size: 0.98rem;
+      font-weight: 600;
+    }
+
+    .panel-subtitle {
+      font-size: 0.8rem;
+      color: #9ca3af;
+      margin-top: 0.15rem;
+    }
+
+    /* Workflow cards */
+    .workflow-options {
+      display: flex;
+      flex-direction: column;
+      gap: 0.9rem;
+      margin-top: 0.5rem;
+    }
+
+    .workflow-card {
+      border-radius: 16px;
+      padding: 0.85rem 0.95rem;
+      border: 1px solid rgba(31,41,55,0.95);
+      background: radial-gradient(circle at top left, rgba(15,23,42,0.95), rgba(15,23,42,0.9));
+      position: relative;
+      cursor: pointer;
+      transition: border-color 0.2s ease, background 0.2s ease, transform 0.15s ease;
+    }
+
+    .workflow-card-selectable:hover {
+      border-color: rgba(56,189,248,0.7);
+      transform: translateY(-1px);
+    }
+
+    .workflow-card-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 0.75rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .workflow-card-title {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-weight: 600;
+      font-size: 0.9rem;
+    }
+
+    .workflow-card-subtitle {
+      font-size: 0.78rem;
+      color: #9ca3af;
+      margin-top: 0.1rem;
+    }
+
+    .workflow-steps {
+      margin-top: 0.35rem;
+      font-size: 0.78rem;
+      color: #9ca3af;
+      columns: 2;
+      column-gap: 1.75rem;
+      list-style: none;
+      padding-left: 0;
+    }
+
+    .workflow-steps li {
+      break-inside: avoid;
+      padding: 0.1rem 0;
+    }
+
+    .chip {
+      font-size: 0.72rem;
+      padding: 0.16rem 0.55rem;
+      border-radius: 999px;
+      border: 1px solid rgba(148,163,184,0.65);
+      background: linear-gradient(135deg, rgba(15,23,42,0.95), rgba(56,189,248,0.25));
+    }
+
+    .chip-soft {
+      color: #e5e7eb;
+    }
+
+    .workflow-radio {
+      accent-color: #3ea6ff;
+      transform: scale(1.05);
+    }
+
+    .panel-nested {
+      background: rgba(15,23,42,0.92);
+      border-radius: 14px;
+      border: 1px dashed rgba(148,163,184,0.5);
+      margin-top: 0.75rem;
+    }
+
+    .custom-stages-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 0.25rem 1.4rem;
+      margin-top: 0.6rem;
+      padding-bottom: 0.4rem;
+    }
+
+    .checkbox-row {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.8rem;
+      color: #d1d5db;
+    }
+
+    .checkbox-row input[type="checkbox"] {
+      accent-color: #3ea6ff;
+    }
+
+    /* KPI grid & cards */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 0.9rem;
+      margin-top: 0.75rem;
+    }
+
+    .kpi-card {
+      background: radial-gradient(circle at top left, rgba(15,23,42,0.98), rgba(17,24,39,0.96));
+      border-radius: 14px;
+      padding: 0.75rem 0.85rem;
+      border: 1px solid rgba(31,41,55,0.95);
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+
+    .kpi-label {
+      font-size: 0.75rem;
+      color: #9ca3af;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .kpi-value {
+      font-size: 1.15rem;
+      font-weight: 600;
+    }
+
+    .kpi-trend {
+      font-size: 0.78rem;
+      color: #9ca3af;
+    }
+
+    .kpi-card:first-child .kpi-value {
+      color: #38bdf8;
+    }
+
+    .kpi-card:nth-child(2) .kpi-value {
+      color: #22c55e;
+    }
+
+    .kpi-card:nth-child(3) .kpi-value {
+      color: #eab308;
+    }
+
+    .kpi-card:nth-child(4) .kpi-value {
+      color: #f97316;
+    }
+
+    .progress-bar {
+      margin-top: 0.35rem;
+      height: 6px;
+      border-radius: 999px;
+      background: rgba(31,41,55,0.9);
+      overflow: hidden;
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      width: 0;
+      border-radius: inherit;
+      background: linear-gradient(90deg, #0ea5e9, #22c55e);
+      box-shadow: 0 0 12px rgba(56,189,248,0.7);
+      transition: width 0.45s ease-out;
+    }
+
+    /* Timeline bar (horizontal) */
+    .panel.timeline-panel {
+      border-radius: 18px;
+    }
+
+    .timeline {
+      position: relative;
+      margin-top: 0.75rem;
+      padding: 1.2rem 1rem 0.9rem 1rem;
+      border-radius: 14px;
+      background: radial-gradient(circle at top, rgba(15,23,42,0.95), rgba(15,23,42,0.92));
+      border: 1px solid rgba(31,41,55,0.95);
+      overflow-x: auto;
+      display: flex;
+      gap: 1.5rem;
+      scrollbar-color: #4b5563 transparent;
+      scrollbar-width: thin;
+    }
+
+    .timeline::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 50%;
+      transform: translateY(-50%);
+      height: 2px;
+      background: linear-gradient(90deg, rgba(55,65,81,0.6), rgba(75,85,99,0.4));
+      pointer-events: none;
+    }
+
+    .timeline-item {
+      position: relative;
+      min-width: 150px;
+      padding-top: 1rem;
+    }
+
+    .timeline-item::before {
+      content: "";
+      position: absolute;
+      top: 50%;
+      left: 0;
+      transform: translate(-50%, -50%);
+      width: 14px;
+      height: 14px;
+      border-radius: 999px;
+      border: 2px solid #1f2937;
+      background: #020617;
+      box-shadow: 0 0 0 2px rgba(15,23,42,0.9);
+      z-index: 2;
+    }
+
+    .timeline-item.timeline-item-active::before {
+      background: radial-gradient(circle, #38bdf8 0, #0ea5e9 35%, #22c55e 100%);
+      border-color: #22c55e;
+      box-shadow: 0 0 0 3px rgba(56,189,248,0.5);
+    }
+
+    .timeline-label {
+      font-size: 0.8rem;
+      font-weight: 600;
+      margin-bottom: 0.15rem;
+    }
+
+    .timeline-meta {
+      font-size: 0.75rem;
+      color: #9ca3af;
+    }
+
+    /* Subtle indicator pill in subtitle area */
+    .workflow-indicator {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      font-size: 0.78rem;
+      color: #9ca3af;
+    }
+
+    .indicator-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: radial-gradient(circle, #22c55e 0, #16a34a 70%);
+      box-shadow: 0 0 8px rgba(34,197,94,0.9);
+    }
+
+    /* ===== New: RFQ lifecycle table (detailed view) ===== */
+    .timeline-table-wrapper {
+      margin-top: 0.9rem;
+      padding: 0.75rem 0.75rem 0.2rem 0.75rem;
+      border-radius: 14px;
+      background: radial-gradient(circle at top left, rgba(15,23,42,0.96), rgba(15,23,42,0.92));
+      border: 1px solid rgba(31,41,55,0.95);
+      overflow-x: auto;
+      scrollbar-color: #4b5563 transparent;
+      scrollbar-width: thin;
+    }
+
+    .timeline-table {
+      width: 100%;
+      min-width: 860px;
+      border-collapse: collapse;
+      font-size: 0.8rem;
+    }
+
+    .timeline-table thead {
+      background: rgba(15,23,42,0.98);
+    }
+
+    .timeline-table th,
+    .timeline-table td {
+      padding: 0.45rem 0.55rem;
+      border-bottom: 1px solid rgba(31,41,55,0.85);
+      text-align: left;
+      white-space: nowrap;
+    }
+
+    .timeline-table th {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #9ca3af;
+      font-weight: 600;
+    }
+
+    .timeline-table td {
+      color: #e5e7eb;
+    }
+
+    .timeline-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .timeline-table-row-active {
+      background: radial-gradient(circle at left, rgba(56,189,248,0.14), transparent 55%);
+    }
+
+    .timeline-table input[type="checkbox"] {
+      accent-color: #3ea6ff;
+    }
+
+    .timeline-table-select,
+    .timeline-table-input {
+      background: rgba(15,23,42,0.95);
+      border: 1px solid rgba(31,41,55,0.95);
+      color: #e5e7eb;
+      border-radius: 8px;
+      padding: 0.25rem 0.45rem;
+      font-size: 0.78rem;
+      outline: none;
+    }
+
+    .timeline-table-select:focus,
+    .timeline-table-input:focus {
+      border-color: #3ea6ff;
+      box-shadow: 0 0 0 1px rgba(62,166,255,0.35);
+    }
+
+    .timeline-table-planned {
+      font-variant-numeric: tabular-nums;
+      color: #9ca3af;
+    }
+
+    .timeline-table-stage-name {
+      font-weight: 600;
+      font-size: 0.8rem;
+    }
+
+    .timeline-table-stage-index {
+      opacity: 0.7;
+      margin-right: 0.25rem;
+      font-size: 0.75rem;
+      color: #9ca3af;
+    }
+  </style>
+  <script defer src="app.js"></script>
+  <script defer src="script.js"></script>
+</head>
+<body>
+  <div class="app-shell">
+
+    <aside class="sidebar">
+      <div class="sidebar-logo">
+        <div class="sidebar-logo-mark">G</div>
+        <div class="sidebar-logo-text">
+          <span>Gulf Heavy</span>
+          <span>Tender Manager</span>
+        </div>
+      </div>
+      <div>
+        <div class="sidebar-section-label">Main</div>
+        <ul class="nav-list">
+          <li class="nav-item">
+            <a href="index.html" class="nav-link">
+              <span class="nav-link-icon">📊</span>
+              <span class="nav-link-label">Dashboard</span>
+              
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="rfq_overview.html" class="nav-link">
+              <span class="nav-link-icon">📄</span>
+              <span class="nav-link-label">RFQ 360 View</span>
+              
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="create_rfq.html" class="nav-link active">
+              <span class="nav-link-icon">➕</span>
+              <span class="nav-link-label">Create RFQ</span>
+              
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="workspace.html" class="nav-link">
+              <span class="nav-link-icon">🛠️</span>
+              <span class="nav-link-label">Workspace</span>
+              
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="analytics.html" class="nav-link">
+              <span class="nav-link-icon">📈</span>
+              <span class="nav-link-label">Analytics</span>
+              
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="tasks.html" class="nav-link">
+              <span class="nav-link-icon">⏰</span>
+              <span class="nav-link-label">Tasks & Reminders</span>
+              
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="copilot.html" class="nav-link">
+              <span class="nav-link-icon">🤖</span>
+              <span class="nav-link-label">Copilot</span>
+              
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="admin.html" class="nav-link">
+              <span class="nav-link-icon">🛡️</span>
+              <span class="nav-link-label">Admin</span>
+              
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="settings.html" class="nav-link">
+              <span class="nav-link-icon">⚙️</span>
+              <span class="nav-link-label">Settings</span>
+              
+            </a>
+          </li>
+        </ul>
+      </div>
+      <div class="sidebar-footer">
+        <div><strong>Gulf Heavy Industries Co.</strong></div>
+        <div>360° RFQ lifecycle for all teams.</div>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div>
+          <div class="breadcrumbs">RFQs / Create RFQ</div>
+          <div class="page-title">Create new RFQ</div>
+        </div>
+        <div class="topbar-right">
+          <button class="btn btn-ghost btn-sm" type="button" onclick="window.location.href='index.html'">
+            Cancel
+          </button>
+          <button class="btn btn-primary btn-sm" type="submit" form="create-rfq-form">
+            Save RFQ
+          </button>
+        </div>
+      </header>
+      <section class="page-content">
+<!-- Hero header with context & quick info -->
+        <div class="rfq-hero">
+          <div class="rfq-hero-left">
+            <div class="rfq-hero-title">New RFQ lifecycle configuration</div>
+            <div class="rfq-hero-subtitle">
+              Define the RFQ metadata, select the appropriate GHI workflow, and let the system
+              auto-distribute the internal milestones up to the client deadline.
+            </div>
+            <div class="rfq-hero-tags">
+              <span class="hero-chip">⚙️ Engineered equipment RFQs</span>
+              <span class="hero-chip">📅 Deadline-driven timeline</span>
+              <span class="hero-chip">📊 Management-ready visibility</span>
+            </div>
+          </div>
+          <div class="rfq-hero-right">
+            <div class="hero-stepper">
+              <span class="hero-step-dot"></span>
+              <span>Step 1 · Basic info & workflow</span>
+            </div>
+            <div class="hero-deadline-pill">
+              <span>Client deadline:</span>
+              <span class="hero-deadline-value" id="hero-deadline-label">Not set</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Panel: Basic RFQ information -->
+        <div class="panel rfq-basic">
+          <div class="panel-header">
+            <div>
+              <div class="panel-title">Basic RFQ information</div>
+              <div class="panel-subtitle">
+                Capture the key commercial and contextual details for this RFQ. These fields will be visible in management dashboards.
+              </div>
+            </div>
+          </div>
+
+          <form class="form-grid" id="create-rfq-form">
+            <div class="form-row">
+              <div class="form-field">
+                <label class="field-label" for="rfq-title">RFQ title</label>
+                <input
+                  id="rfq-title"
+                  name="rfqTitle"
+                  type="text"
+                  class="field-input"
+                  placeholder="e.g. HP Separator Package – Offshore"
+                  required
+                />
+              </div>
+              <div class="form-field">
+                <label class="field-label" for="client-name">Client</label>
+                <input
+                  id="client-name"
+                  name="clientName"
+                  type="text"
+                  class="field-input"
+                  placeholder="e.g. Saudi Aramco"
+                  required
+                />
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-field">
+                <label class="field-label" for="industry">Industry / segment</label>
+                <select id="industry" name="industry" class="field-input">
+                  <option value="">Select industry…</option>
+                  <option>Oil &amp; Gas – Upstream</option>
+                  <option>Oil &amp; Gas – Downstream</option>
+                  <option>Petrochemical</option>
+                  <option>Power &amp; Utilities</option>
+                  <option>Mining &amp; Metals</option>
+                  <option>Other</option>
+                </select>
+              </div>
+              <div class="form-field">
+                <label class="field-label" for="country">Country</label>
+                <select id="country" name="country" class="field-input">
+                  <option value="">Select country…</option>
+                  <option>Saudi Arabia</option>
+                  <option>United Arab Emirates</option>
+                  <option>Qatar</option>
+                  <option>Oman</option>
+                  <option>Kuwait</option>
+                  <option>Other</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-field">
+                <label class="field-label" for="priority">Priority</label>
+                <select id="priority" name="priority" class="field-input">
+                  <option value="normal">Normal</option>
+                  <option value="critical">Critical – near deadline</option>
+                </select>
+              </div>
+              <div class="form-field">
+                <label class="field-label" for="deadline">Client deadline</label>
+                <input
+                  id="deadline"
+                  name="deadline"
+                  type="date"
+                  class="field-input"
+                />
+              </div>
+              <div class="form-field">
+                <label class="field-label" for="owner">Assigned to</label>
+                <select id="owner" name="owner" class="field-input">
+                  <option value="">Select owner…</option>
+                  <option>Waqas Saeed</option>
+                  <option>Savio Cabral</option>
+                  <option>Proposals Team A</option>
+                  <option>Proposals Team B</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-field full-width">
+                <label class="field-label" for="description">Short description</label>
+                <textarea
+                  id="description"
+                  name="description"
+                  class="field-input"
+                  rows="3"
+                  placeholder="Scope, service, key technical requirements…"
+                ></textarea>
+              </div>
+            </div>
+          </form>
+        </div>
+
+        <!-- Panel: Workflow selection (Long, Short, Custom) + Summary -->
+        <div class="two-cols">
+          <!-- Left: workflow configuration -->
+          <div class="panel">
+            <div class="panel-header">
+              <div>
+                <div class="panel-title">Workflow configuration</div>
+                <div class="panel-subtitle">
+                  Select one of the official GHI workflows or build a custom one for this RFQ.
+                  <span class="workflow-indicator">
+                    <span class="indicator-dot"></span>
+                    <span>Timeline will auto-adjust to the client deadline.</span>
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div class="workflow-options">
+              <!-- Long workflow -->
+              <label class="workflow-card workflow-card-selectable">
+                <div class="workflow-card-header">
+                  <div>
+                    <div class="workflow-card-title">
+                      <input
+                        type="radio"
+                        name="workflowType"
+                        value="long"
+                        class="workflow-radio"
+                        checked
+                      />
+                      <span>GHI long workflow</span>
+                    </div>
+                    <div class="workflow-card-subtitle">
+                      Full lifecycle for complex, engineered RFQs with design, BOQ/BOM and vendor inquiries.
+                    </div>
+                  </div>
+                  <span class="chip chip-soft" id="chip-long">Selected</span>
+                </div>
+                <ul class="workflow-steps">
+                  <li>1. RFQ received</li>
+                  <li>2. Go / No-Go</li>
+                  <li>3. Pre-bid clarifications</li>
+                  <li>4. Preliminary design</li>
+                  <li>5. BOQ / BOM preparation</li>
+                  <li>6. Vendor inquiry</li>
+                  <li>7. Cost estimation</li>
+                  <li>8. Internal approval</li>
+                  <li>9. Offer submission</li>
+                  <li>10. Post-bid clarifications</li>
+                  <li>11. Award / Lost</li>
+                </ul>
+              </label>
+
+              <!-- Short workflow -->
+              <label class="workflow-card workflow-card-selectable">
+                <div class="workflow-card-header">
+                  <div>
+                    <div class="workflow-card-title">
+                      <input
+                        type="radio"
+                        name="workflowType"
+                        value="short"
+                        class="workflow-radio"
+                      />
+                      <span>GHI short workflow</span>
+                    </div>
+                    <div class="workflow-card-subtitle">
+                      Simplified path for repeat orders, standard items or small-value RFQs.
+                    </div>
+                  </div>
+                  <span class="chip chip-soft" id="chip-short" style="display:none;">Selected</span>
+                </div>
+                <ul class="workflow-steps">
+                  <li>1. RFQ received</li>
+                  <li>2. Cost estimation</li>
+                  <li>3. Internal approval</li>
+                  <li>4. Offer submission</li>
+                  <li>5. Award / Lost</li>
+                </ul>
+              </label>
+
+              <!-- Custom workflow -->
+              <label class="workflow-card workflow-card-selectable">
+                <div class="workflow-card-header">
+                  <div>
+                    <div class="workflow-card-title">
+                      <input
+                        type="radio"
+                        name="workflowType"
+                        value="custom"
+                        class="workflow-radio"
+                      />
+                      <span>Custom workflow</span>
+                    </div>
+                    <div class="workflow-card-subtitle">
+                      Manually select the stages that apply. Ideal for service-only scope or client-specific procedures.
+                    </div>
+                  </div>
+                  <span class="chip chip-soft" id="chip-custom" style="display:none;">Selected</span>
+                </div>
+                <p class="workflow-note" style="font-size:0.78rem;color:#9ca3af;margin-top:0.2rem;">
+                  The RFQ will still benefit from automatic timeline distribution, based on the stages you select below.
+                </p>
+              </label>
+
+              <!-- Custom stages selection -->
+              <div class="panel panel-nested" id="custom-stages-panel" style="display:none; margin-top:0.7rem;">
+                <div class="panel-header">
+                  <div>
+                    <div class="panel-title" style="font-size:0.86rem;">Select stages for custom workflow</div>
+                    <div class="panel-subtitle">
+                      Choose the stages to include in this RFQ lifecycle. The timeline will be evenly spread across them.
+                    </div>
+                  </div>
+                </div>
+                <div class="custom-stages-grid">
+                  <label class="checkbox-row">
+                    <input type="checkbox" class="custom-stage" value="RFQ received" checked />
+                    <span>RFQ received</span>
+                  </label>
+                  <label class="checkbox-row">
+                    <input type="checkbox" class="custom-stage" value="Go / No-Go" />
+                    <span>Go / No-Go</span>
+                  </label>
+                  <label class="checkbox-row">
+                    <input type="checkbox" class="custom-stage" value="Pre-bid clarifications" />
+                    <span>Pre-bid clarifications</span>
+                  </label>
+                  <label class="checkbox-row">
+                    <input type="checkbox" class="custom-stage" value="Preliminary design" />
+                    <span>Preliminary design</span>
+                  </label>
+                  <label class="checkbox-row">
+                    <input type="checkbox" class="custom-stage" value="BOQ / BOM preparation" />
+                    <span>BOQ / BOM preparation</span>
+                  </label>
+                  <label class="checkbox-row">
+                    <input type="checkbox" class="custom-stage" value="Vendor inquiry" />
+                    <span>Vendor inquiry</span>
+                  </label>
+                  <label class="checkbox-row">
+                    <input type="checkbox" class="custom-stage" value="Cost estimation" />
+                    <span>Cost estimation</span>
+                  </label>
+                  <label class="checkbox-row">
+                    <input type="checkbox" class="custom-stage" value="Internal approval" />
+                    <span>Internal approval</span>
+                  </label>
+                  <label class="checkbox-row">
+                    <input type="checkbox" class="custom-stage" value="Offer submission" />
+                    <span>Offer submission</span>
+                  </label>
+                  <label class="checkbox-row">
+                    <input type="checkbox" class="custom-stage" value="Post-bid clarifications" />
+                    <span>Post-bid clarifications</span>
+                  </label>
+                  <label class="checkbox-row">
+                    <input type="checkbox" class="custom-stage" value="Award / Lost" />
+                    <span>Award / Lost</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right: progress & lifecycle summary -->
+          <div class="panel">
+            <div class="panel-header">
+              <div>
+                <div class="panel-title">Progress & lifecycle summary</div>
+                <div class="panel-subtitle">
+                  Snapshot of how this RFQ will be tracked over time. Values will update automatically as the RFQ progresses.
+                </div>
+              </div>
+            </div>
+
+            <div class="kpi-grid">
+              <div class="kpi-card">
+                <div class="kpi-label">Overall progress</div>
+                <div class="kpi-value">0%</div>
+                <div class="kpi-trend">New RFQ – not started</div>
+                <div class="progress-bar" data-progress="0">
+                  <div class="progress-bar-fill"></div>
+                </div>
+              </div>
+
+              <div class="kpi-card">
+                <div class="kpi-label">Current stage</div>
+                <div class="kpi-value" id="summary-current-stage">RFQ received</div>
+                <div class="kpi-trend" id="summary-stage-position">Stage 1 of 11</div>
+              </div>
+
+              <div class="kpi-card">
+                <div class="kpi-label">Workflow type</div>
+                <div class="kpi-value" id="summary-workflow-type">GHI long workflow</div>
+                <div class="kpi-trend" id="summary-workflow-detail">11 stages – full lifecycle</div>
+              </div>
+
+              <div class="kpi-card">
+                <div class="kpi-label">Criticality</div>
+                <div class="kpi-value" id="summary-priority">Normal</div>
+                <div class="kpi-trend">Updates from priority & deadline</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Panel: Visual timeline bar of selected workflow + detailed table -->
+        <div class="panel timeline-panel">
+          <div class="panel-header">
+            <div>
+              <div class="panel-title">RFQ lifecycle timeline</div>
+              <div class="panel-subtitle">
+                Detailed view of all stages with team assignment and target duration, plus a horizontal visual timeline.
+              </div>
+            </div>
+          </div>
+
+          <!-- NEW: detailed table -->
+          <div class="timeline-table-wrapper">
+            <table class="timeline-table">
+              <thead>
+                <tr>
+                  <th>Stage</th>
+                  <th>Type</th>
+                  <th>Assigned team</th>
+                  <th>Creator can change team</th>
+                  <th>Target duration (days)</th>
+                  <th>Planned (start → end)</th>
+                </tr>
+              </thead>
+              <tbody id="timeline-table-body">
+                <!-- rows injected dynamically by app.js -->
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Existing: horizontal timeline bar -->
+          <div class="timeline" id="timeline-container">
+            <!-- Timeline items are injected dynamically by app.js -->
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+</body>
+</html>

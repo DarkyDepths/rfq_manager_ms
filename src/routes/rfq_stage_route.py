@@ -16,7 +16,9 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, UploadFile, File, Form
 
 from src.translators.rfq_stage_translator import (
-    RfqStageUpdateRequest, NoteCreateRequest, RfqStageDetailResponse, StageNoteResponse, StageFileResponse,
+    RfqStageUpdateRequest, NoteCreateRequest,
+    RfqStageResponse, RfqStageDetailResponse, StageNoteResponse, StageFileResponse,
+    RfqStageListResponse
 )
 from src.app_context import get_rfq_stage_controller
 from src.controllers.rfq_stage_controller import RfqStageController
@@ -24,7 +26,7 @@ from src.controllers.rfq_stage_controller import RfqStageController
 router = APIRouter(prefix="/rfqs/{rfq_id}/stages", tags=["RFQ_Stage"])
 
 
-@router.get("")
+@router.get("", response_model=RfqStageListResponse)
 def list_stages(rfq_id: UUID, ctrl: RfqStageController = Depends(get_rfq_stage_controller)):
     """#10 — List stages for RFQ, ordered by stage order."""
     return ctrl.list(rfq_id)

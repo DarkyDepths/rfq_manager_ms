@@ -12,6 +12,7 @@ Dependencies: RfqStageDatasource, RfqDatasource
 """
 
 import os
+from pathlib import Path
 import uuid
 from datetime import date
 
@@ -93,21 +94,27 @@ class RfqStageController:
             raise BadRequestError(f"File too large. Max allowed is {settings.MAX_FILE_SIZE_MB} MB.")
 
         # Save file to disk
-        upload_dir = os.path.join(settings.FILE_STORAGE_PATH, str(rfq_id), str(stage_id))
-        os.makedirs(upload_dir, exist_ok=True)
+        # Save file to disk using pathlib
+        upload_dir = Path(settings.FILE_STORAGE_PATH) / str(rfq_id) / str(stage_id)
+        upload_dir.mkdir(parents=True, exist_ok=True)
 
         file_id = uuid.uuid4()
         safe_filename = f"{file_id}_{filename}"
-        file_path = os.path.join(upload_dir, safe_filename)
+        
+        # Absolute path for OS writing
+        absolute_path = upload_dir / safe_filename
+        
+        # Relative POSIX path for database storage (no backslashes)
+        relative_posix_path = (Path("uploads") / str(rfq_id) / str(stage_id) / safe_filename).as_posix()
 
-        with open(file_path, "wb") as f:
+        with open(absolute_path, "wb") as f:
             f.write(file_content)
 
         file_record = self.stage_ds.add_file({
             "id": file_id,
             "rfq_stage_id": stage_id,
             "filename": filename,
-            "file_path": file_path,
+            "file_path": relative_posix_path,
             "type": file_type,
             "uploaded_by": uploaded_by,
             "size_bytes": len(file_content),

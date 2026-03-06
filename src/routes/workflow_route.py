@@ -11,13 +11,14 @@ from uuid import UUID
 from fastapi import APIRouter, Depends
 
 from src.translators.workflow_translator import WorkflowUpdateRequest, WorkflowDetail
+from src.translators.workflow_translator import WorkflowUpdateRequest, WorkflowDetail, WorkflowListResponse
 from src.app_context import get_workflow_controller
 from src.controllers.workflow_controller import WorkflowController
 
 router = APIRouter(prefix="/workflows", tags=["Workflow"])
 
 
-@router.get("")
+@router.get("", response_model=WorkflowListResponse)
 def list_workflows(ctrl: WorkflowController = Depends(get_workflow_controller)):
     """#7 — List all workflows (active and inactive)."""
     return ctrl.list()

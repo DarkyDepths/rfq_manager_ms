@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Admin – GHI Tender Manager</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="styles.css" />
+  <script defer src="app.js"></script>
+  <script defer src="script.js"></script>
+</head>
+<body>
+  <div class="app-shell">
+
+    <aside class="sidebar">
+      <div class="sidebar-logo">
+        <div class="sidebar-logo-mark">G</div>
+        <div class="sidebar-logo-text">
+          <span>Gulf Heavy</span>
+          <span>Tender Manager</span>
+        </div>
+      </div>
+      <div>
+        <div class="sidebar-section-label">Main</div>
+        <ul class="nav-list">
+          <li class="nav-item">
+            <a href="index.html" class="nav-link">
+              <span class="nav-link-icon">📊</span>
+              <span class="nav-link-label">Dashboard</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="rfq_overview.html" class="nav-link">
+              <span class="nav-link-icon">📄</span>
+              <span class="nav-link-label">RFQ 360 View</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="create_rfq.html" class="nav-link">
+              <span class="nav-link-icon">➕</span>
+              <span class="nav-link-label">Create RFQ</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="workspace.html" class="nav-link">
+              <span class="nav-link-icon">🛠️</span>
+              <span class="nav-link-label">Workspace</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="analytics.html" class="nav-link">
+              <span class="nav-link-icon">📈</span>
+              <span class="nav-link-label">Analytics</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="tasks.html" class="nav-link">
+              <span class="nav-link-icon">⏰</span>
+              <span class="nav-link-label">Tasks & Reminders</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="copilot.html" class="nav-link">
+              <span class="nav-link-icon">🤖</span>
+              <span class="nav-link-label">Copilot</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="admin.html" class="nav-link active">
+              <span class="nav-link-icon">🛡️</span>
+              <span class="nav-link-label">Admin</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="settings.html" class="nav-link">
+              <span class="nav-link-icon">⚙️</span>
+              <span class="nav-link-label">Settings</span>
+            </a>
+          </li>
+        </ul>
+      </div>
+      <div class="sidebar-footer">
+        <div><strong>Gulf Heavy Industries Co.</strong></div>
+        <div>360° RFQ lifecycle for all teams.</div>
+      </div>
+    </aside>
+    <main class="main">
+      <header class="topbar">
+        <div>
+          <div class="breadcrumbs">Admin</div>
+          <div class="page-title">Admin</div>
+          <div class="page-subtitle">Defines workflows referenced in all other pages.</div>
+        </div>
+        <div class="topbar-right">
+          
+        </div>
+      </header>
+      <section class="page-content">
+
+<div class="panel">
+  <div class="panel-header">
+    <div>
+      <div class="panel-title">Admin – workflows</div>
+      <div class="panel-subtitle">Official GHI workflows used in creation, Workspace and Analytics.</div>
+    </div>
+  </div>
+  <div class="table-wrapper">
+    <table>
+      <thead><tr><th>Workflow</th><th>Code</th><th>Stages</th><th>Description</th><th>Active</th></tr></thead>
+      <tbody>
+        <tr><td>GHI long workflow</td><td>GHI-LONG</td><td>11</td><td>Complex RFQs with full lifecycle.</td><td><input type="checkbox" checked /></td></tr>
+        <tr><td>GHI short workflow</td><td>GHI-SHORT</td><td>5</td><td>Repeat orders / simpler jobs.</td><td><input type="checkbox" checked /></td></tr>
+        <tr><td>Custom workflow</td><td>CUSTOM</td><td>Dynamic</td><td>Configured by proposals at RFQ creation.</td><td><input type="checkbox" checked /></td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+      </section>
+    </main>
+  </div>
+</body>
+</html>

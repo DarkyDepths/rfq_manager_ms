@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Copilot – GHI Tender Manager</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="styles.css" />
+  <script defer src="app.js"></script>
+  <script defer src="script.js"></script>
+</head>
+<body>
+  <div class="app-shell">
+
+    <aside class="sidebar">
+      <div class="sidebar-logo">
+        <div class="sidebar-logo-mark">G</div>
+        <div class="sidebar-logo-text">
+          <span>Gulf Heavy</span>
+          <span>Tender Manager</span>
+        </div>
+      </div>
+      <div>
+        <div class="sidebar-section-label">Main</div>
+        <ul class="nav-list">
+          <li class="nav-item">
+            <a href="index.html" class="nav-link">
+              <span class="nav-link-icon">📊</span>
+              <span class="nav-link-label">Dashboard</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="rfq_overview.html" class="nav-link">
+              <span class="nav-link-icon">📄</span>
+              <span class="nav-link-label">RFQ 360 View</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="create_rfq.html" class="nav-link">
+              <span class="nav-link-icon">➕</span>
+              <span class="nav-link-label">Create RFQ</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="workspace.html" class="nav-link">
+              <span class="nav-link-icon">🛠️</span>
+              <span class="nav-link-label">Workspace</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="analytics.html" class="nav-link">
+              <span class="nav-link-icon">📈</span>
+              <span class="nav-link-label">Analytics</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="tasks.html" class="nav-link">
+              <span class="nav-link-icon">⏰</span>
+              <span class="nav-link-label">Tasks & Reminders</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="copilot.html" class="nav-link active">
+              <span class="nav-link-icon">🤖</span>
+              <span class="nav-link-label">Copilot</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="admin.html" class="nav-link">
+              <span class="nav-link-icon">🛡️</span>
+              <span class="nav-link-label">Admin</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="settings.html" class="nav-link">
+              <span class="nav-link-icon">⚙️</span>
+              <span class="nav-link-label">Settings</span>
+            </a>
+          </li>
+        </ul>
+      </div>
+      <div class="sidebar-footer">
+        <div><strong>Gulf Heavy Industries Co.</strong></div>
+        <div>360° RFQ lifecycle for all teams.</div>
+      </div>
+    </aside>
+    <main class="main">
+      <header class="topbar">
+        <div>
+          <div class="breadcrumbs">Copilot</div>
+          <div class="page-title">Copilot</div>
+          <div class="page-subtitle">Assistant layer on top of the RFQ lifecycle and documents.</div>
+        </div>
+        <div class="topbar-right">
+          
+        </div>
+      </header>
+      <section class="page-content">
+
+<div class="panel">
+  <div class="panel-header">
+    <div>
+      <div class="panel-title">GHI RFQ Copilot</div>
+      <div class="panel-subtitle">Assistant to understand RFQs, stages, risks and next actions.</div>
+    </div>
+  </div>
+
+  <div class="kpi-grid">
+    <div class="kpi-card">
+      <div class="kpi-label">Usage last 30 days</div>
+      <div class="kpi-value">124</div>
+      <div class="kpi-trend positive">Across all teams</div>
+      <div class="progress-bar" data-progress="62"><div class="progress-bar-fill"></div></div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Most active team</div>
+      <div class="kpi-value">Engineering</div>
+      <div class="kpi-trend">~ 45% of questions</div>
+      <div class="progress-bar" data-progress="45"><div class="progress-bar-fill"></div></div>
+    </div>
+  </div>
+</div>
+
+<div class="two-cols">
+  <div>
+    <div class="panel-subtitle">Context</div>
+    <div class="table-wrapper">
+      <table>
+        <tbody>
+          <tr>
+            <td>RFQ</td>
+            <td>
+              <select class="input">
+                <option>RFQ-2025-0012 – HP Separator Package – Offshore</option>
+                <option>RFQ-2025-0009 – Crude Oil Storage Tank – 60,000 m³</option>
+                <option>RFQ-2024-0344 – SS Spools – Repeat Order</option>
+              </select>
+            </td>
+          </tr>
+          <tr>
+            <td>Stage</td>
+            <td>
+              <select class="input">
+                <option>All stages</option>
+                <option>RFQ received</option>
+                <option>Go / No-Go</option>
+                <option>Pre-bid clarifications</option>
+                <option>Preliminary design</option>
+                <option>BOQ / BOM preparation</option>
+                <option>Vendor inquiry</option>
+                <option>Cost estimation</option>
+                <option>Internal approval</option>
+                <option>Offer submission</option>
+                <option>Post-bid clarifications</option>
+                <option>Award / Lost</option>
+              </select>
+            </td>
+          </tr>
+          <tr>
+            <td>Your role</td>
+            <td>
+              <select class="input">
+                <option>Engineering</option>
+                <option>Sales / BD</option>
+                <option>Estimation</option>
+                <option>Procurement</option>
+                <option>Management</option>
+              </select>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div style="margin-top:12px;">
+      <div class="panel-subtitle">Ask the Copilot</div>
+      <textarea class="field-input" rows="5" placeholder="Example: 'Summarize the current status of RFQ-2025-0012 and propose next actions for Engineering and Procurement.'"></textarea>
+      <div style="margin-top:8px;">
+        <button class="btn btn-primary btn-sm" type="button">Ask Copilot</button>
+      </div>
+    </div>
+
+    <div style="margin-top:10px;">
+      <div class="panel-subtitle">Suggested prompts</div>
+      <div class="chips-row">
+        <span class="chip">Explain RFQ scope in simple words</span>
+        <span class="chip">List missing documents before submission</span>
+        <span class="chip">Check consistency between BOQ &amp; design</span>
+        <span class="chip">Prepare client clarification email</span>
+      </div>
+    </div>
+  </div>
+
+  <div>
+    <div class="panel" style="margin-top:0;">
+      <div class="panel-header">
+        <div>
+          <div class="panel-title">Last answer (static example)</div>
+          <div class="panel-subtitle">In production this will be generated by the AI backend.</div>
+        </div>
+      </div>
+      <div style="font-size:13px; line-height:1.6;">
+        <p><strong>Context used:</strong> RFQ-2025-0012 · HP Separator Package – Offshore · Stage: BOQ / BOM preparation · Role: Engineering.</p>
+        <p><strong>Status:</strong> All upstream stages (RFQ received, Go/No-Go, clarifications, preliminary design) are completed. BOQ / BOM is 45% done.</p>
+        <p><strong>Next actions – Engineering:</strong></p>
+        <ul>
+          <li>Finalize shell and head plates, confirm thicknesses and corrosion allowance.</li>
+          <li>Complete nozzles list and associated small-bore spools.</li>
+          <li>Identify all “special items” (internals, exotic materials) that need vendor quotation.</li>
+        </ul>
+        <p><strong>Next actions – Procurement:</strong></p>
+        <ul>
+          <li>Prepare RFQs to steel mills for plates and forgings based on preliminary BOM.</li>
+          <li>Identify minimum batch quantities and realistic delivery dates.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="panel" style="margin-top:10px;">
+      <div class="panel-header">
+        <div>
+          <div class="panel-title">Previous questions (example)</div>
+          <div class="panel-subtitle">Short history of Copilot usage for this user.</div>
+        </div>
+      </div>
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr><th>When</th><th>RFQ</th><th>Question</th><th>Answer summary</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>2 hours ago</td>
+              <td>RFQ-2025-0009</td>
+              <td>“What are the main cost drivers for the crude tank?”</td>
+              <td>Plates tonnage, internal coating, foundations and logistics.</td>
+            </tr>
+            <tr>
+              <td>Yesterday</td>
+              <td>RFQ-2024-0344</td>
+              <td>“Is our delivery schedule realistic vs client request?”</td>
+              <td>Yes, with 1 week buffer assuming vendor lead times are confirmed.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="panel" style="margin-top:10px;">
+      <div class="panel-header">
+        <div>
+          <div class="panel-title">Data used by Copilot</div>
+          <div class="panel-subtitle">High-level description for IT &amp; management.</div>
+        </div>
+      </div>
+      <ul style="font-size:13px; line-height:1.6;">
+        <li>RFQ master data (client, deadlines, status, workflow).</li>
+        <li>Lifecycle stages and team assignments (same as Workspace).</li>
+        <li>Linked documents: RFQ, design reports, BOQ/BOM, vendor offers…</li>
+        <li>Access controlled by IAM (who can see which RFQ and which documents).</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+      </section>
+    </main>
+  </div>
+</body>
+</html>

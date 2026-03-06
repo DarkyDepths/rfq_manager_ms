@@ -4,7 +4,7 @@ RFQ translator — converts between Pydantic schemas and the RFQ SQLAlchemy mode
 
 from datetime import date, datetime
 from uuid import UUID
-from typing import Optional, List
+from typing import Optional, List, Literal
 
 from pydantic import BaseModel
 
@@ -28,9 +28,11 @@ class RfqCreateRequest(BaseModel):
     workflow_id: UUID
     industry: Optional[str] = None
     country: Optional[str] = None
-    priority: str = "normal"
+    priority: Literal["normal", "critical"] = "normal"
     description: Optional[str] = None
+    code_prefix: Literal["IF", "IB"] = "IF"
     stage_overrides: Optional[List[StageOverride]] = None
+    skip_stages: Optional[List[UUID]] = None  # stage template IDs to exclude (custom workflow)
 
 
 class RfqUpdateRequest(BaseModel):
@@ -39,11 +41,11 @@ class RfqUpdateRequest(BaseModel):
     client: Optional[str] = None
     industry: Optional[str] = None
     country: Optional[str] = None
-    priority: Optional[str] = None
+    priority: Optional[Literal["normal", "critical"]] = None
     deadline: Optional[date] = None
     owner: Optional[str] = None
     description: Optional[str] = None
-    status: Optional[str] = None
+    status: Optional[Literal["Draft", "In preparation", "Submitted", "Awarded", "Lost", "Cancelled"]] = None
     outcome_reason: Optional[str] = None
 
 
@@ -52,14 +54,19 @@ class RfqUpdateRequest(BaseModel):
 # ═══════════════════════════════════════════════════
 
 class RfqSummary(BaseModel):
-    """Short version for list rows."""
+    """Short version for list rows — includes UI-required fields."""
     id: UUID
+    rfq_code: Optional[str] = None
     name: str
     client: str
+    country: Optional[str] = None
+    owner: str
+    priority: str
     status: str
     progress: int
     deadline: date
     current_stage_name: Optional[str] = None
+    workflow_name: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -68,12 +75,14 @@ class RfqSummary(BaseModel):
 class RfqDetail(BaseModel):
     """Full detail — returned by GET /rfqs/{id}, POST /rfqs, PATCH /rfqs/{id}."""
     id: UUID
+    rfq_code: Optional[str] = None
     name: str
     client: str
     status: str
     progress: int
     deadline: date
     current_stage_name: Optional[str] = None
+    workflow_name: Optional[str] = None
     industry: Optional[str] = None
     country: Optional[str] = None
     priority: str
@@ -102,7 +111,7 @@ class RfqStats(BaseModel):
     total_rfqs_12m: int
     open_rfqs: int
     critical_rfqs: int
-    avg_cycle_days: float
+    avg_cycle_days: int
 
 
 class RfqAnalyticsByClient(BaseModel):
@@ -124,29 +133,36 @@ class RfqAnalytics(BaseModel):
 # CONVERSION FUNCTIONS
 # ═══════════════════════════════════════════════════
 
-def to_summary(rfq, current_stage_name: str = None) -> RfqSummary:
+def to_summary(rfq, current_stage_name: str = None, workflow_name: str = None) -> RfqSummary:
     """SQLAlchemy RFQ model → RfqSummary (for list responses)."""
     return RfqSummary(
         id=rfq.id,
+        rfq_code=rfq.rfq_code,
         name=rfq.name,
         client=rfq.client,
+        country=rfq.country,
+        owner=rfq.owner,
+        priority=rfq.priority,
         status=rfq.status,
         progress=rfq.progress,
         deadline=rfq.deadline,
         current_stage_name=current_stage_name,
+        workflow_name=workflow_name,
     )
 
 
-def to_detail(rfq, current_stage_name: str = None) -> RfqDetail:
+def to_detail(rfq, current_stage_name: str = None, workflow_name: str = None) -> RfqDetail:
     """SQLAlchemy RFQ model → RfqDetail (for detail responses)."""
     return RfqDetail(
         id=rfq.id,
+        rfq_code=rfq.rfq_code,
         name=rfq.name,
         client=rfq.client,
         status=rfq.status,
         progress=rfq.progress,
         deadline=rfq.deadline,
         current_stage_name=current_stage_name,
+        workflow_name=workflow_name,
         industry=rfq.industry,
         country=rfq.country,
         priority=rfq.priority,
@@ -162,5 +178,5 @@ def to_detail(rfq, current_stage_name: str = None) -> RfqDetail:
 
 def from_create_request(req: RfqCreateRequest) -> dict:
     """Pydantic request → dict for the datasource."""
-    data = req.model_dump(exclude={"stage_overrides"})
+    data = req.model_dump(exclude={"stage_overrides", "skip_stages", "code_prefix"})
     return data

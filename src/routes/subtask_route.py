@@ -11,7 +11,7 @@ Endpoints:
 from uuid import UUID
 from fastapi import APIRouter, Depends, Response
 
-from src.translators.subtask_translator import SubtaskCreateRequest, SubtaskUpdateRequest, SubtaskResponse
+from src.translators.subtask_translator import SubtaskCreateRequest, SubtaskUpdateRequest, SubtaskResponse, SubtaskListResponse
 from src.app_context import get_subtask_controller
 from src.controllers.subtask_controller import SubtaskController
 
@@ -24,7 +24,7 @@ def create_subtask(rfq_id: UUID, stage_id: UUID, body: SubtaskCreateRequest, ctr
     return ctrl.create(rfq_id, stage_id, body)
 
 
-@router.get("")
+@router.get("", response_model=SubtaskListResponse)
 def list_subtasks(rfq_id: UUID, stage_id: UUID, ctrl: SubtaskController = Depends(get_subtask_controller)):
     """#17 — List subtasks (active only, soft-deleted excluded)."""
     return ctrl.list(rfq_id, stage_id)

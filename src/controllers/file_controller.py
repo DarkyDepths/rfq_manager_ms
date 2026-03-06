@@ -34,14 +34,14 @@ class FileController:
         files = self.ds.list_by_stage(stage_id)
         return {"data": [file_translator.to_response(f) for f in files]}
 
-    def get_file_path(self, file_id) -> str:
-        """Returns the file path for download. Route handles streaming."""
+    def get_file_path(self, file_id) -> tuple[str, str]:
+        """Returns the file path and original filename for download."""
         file = self.ds.get_by_id(file_id)
         if not file:
             raise NotFoundError(f"File '{file_id}' not found")
         if not os.path.exists(file.file_path):
             raise NotFoundError(f"File '{file.filename}' not found on disk")
-        return file.file_path
+        return file.file_path, file.filename
 
     def delete(self, file_id):
         file = self.ds.get_by_id(file_id)

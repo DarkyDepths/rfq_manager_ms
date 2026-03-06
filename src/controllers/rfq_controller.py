@@ -3,7 +3,9 @@ RFQ controller — business logic for the RFQ resource.
 
 Orchestrates:
 - RFQ creation: validates workflow_id, auto-generates rfq_stage instances,
-  back-calculates planned dates from deadline, sets initial status
+  back-calculates planned dates from deadline, sets initial status,
+  generates human-readable rfq_code (IF-XXXX / IB-XXXX),
+  supports skip_stages for custom workflows
 - RFQ update: deadline change triggers recalculation of all stage planned dates
 - Stats & analytics aggregation
 
@@ -17,8 +19,9 @@ from sqlalchemy.orm import Session
 from src.datasources.rfq_datasource import RfqDatasource
 from src.datasources.workflow_datasource import WorkflowDatasource
 from src.datasources.rfq_stage_datasource import RfqStageDatasource
+from src.models.rfq_stage import RFQStage
 from src.translators import rfq_translator
-from src.utils.errors import NotFoundError, BadRequestError
+from src.utils.errors import NotFoundError, BadRequestError, ConflictError
 from src.utils.pagination import PaginationParams, paginate, paginated_response
 
 
@@ -50,31 +53,45 @@ class RfqController:
         if not workflow.stages:
             raise BadRequestError(f"Workflow '{workflow.name}' has no stage templates")
 
-        # ── 2. Create the RFQ row ─────────────────────
+        # ── 2. Generate rfq_code ──────────────────────
+        rfq_code = self.rfq_ds.get_next_code(request.code_prefix)
+
+        # ── 3. Create the RFQ row ─────────────────────
         rfq_data = rfq_translator.from_create_request(request)
+        rfq_data["rfq_code"] = rfq_code
         rfq = self.rfq_ds.create(rfq_data)
 
-        # ── 3. Calculate planned dates ────────────────
+        # ── 4. Filter stages for custom workflows ─────
+        # skip_stages allows cherry-picking: only create stages NOT in the skip list
+        active_templates = list(workflow.stages)
+        if request.skip_stages:
+            skip_set = set(request.skip_stages)
+            active_templates = [t for t in active_templates if t.id not in skip_set]
+
+        if not active_templates:
+            raise BadRequestError("Cannot create RFQ with zero stages. At least one stage must remain.")
+
+        # ── 5. Calculate planned dates ────────────────
         stage_dates = self._calculate_stage_dates(
             deadline=request.deadline,
-            stages=workflow.stages,
+            stages=active_templates,
         )
 
-        # ── 4. Create rfq_stage rows ─────────────────
+        # ── 6. Create rfq_stage rows ─────────────────
         overrides = {}
         if request.stage_overrides:
             for override in request.stage_overrides:
                 overrides[override.stage_template_id] = override.assigned_team
 
         first_stage = None
-        for template in workflow.stages:
-            dates = stage_dates[template.order]
+        for new_order, template in enumerate(sorted(active_templates, key=lambda s: s.order), start=1):
+            dates = stage_dates[new_order]
             assigned_team = overrides.get(template.id, template.default_team)
 
             stage_data = {
                 "rfq_id": rfq.id,
                 "name": template.name,
-                "order": template.order,
+                "order": new_order,  # re-numbered sequentially
                 "assigned_team": assigned_team,
                 "status": "Not started",
                 "progress": 0,
@@ -83,25 +100,29 @@ class RfqController:
                 "mandatory_fields": template.mandatory_fields,  # snapshot from template
             }
 
-            if template.order == 1:
+            if new_order == 1:
                 stage_data["status"] = "In Progress"
                 stage_data["actual_start"] = date.today()
 
             stage = self.stage_ds.create(stage_data)
 
-            if template.order == 1:
+            if new_order == 1:
                 first_stage = stage
 
-        # ── 5. Set current_stage_id ───────────────────
+        # ── 7. Set current_stage_id ───────────────────
         if first_stage:
             rfq.current_stage_id = first_stage.id
             self.session.flush()
 
-        # ── 6. Commit — everything or nothing ─────────
+        # ── 8. Commit — everything or nothing ─────────
         self.session.commit()
         self.session.refresh(rfq)
 
-        return rfq_translator.to_detail(rfq, current_stage_name=first_stage.name if first_stage else None)
+        return rfq_translator.to_detail(
+            rfq,
+            current_stage_name=first_stage.name if first_stage else None,
+            workflow_name=workflow.name,
+        )
 
     # ══════════════════════════════════════════════════
     # GET
@@ -113,7 +134,8 @@ class RfqController:
             raise NotFoundError(f"RFQ '{rfq_id}' not found")
 
         current_stage_name = self._get_current_stage_name(rfq)
-        return rfq_translator.to_detail(rfq, current_stage_name=current_stage_name)
+        workflow_name = self._get_workflow_name(rfq.workflow_id)
+        return rfq_translator.to_detail(rfq, current_stage_name=current_stage_name, workflow_name=workflow_name)
 
     # ══════════════════════════════════════════════════
     # LIST
@@ -133,7 +155,17 @@ class RfqController:
         params = PaginationParams(page=page, size=size)
         items, total = paginate(query, params)
 
-        summaries = [rfq_translator.to_summary(rfq) for rfq in items]
+        # Pre-load stage names and workflow names for enriched list responses
+        summaries = []
+        for rfq in items:
+            current_stage_name = self._get_current_stage_name(rfq)
+            workflow_name = self._get_workflow_name(rfq.workflow_id)
+            summaries.append(rfq_translator.to_summary(
+                rfq,
+                current_stage_name=current_stage_name,
+                workflow_name=workflow_name,
+            ))
+
         return paginated_response(summaries, total, params)
 
     # ══════════════════════════════════════════════════
@@ -161,31 +193,73 @@ class RfqController:
 
         update_data = request.model_dump(exclude_unset=True)
 
+        # ── GAP-2: Prevent terminal-to-terminal transitions ─────────────
+        terminal_states = ["Awarded", "Lost", "Cancelled"]
+        if rfq.status in terminal_states and "status" in update_data and update_data["status"] != rfq.status:
+            raise ConflictError(f"RFQ is in a terminal state ({rfq.status}) and cannot be transitioned to {update_data['status']}.")
+
         if "deadline" in update_data:
             self._recalculate_stage_dates(rfq, update_data["deadline"])
+
+        # ── GAP-1 & 3: Handle terminal state stage freezing ─────────────
+        new_status = update_data.get("status")
+        if new_status in terminal_states and rfq.status != new_status:
+            # 1. Skip current stage if not completed
+            stages = (
+                self.session.query(RFQStage)
+                .filter_by(rfq_id=rfq.id)
+                .order_by(RFQStage.order.asc())
+                .all()
+            )
+
+            current_stage_order = 0
+            for stage in stages:
+                if stage.id == rfq.current_stage_id:
+                    current_stage_order = stage.order
+                    if stage.status == "In Progress":
+                        stage.status = "Skipped"
+                        stage.actual_end = date.today()
+                    elif stage.status == "Not started":
+                        stage.status = "Skipped"
+                    break
+
+            # 2. Skip all subsequent uncompleted stages
+            for stage in stages:
+                if stage.order > current_stage_order and stage.status != "Completed":
+                    stage.status = "Skipped"
+
+            # 3. Clear current_stage_id & freeze progress at current value
+            update_data["current_stage_id"] = None
+            # Do NOT update progress to 100, let the terminal status carry the business meaning
 
         rfq = self.rfq_ds.update(rfq, update_data)
         self.session.commit()
         self.session.refresh(rfq)
 
         current_stage_name = self._get_current_stage_name(rfq)
-        return rfq_translator.to_detail(rfq, current_stage_name=current_stage_name)
+        workflow_name = self._get_workflow_name(rfq.workflow_id)
+        return rfq_translator.to_detail(rfq, current_stage_name=current_stage_name, workflow_name=workflow_name)
 
     # ══════════════════════════════════════════════════
     # PRIVATE HELPERS
     # ══════════════════════════════════════════════════
 
     def _calculate_stage_dates(self, deadline: date, stages) -> dict:
-        """Back-calculate planned_start/planned_end from the deadline."""
+        """Back-calculate planned_start/planned_end from the deadline.
+        Uses sequential order (1, 2, 3...) after any skip filtering.
+        """
         result = {}
-        sorted_stages = sorted(stages, key=lambda s: s.order, reverse=True)
+        # Sort by original order, then assign dates backwards
+        sorted_stages = sorted(stages, key=lambda s: s.order if hasattr(s, 'order') else 0, reverse=True)
         current_end = deadline
 
-        for stage in sorted_stages:
-            duration = stage.planned_duration_days
+        for i, stage in enumerate(sorted_stages):
+            duration = stage.planned_duration_days if hasattr(stage, 'planned_duration_days') else 5
             stage_start = current_end - timedelta(days=duration)
 
-            result[stage.order] = {
+            # new_order is the sequential position from the end
+            new_order = len(sorted_stages) - i
+            result[new_order] = {
                 "start": stage_start,
                 "end": current_end,
             }
@@ -199,21 +273,34 @@ class RfqController:
         if not workflow:
             return
 
-        new_dates = self._calculate_stage_dates(new_deadline, workflow.stages)
-
         from src.models.rfq_stage import RFQStage
         stages = (
             self.session.query(RFQStage)
             .filter_by(rfq_id=rfq.id)
+            .order_by(RFQStage.order.asc())
             .all()
         )
 
-        for stage in stages:
+        if not stages:
+            return
+
+        # Back-calculate from new deadline using actual stage durations
+        current_end = new_deadline
+        for stage in reversed(stages):
+            # Find the template duration for this stage
+            duration = 5  # default
+            for t in workflow.stages:
+                if t.name == stage.name:
+                    duration = t.planned_duration_days
+                    break
+
+            stage_start = current_end - timedelta(days=duration)
+
             if stage.status not in ("Completed", "Skipped"):
-                dates = new_dates.get(stage.order)
-                if dates:
-                    stage.planned_start = dates["start"]
-                    stage.planned_end = dates["end"]
+                stage.planned_start = stage_start
+                stage.planned_end = current_end
+
+            current_end = stage_start
 
         self.session.flush()
 
@@ -225,3 +312,10 @@ class RfqController:
         from src.models.rfq_stage import RFQStage
         stage = self.session.query(RFQStage).filter(RFQStage.id == rfq.current_stage_id).first()
         return stage.name if stage else None
+
+    def _get_workflow_name(self, workflow_id) -> str | None:
+        """Get the workflow name for response formatting."""
+        if not workflow_id:
+            return None
+        workflow = self.workflow_ds.get_by_id(workflow_id)
+        return workflow.name if workflow else None

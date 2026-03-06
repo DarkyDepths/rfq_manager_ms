@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Workspace – GHI Tender Manager</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="styles.css" />
+  <script defer src="app.js"></script>
+  <script defer src="script.js"></script>
+</head>
+<body>
+  <div class="app-shell">
+
+    <aside class="sidebar">
+      <div class="sidebar-logo">
+        <div class="sidebar-logo-mark">G</div>
+        <div class="sidebar-logo-text">
+          <span>Gulf Heavy</span>
+          <span>Tender Manager</span>
+        </div>
+      </div>
+      <div>
+        <div class="sidebar-section-label">Main</div>
+        <ul class="nav-list">
+          <li class="nav-item">
+            <a href="index.html" class="nav-link">
+              <span class="nav-link-icon">📊</span>
+              <span class="nav-link-label">Dashboard</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="rfq_overview.html" class="nav-link">
+              <span class="nav-link-icon">📄</span>
+              <span class="nav-link-label">RFQ 360 View</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="create_rfq.html" class="nav-link">
+              <span class="nav-link-icon">➕</span>
+              <span class="nav-link-label">Create RFQ</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="workspace.html" class="nav-link active">
+              <span class="nav-link-icon">🛠️</span>
+              <span class="nav-link-label">Workspace</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="analytics.html" class="nav-link">
+              <span class="nav-link-icon">📈</span>
+              <span class="nav-link-label">Analytics</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="tasks.html" class="nav-link">
+              <span class="nav-link-icon">⏰</span>
+              <span class="nav-link-label">Tasks & Reminders</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="copilot.html" class="nav-link">
+              <span class="nav-link-icon">🤖</span>
+              <span class="nav-link-label">Copilot</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="admin.html" class="nav-link">
+              <span class="nav-link-icon">🛡️</span>
+              <span class="nav-link-label">Admin</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="settings.html" class="nav-link">
+              <span class="nav-link-icon">⚙️</span>
+              <span class="nav-link-label">Settings</span>
+            </a>
+          </li>
+        </ul>
+      </div>
+      <div class="sidebar-footer">
+        <div><strong>Gulf Heavy Industries Co.</strong></div>
+        <div>360° RFQ lifecycle for all teams.</div>
+      </div>
+    </aside>
+    <main class="main">
+      <header class="topbar">
+        <div>
+          <div class="breadcrumbs">Workspace</div>
+          <div class="page-title">Workspace</div>
+          <div class="page-subtitle">Used daily by teams to work on each RFQ and each stage.</div>
+        </div>
+        <div class="topbar-right">
+          
+        </div>
+      </header>
+      <section class="page-content">
+
+<div class="panel">
+  <div class="panel-header">
+    <div>
+      <div class="panel-title">Workspace</div>
+      <div class="panel-subtitle">Operational cockpit: each RFQ and each stage is clickable, with comments, files, subtasks and progress.</div>
+    </div>
+  </div>
+
+  <div class="filters-row">
+    <select class="input">
+      <option>RFQ-2025-0012 – HP Separator Package – Offshore (Saudi Aramco)</option>
+      <option>RFQ-2025-0009 – Crude Oil Storage Tank – 60,000 m³ (QatarEnergy)</option>
+      <option>RFQ-2024-0344 – SS Spools – Repeat Order (TotalEnergies)</option>
+    </select>
+    <button class="btn btn-primary btn-sm" type="button">Load RFQ workspace</button>
+    <button class="btn btn-ghost btn-sm" type="button" onclick="window.location.href='rfq_overview.html'">Open RFQ 360 view</button>
+  </div>
+
+  <div class="table-wrapper" style="margin-top:10px;">
+    <table>
+      <thead>
+        <tr>
+          <th>RFQ ID</th>
+          <th>RFQ</th>
+          <th>Client</th>
+          <th>Owner team</th>
+          <th>Status</th>
+          <th>Global progress</th>
+          <th>Deadline</th>
+        </tr>
+      </thead>
+      <tbody>
+
+        <tr>
+          <td>RFQ-2025-0012</td>
+          <td>HP Separator Package – Offshore</td>
+          <td>Saudi Aramco</td>
+          <td>Saudi Arabia</td>
+          <td>Proposals Team A</td>
+          <td>GHI long workflow</td>
+          <td><span class="status-pill open">In preparation</span></td>
+          <td>
+            <div class="progress-bar" data-progress="42">
+              <div class="progress-bar-fill"></div>
+            </div>
+          </td>
+          <td>2025-01-12</td>
+          <td>
+            <button class="btn btn-ghost btn-sm" type="button" onclick="window.location.href='rfq_overview.html'">360 view</button>
+          </td>
+        </tr>
+        <tr>
+          <td>RFQ-2025-0009</td>
+          <td>Crude Oil Storage Tank – 60,000 m³</td>
+          <td>QatarEnergy</td>
+          <td>Qatar</td>
+          <td>Proposals Team B</td>
+          <td>GHI long workflow</td>
+          <td><span class="status-pill critical">Critical</span></td>
+          <td>
+            <div class="progress-bar" data-progress="71">
+              <div class="progress-bar-fill"></div>
+            </div>
+          </td>
+          <td>2025-01-04</td>
+          <td>
+            <button class="btn btn-ghost btn-sm" type="button" onclick="window.location.href='rfq_overview.html'">360 view</button>
+          </td>
+        </tr>
+        <tr>
+          <td>RFQ-2024-0344</td>
+          <td>SS Spools – Repeat Order</td>
+          <td>TotalEnergies</td>
+          <td>UAE</td>
+          <td>Proposals Team B</td>
+          <td>GHI short workflow</td>
+          <td><span class="status-pill open">Submitted</span></td>
+          <td>
+            <div class="progress-bar" data-progress="100">
+              <div class="progress-bar-fill"></div>
+            </div>
+          </td>
+          <td>2024-12-21</td>
+          <td>
+            <button class="btn btn-ghost btn-sm" type="button" onclick="window.location.href='rfq_overview.html'">360 view</button>
+          </td>
+        </tr>
+        <tr>
+          <td>RFQ-2024-0310</td>
+          <td>Gas Dehydration Skid</td>
+          <td>ADNOC</td>
+          <td>UAE</td>
+          <td>Proposals Team C</td>
+          <td>GHI long workflow</td>
+          <td><span class="status-pill open">Submitted</span></td>
+          <td>
+            <div class="progress-bar" data-progress="88">
+              <div class="progress-bar-fill"></div>
+            </div>
+          </td>
+          <td>2024-12-15</td>
+          <td>
+            <button class="btn btn-ghost btn-sm" type="button" onclick="window.location.href='rfq_overview.html'">360 view</button>
+          </td>
+        </tr>
+
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="panel">
+  <div class="panel-header">
+    <div>
+      <div class="panel-title">Stages for selected RFQ</div>
+      <div class="panel-subtitle">Tabs follow the official workflow. Any user can open a stage (read-only); only the assigned team can edit.</div>
+    </div>
+  </div>
+
+  <div class="chips-row">
+    <span class="chip">Example RFQ:</span>
+    <span class="chip">RFQ-2025-0012 · HP Separator Package – Offshore</span>
+    <span class="chip">Workflow: GHI long workflow (11 stages)</span>
+  </div>
+
+  <div class="tabs" data-tabs style="margin-top:12px;">
+    <div class="tab active" data-tab-target="stage-rfq-received">RFQ received</div>
+    <div class="tab" data-tab-target="stage-go-nogo">Go / No-Go</div>
+    <div class="tab" data-tab-target="stage-prebid-clar">Pre-bid clarifications</div>
+    <div class="tab" data-tab-target="stage-prelim-design">Preliminary design</div>
+    <div class="tab" data-tab-target="stage-boq-bom">BOQ / BOM preparation</div>
+    <div class="tab" data-tab-target="stage-vendor-inquiry">Vendor inquiry</div>
+    <div class="tab" data-tab-target="stage-cost-est">Cost estimation</div>
+    <div class="tab" data-tab-target="stage-internal-approval">Internal approval</div>
+    <div class="tab" data-tab-target="stage-offer-sub">Offer submission</div>
+    <div class="tab" data-tab-target="stage-postbid">Post-bid clarifications</div>
+    <div class="tab" data-tab-target="stage-award-lost">Award / Lost</div>
+  </div>
+
+  <!-- RFQ received -->
+  <div id="stage-rfq-received" class="tab-panel active">
+    <div class="two-cols">
+      <div>
+        <div class="panel-subtitle">Stage information</div>
+        <div class="table-wrapper">
+          <table>
+            <tbody>
+              <tr><td>Stage</td><td>RFQ received</td></tr>
+              <tr><td>Assigned team</td><td>Sales / BD</td></tr>
+              <tr><td>Due date</td><td>2024-12-01</td></tr>
+              <tr>
+                <td>Stage progress</td>
+                <td>
+                  <div class="progress-bar" data-progress="100"><div class="progress-bar-fill"></div></div>
+                  <span style="font-size:12px;color:var(--color-text-soft);">100% · Completed</span>
+                </td>
+              </tr>
+              <tr>
+                <td>Mandatory fields to close</td>
+                <td>
+                  Client RFQ uploaded · Deadline confirmed · Internal RFQ ID generated
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div style="margin-top:14px;">
+          <div class="panel-subtitle">Comments (Sales / BD)</div>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr><th>User</th><th>Comment</th><th>Date</th></tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Sales Engineer</td>
+                  <td>RFQ registered, documents uploaded and deadline confirmed with client.</td>
+                  <td>2024-12-01</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <textarea class="field-input" rows="3" placeholder="Add a new comment for this stage (Sales / BD only)…"></textarea>
+          <div style="margin-top:6px;">
+            <button class="btn btn-primary btn-sm" type="button">Save comment</button>
+          </div>
+        </div>
+
+        <div style="margin-top:16px;">
+          <div class="panel-subtitle">Stage completion summary</div>
+          <p style="font-size:13px;">
+            Only the <strong>Sales / BD</strong> team can mark this stage as completed.
+            The system will keep a full audit trail (who, when, what).
+          </p>
+          <button class="btn btn-ghost btn-sm" type="button">Mark stage as completed</button>
+        </div>
+      </div>
+
+      <div>
+        <div class="panel-subtitle">Files</div>
+        <div class="upload-zone">
+          <strong>Upload RFQ documents</strong><br />
+          <span>Client RFQ PDF, specifications, attachments…</span><br /><br />
+          <button class="btn btn-primary btn-sm" type="button">Attach files</button>
+        </div>
+        <div class="table-wrapper" style="margin-top:10px;">
+          <table>
+            <thead>
+              <tr><th>File</th><th>Type</th><th>Uploaded by</th><th>Date</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>RFQ_HP_Separator_Official.pdf</td><td>Client RFQ</td><td>Sales / BD</td><td>2024-12-01</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div style="margin-top:14px;">
+          <div class="panel-subtitle">Subtasks</div>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr><th>Subtask</th><th>Assigned to</th><th>Due date</th><th>Progress %</th><th>Status</th></tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Check document completeness</td>
+                  <td>Sales / BD</td>
+                  <td>2024-12-01</td>
+                  <td>100%</td>
+                  <td><span class="status-pill success">Done</span></td>
+                </tr>
+                <tr>
+                  <td>Register RFQ in system</td>
+                  <td>Sales / BD</td>
+                  <td>2024-12-01</td>
+                  <td>100%</td>
+                  <td><span class="status-pill success">Done</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <button class="btn btn-ghost btn-sm" type="button" style="margin-top:6px;">Add subtask</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Go / No-Go -->
+  <div id="stage-go-nogo" class="tab-panel">
+    <div class="two-cols">
+      <div>
+        <div class="panel-subtitle">Stage information</div>
+        <div class="table-wrapper">
+          <table>
+            <tbody>
+              <tr><td>Stage</td><td>Go / No-Go</td></tr>
+              <tr><td>Assigned team</td><td>Management</td></tr>
+              <tr><td>Due date</td><td>2024-12-03</td></tr>
+              <tr>
+                <td>Stage progress</td>
+                <td>
+                  <div class="progress-bar" data-progress="100"><div class="progress-bar-fill"></div></div>
+                  <span style="font-size:12px;color:var(--color-text-soft);">100% · Completed</span>
+                </td>
+              </tr>
+              <tr>
+                <td>Mandatory fields to close</td>
+                <td>Risk analysis · Margin target · Capacity check decision</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div style="margin-top:14px;">
+          <div class="panel-subtitle">Comments (Management)</div>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr><th>User</th><th>Comment</th><th>Date</th></tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>GM</td>
+                  <td>Approved as GO. Target margin ≥ 16%, strategic client and acceptable risk.</td>
+                  <td>2024-12-03</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <textarea class="field-input" rows="3" placeholder="Add a new comment for this stage (Management only)…"></textarea>
+          <div style="margin-top:6px;">
+            <button class="btn btn-primary btn-sm" type="button">Save comment</button>
+          </div>
+        </div>
+
+        <div style="margin-top:16px;">
+          <div class="panel-subtitle">Stage completion summary</div>
+          <p style="font-size:13px;">
+            Only <strong>Management</strong> can change the decision and close this stage.
+            The platform keeps the history of decisions (GO/NO-GO) per RFQ.
+          </p>
+          <button class="btn btn-ghost btn-sm" type="button">Mark stage as completed</button>
+        </div>
+      </div>
+
+      <div>
+        <div class="panel-subtitle">Files</div>
+        <div class="upload-zone">
+          <strong>Upload decision documents</strong><br />
+          <span>Approval emails, internal note, risk assessment…</span><br /><br />
+          <button class="btn btn-primary btn-sm" type="button">Attach files</button>
+        </div>
+        <div class="table-wrapper" style="margin-top:10px;">
+          <table>
+            <thead>
+              <tr><th>File</th><th>Type</th><th>Uploaded by</th><th>Date</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Go_NoGo_Approval_HP_Separator.pdf</td><td>Internal approval</td><td>Management</td><td>2024-12-03</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div style="margin-top:14px;">
+          <div class="panel-subtitle">Subtasks</div>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr><th>Subtask</th><th>Assigned to</th><th>Due date</th><th>Progress %</th><th>Status</th></tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Margin &amp; capacity check</td>
+                  <td>Finance / Production</td>
+                  <td>2024-12-02</td>
+                  <td>100%</td>
+                  <td><span class="status-pill success">Done</span></td>
+                </tr>
+                <tr>
+                  <td>Final decision meeting</td>
+                  <td>Management</td>
+                  <td>2024-12-03</td>
+                  <td>100%</td>
+                  <td><span class="status-pill success">Done</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <button class="btn btn-ghost btn-sm" type="button" style="margin-top:6px;">Add subtask</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Pre-bid clarifications -->
+  <div id="stage-prebid-clar" class="tab-panel">
+    <div class="two-cols">
+      <div>
+        <div class="panel-subtitle">Stage information</div>
+        <div class="table-wrapper">
+          <table>
+            <tbody>
+              <tr><td>Stage</td><td>Pre-bid clarifications</td></tr>
+              <tr><td>Assigned team</td><td>Sales / BD</td></tr>
+              <tr><td>Due date</td><td>2024-12-09</td></tr>
+              <tr>
+                <td>Stage progress</td>
+                <td>
+                  <div class="progress-bar" data-progress="100"><div class="progress-bar-fill"></div></div>
+                  <span style="font-size:12px;color:var(--color-text-soft);">100% · Completed</span>
+                </td>
+              </tr>
+              <tr>
+                <td>Mandatory fields to close</td>
+                <td>Clarification log · Client answers attached · Impact on scope documented</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div style="margin-top:14px;">
+          <div class="panel-subtitle">Questions &amp; answers</div>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr><th>#</th><th>Question to client</th><th>Answer</th><th>Status</th></tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>1</td>
+                  <td>Confirm design code and corrosion allowance for main vessel.</td>
+                  <td>ASME VIII Div.1 · 3 mm CA confirmed by client.</td>
+                  <td><span class="status-pill success">Closed</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <textarea class="field-input" rows="3" placeholder="Draft a new clarification to send to client…"></textarea>
+          <div style="margin-top:6px;">
+            <button class="btn btn-primary btn-sm" type="button">Save draft question</button>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="panel-subtitle">Files</div>
+        <div class="upload-zone">
+          <strong>Upload clarification log</strong><br />
+          <span>Excel + email exchanges…</span><br /><br />
+          <button class="btn btn-primary btn-sm" type="button">Attach files</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Preliminary design -->
+  <div id="stage-prelim-design" class="tab-panel">
+    <div class="two-cols">
+      <div>
+        <div class="panel-subtitle">Stage information</div>
+        <div class="table-wrapper">
+          <table>
+            <tbody>
+              <tr><td>Stage</td><td>Preliminary design</td></tr>
+              <tr><td>Assigned team</td><td>Engineering</td></tr>
+              <tr><td>Due date</td><td>2024-12-14</td></tr>
+              <tr>
+                <td>Stage progress</td>
+                <td>
+                  <div class="progress-bar" data-progress="100"><div class="progress-bar-fill"></div></div>
+                  <span style="font-size:12px;color:var(--color-text-soft);">100% · Completed</span>
+                </td>
+              </tr>
+              <tr>
+                <td>Mandatory fields to close</td>
+                <td>Basic design report · Preliminary drawings · Design conditions validated</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div style="margin-top:14px;">
+          <div class="panel-subtitle">Comments (Engineering)</div>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr><th>User</th><th>Comment</th><th>Date</th></tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Lead Engineer</td>
+                  <td>Preliminary design dossier issued. BOQ/BOM can start.</td>
+                  <td>2024-12-14</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <textarea class="field-input" rows="3" placeholder="Add a new comment for this stage (Engineering only)…"></textarea>
+          <div style="margin-top:6px;">
+            <button class="btn btn-primary btn-sm" type="button">Save comment</button>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="panel-subtitle">Files</div>
+        <div class="upload-zone">
+          <strong>Upload design files</strong><br />
+          <span>Preliminary drawings, calculations, design report…</span><br /><br />
+          <button class="btn btn-primary btn-sm" type="button">Attach files</button>
+        </div>
+        <div class="table-wrapper" style="margin-top:10px;">
+          <table>
+            <thead>
+              <tr><th>File</th><th>Type</th><th>Uploaded by</th><th>Date</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>HP_Separator_Prelim_Design_Report.pdf</td><td>Design report</td><td>Engineering</td><td>2024-12-14</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- BOQ / BOM preparation -->
+  <div id="stage-boq-bom" class="tab-panel">
+    <div class="two-cols">
+      <div>
+        <div class="panel-subtitle">Stage information</div>
+        <div class="table-wrapper">
+          <table>
+            <tbody>
+              <tr><td>Stage</td><td>BOQ / BOM preparation</td></tr>
+              <tr><td>Assigned team</td><td>Engineering</td></tr>
+              <tr><td>Due date</td><td>2024-12-20</td></tr>
+              <tr>
+                <td>Stage progress</td>
+                <td>
+                  <div class="progress-bar" data-progress="45"><div class="progress-bar-fill"></div></div>
+                  <span style="font-size:12px;color:var(--color-text-soft);">45% · In progress</span>
+                </td>
+              </tr>
+              <tr>
+                <td>Mandatory fields to close</td>
+                <td>Complete BOQ/BOM · Tag special items · Link to vendor inquiry</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div style="margin-top:14px;">
+          <div class="panel-subtitle">Comments (Engineering)</div>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr><th>User</th><th>Comment</th><th>Date</th></tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Mechanical Engineer</td>
+                  <td>Main vessel shell/head plates identified. Nozzles list almost complete.</td>
+                  <td>2024-12-16</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <textarea class="field-input" rows="3" placeholder="Add a new comment for this stage (Engineering only)…"></textarea>
+          <div style="margin-top:6px;">
+            <button class="btn btn-primary btn-sm" type="button">Save comment</button>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="panel-subtitle">Files</div>
+        <div class="upload-zone">
+          <strong>Upload BOQ / BOM files</strong><br />
+          <span>Excel BOQ, BOM extract, internal checklists…</span><br /><br />
+          <button class="btn btn-primary btn-sm" type="button">Attach files</button>
+        </div>
+        <div class="table-wrapper" style="margin-top:10px;">
+          <table>
+            <thead>
+              <tr><th>File</th><th>Type</th><th>Uploaded by</th><th>Date</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>BOQ_Draft_HP_Separator.xlsx</td><td>BOQ / BOM</td><td>Engineering</td><td>2024-12-15</td></tr>
+              <tr><td>Internal_BOM_Checklist.pdf</td><td>Checklist</td><td>Engineering</td><td>2024-12-16</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div style="margin-top:14px;">
+          <div class="panel-subtitle">Subtasks – with progress</div>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr><th>Subtask</th><th>Assigned to</th><th>Due date</th><th>Progress %</th><th>Status</th></tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Finish vessel plates BOQ</td>
+                  <td>Mechanical</td>
+                  <td>2024-12-17</td>
+                  <td>70%</td>
+                  <td><span class="status-pill open">In progress</span></td>
+                </tr>
+                <tr>
+                  <td>Add platforms &amp; ladders items</td>
+                  <td>Structural</td>
+                  <td>2024-12-18</td>
+                  <td>30%</td>
+                  <td><span class="status-pill open">In progress</span></td>
+                </tr>
+                <tr>
+                  <td>Flag special items for vendor inquiry</td>
+                  <td>Engineering</td>
+                  <td>2024-12-19</td>
+                  <td>10%</td>
+                  <td><span class="status-pill">Not started</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <button class="btn btn-ghost btn-sm" type="button" style="margin-top:6px;">Add subtask</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Vendor inquiry, Cost estimation, Internal approval, Offer submission, Post-bid, Award/Lost -->
+  <div id="stage-vendor-inquiry" class="tab-panel">
+    <p style="font-size:13px;">
+      This tab will be used mainly by <strong>Procurement</strong> to track RFQs to vendors, delivery times and commercial terms.
+      The structure (comments, files, subtasks, progress) is the same as previous stages.
+    </p>
+  </div>
+  <div id="stage-cost-est" class="tab-panel">
+    <p style="font-size:13px;">
+      This tab is for <strong>Estimation</strong> team: cost build-up, contingency, and link with Analytics (estimation vs real cost).
+    </p>
+  </div>
+  <div id="stage-internal-approval" class="tab-panel">
+    <p style="font-size:13px;">
+      Internal approval workflow (management sign-offs, exceptions, final margin validation).
+    </p>
+  </div>
+  <div id="stage-offer-sub" class="tab-panel">
+    <p style="font-size:13px;">
+      Offer submission details (offer date, version, commercial letter, delivery dates).
+    </p>
+  </div>
+  <div id="stage-postbid" class="tab-panel">
+    <p style="font-size:13px;">
+      Post-bid clarifications and negotiations. Ideal place to track concessions and client feedback.
+    </p>
+  </div>
+  <div id="stage-award-lost" class="tab-panel">
+    <p style="font-size:13px;">
+      Final outcome of the RFQ (Award / Lost) and lessons learned. This data feeds Analytics and future AI Copilot recommendations.
+    </p>
+  </div>
+</div>
+
+      </section>
+    </main>
+  </div>
+</body>
+</html>

@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>RFQ 360 View – HP Separator – GHI Tender Manager</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="styles.css" />
+  <script defer src="app.js"></script>
+  <script defer src="script.js"></script>
+</head>
+<body>
+  <div class="app-shell">
+
+    <aside class="sidebar">
+      <div class="sidebar-logo">
+        <div class="sidebar-logo-mark">G</div>
+        <div class="sidebar-logo-text">
+          <span>Gulf Heavy</span>
+          <span>Tender Manager</span>
+        </div>
+      </div>
+      <div>
+        <div class="sidebar-section-label">Main</div>
+        <ul class="nav-list">
+          <li class="nav-item">
+            <a href="index.html" class="nav-link">
+              <span class="nav-link-icon">📊</span>
+              <span class="nav-link-label">Dashboard</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="rfq_overview.html" class="nav-link active">
+              <span class="nav-link-icon">📄</span>
+              <span class="nav-link-label">RFQ 360 View</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="create_rfq.html" class="nav-link">
+              <span class="nav-link-icon">➕</span>
+              <span class="nav-link-label">Create RFQ</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="workspace.html" class="nav-link">
+              <span class="nav-link-icon">🛠️</span>
+              <span class="nav-link-label">Workspace</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="analytics.html" class="nav-link">
+              <span class="nav-link-icon">📈</span>
+              <span class="nav-link-label">Analytics</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="tasks.html" class="nav-link">
+              <span class="nav-link-icon">⏰</span>
+              <span class="nav-link-label">Tasks & Reminders</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="copilot.html" class="nav-link">
+              <span class="nav-link-icon">🤖</span>
+              <span class="nav-link-label">Copilot</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="admin.html" class="nav-link">
+              <span class="nav-link-icon">🛡️</span>
+              <span class="nav-link-label">Admin</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="settings.html" class="nav-link">
+              <span class="nav-link-icon">⚙️</span>
+              <span class="nav-link-label">Settings</span>
+            </a>
+          </li>
+        </ul>
+      </div>
+      <div class="sidebar-footer">
+        <div><strong>Gulf Heavy Industries Co.</strong></div>
+        <div>360° RFQ lifecycle for all teams.</div>
+      </div>
+    </aside>
+    <main class="main">
+      <header class="topbar">
+        <div>
+          <div class="breadcrumbs">RFQs / RFQ 360 View</div>
+          <div class="page-title">RFQ 360 View – HP Separator</div>
+          <div class="page-subtitle">Context + lifecycle + per-stage workspace for RFQ-2025-0012.</div>
+        </div>
+        <div class="topbar-right">
+          
+<button class="btn btn-ghost btn-sm" type="button" onclick="window.location.href='index.html'">Back to Dashboard</button>
+<button class="btn btn-primary btn-sm" type="button" onclick="window.location.href='workspace.html'">Open Workspace</button>
+
+        </div>
+      </header>
+      <section class="page-content">
+
+<div class="two-cols">
+  <div class="panel">
+    <div class="panel-header">
+      <div>
+        <div class="panel-title">HP Separator Package – Offshore</div>
+        <div class="panel-subtitle">RFQ-2025-0012 · Saudi Aramco · GHI long workflow</div>
+      </div>
+    </div>
+    <div class="kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-label">Status</div>
+        <div class="kpi-value">In preparation</div>
+        <div class="kpi-trend">Current stage: BOQ / BOM preparation</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Client deadline</div>
+        <div class="kpi-value">2025-01-12</div>
+        <div class="kpi-trend">Planned submission 2025-01-10</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Owner</div>
+        <div class="kpi-value">Proposals Team A</div>
+        <div class="kpi-trend">Lead: Waqas Saeed</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Global RFQ progress</div>
+        <div class="kpi-value">42%</div>
+        <div class="kpi-trend">Weighted by stage completion</div>
+        <div class="progress-bar" data-progress="42"><div class="progress-bar-fill"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-header">
+      <div>
+        <div class="panel-title">Lifecycle timeline</div>
+        <div class="panel-subtitle">Same official stages as used in Workspace, Tasks and Analytics.</div>
+      </div>
+    </div>
+    <div class="timeline">
+      <div class="timeline-item"><div class="timeline-label">RFQ received</div><div class="timeline-meta">Sales / BD · Completed · 2024-12-01</div></div>
+      <div class="timeline-item"><div class="timeline-label">Go / No-Go</div><div class="timeline-meta">Management · Completed · 2024-12-03</div></div>
+      <div class="timeline-item"><div class="timeline-label">Pre-bid clarifications</div><div class="timeline-meta">Sales / BD · Completed · 2024-12-09</div></div>
+      <div class="timeline-item"><div class="timeline-label">Preliminary design</div><div class="timeline-meta">Engineering · Completed · 2024-12-14</div></div>
+      <div class="timeline-item"><div class="timeline-label">BOQ / BOM preparation</div><div class="timeline-meta">Engineering · In progress · Target 2024-12-20</div></div>
+      <div class="timeline-item"><div class="timeline-label">Vendor inquiry</div><div class="timeline-meta">Procurement · Not started</div></div>
+      <div class="timeline-item"><div class="timeline-label">Cost estimation</div><div class="timeline-meta">Estimation · Not started</div></div>
+      <div class="timeline-item"><div class="timeline-label">Internal approval</div><div class="timeline-meta">Management · Not started</div></div>
+      <div class="timeline-item"><div class="timeline-label">Offer submission</div><div class="timeline-meta">Proposals · Not started</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="panel">
+  <div class="panel-header">
+    <div>
+      <div class="panel-title">Stages workspace (read-only from 360 view)</div>
+      <div class="panel-subtitle">Click on a stage to jump to the editable stage in Workspace (only assigned team can edit).</div>
+    </div>
+  </div>
+  <div class="table-wrapper">
+    <table>
+      <thead>
+        <tr><th>#</th><th>Stage</th><th>Team</th><th>Status</th><th>Stage progress</th><th>Due date</th><th>Open in Workspace</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>1</td><td>RFQ received</td><td>Sales / BD</td>
+          <td><span class="status-pill success">Completed</span></td>
+          <td><div class="progress-bar" data-progress="100"><div class="progress-bar-fill"></div></div></td>
+          <td>2024-12-01</td>
+          <td><a class="btn btn-ghost btn-sm" href="workspace.html#stage-rfq-received">Open</a></td>
+        </tr>
+        <tr>
+          <td>2</td><td>Go / No-Go</td><td>Management</td>
+          <td><span class="status-pill success">Completed</span></td>
+          <td><div class="progress-bar" data-progress="100"><div class="progress-bar-fill"></div></div></td>
+          <td>2024-12-03</td>
+          <td><a class="btn btn-ghost btn-sm" href="workspace.html#stage-go-nogo">Open</a></td>
+        </tr>
+        <tr>
+          <td>3</td><td>Pre-bid clarifications</td><td>Sales / BD</td>
+          <td><span class="status-pill success">Completed</span></td>
+          <td><div class="progress-bar" data-progress="100"><div class="progress-bar-fill"></div></div></td>
+          <td>2024-12-09</td>
+          <td><a class="btn btn-ghost btn-sm" href="workspace.html#stage-prebid-clar">Open</a></td>
+        </tr>
+        <tr>
+          <td>4</td><td>Preliminary design</td><td>Engineering</td>
+          <td><span class="status-pill success">Completed</span></td>
+          <td><div class="progress-bar" data-progress="100"><div class="progress-bar-fill"></div></div></td>
+          <td>2024-12-14</td>
+          <td><a class="btn btn-ghost btn-sm" href="workspace.html#stage-prelim-design">Open</a></td>
+        </tr>
+        <tr>
+          <td>5</td><td>BOQ / BOM preparation</td><td>Engineering</td>
+          <td><span class="status-pill open">In progress</span></td>
+          <td><div class="progress-bar" data-progress="45"><div class="progress-bar-fill"></div></div></td>
+          <td>2024-12-20</td>
+          <td><a class="btn btn-primary btn-sm" href="workspace.html#stage-boq-bom">Open</a></td>
+        </tr>
+        <tr>
+          <td>6</td><td>Vendor inquiry</td><td>Procurement</td>
+          <td><span class="status-pill">Not started</span></td>
+          <td><div class="progress-bar" data-progress="0"><div class="progress-bar-fill"></div></div></td>
+          <td>2024-12-27</td>
+          <td><a class="btn btn-ghost btn-sm" href="workspace.html#stage-vendor-inquiry">Open</a></td>
+        </tr>
+        <tr>
+          <td>7</td><td>Cost estimation</td><td>Estimation</td>
+          <td><span class="status-pill">Not started</span></td>
+          <td><div class="progress-bar" data-progress="0"><div class="progress-bar-fill"></div></div></td>
+          <td>2024-12-30</td>
+          <td><a class="btn btn-ghost btn-sm" href="workspace.html#stage-cost-est">Open</a></td>
+        </tr>
+        <tr>
+          <td>8</td><td>Internal approval</td><td>Management</td>
+          <td><span class="status-pill">Not started</span></td>
+          <td><div class="progress-bar" data-progress="0"><div class="progress-bar-fill"></div></div></td>
+          <td>2025-01-05</td>
+          <td><a class="btn btn-ghost btn-sm" href="workspace.html#stage-internal-approval">Open</a></td>
+        </tr>
+        <tr>
+          <td>9</td><td>Offer submission</td><td>Proposals</td>
+          <td><span class="status-pill">Not started</span></td>
+          <td><div class="progress-bar" data-progress="0"><div class="progress-bar-fill"></div></div></td>
+          <td>2025-01-10</td>
+          <td><a class="btn btn-ghost btn-sm" href="workspace.html#stage-offer-sub">Open</a></td>
+        </tr>
+        <tr>
+          <td>10</td><td>Post-bid clarifications</td><td>Sales / BD</td>
+          <td><span class="status-pill">Not started</span></td>
+          <td><div class="progress-bar" data-progress="0"><div class="progress-bar-fill"></div></div></td>
+          <td>2025-01-20</td>
+          <td><a class="btn btn-ghost btn-sm" href="workspace.html#stage-postbid">Open</a></td>
+        </tr>
+        <tr>
+          <td>11</td><td>Award / Lost</td><td>Management</td>
+          <td><span class="status-pill">Not started</span></td>
+          <td><div class="progress-bar" data-progress="0"><div class="progress-bar-fill"></div></div></td>
+          <td>2025-02-01</td>
+          <td><a class="btn btn-ghost btn-sm" href="workspace.html#stage-award-lost">Open</a></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+      </section>
+    </main>
+  </div>
+</body>
+</html>

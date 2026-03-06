@@ -8,7 +8,7 @@ Functions:
 
 from uuid import UUID
 from datetime import date, datetime
-from typing import Optional, List
+from typing import Optional, List, Literal
 from pydantic import BaseModel
 
 
@@ -22,7 +22,7 @@ class SubtaskUpdateRequest(BaseModel):
     assigned_to: Optional[str] = None
     due_date: Optional[date] = None
     progress: Optional[int] = None
-    status: Optional[str] = None
+    status: Optional[Literal["Open", "In progress", "Done"]] = None
 
 class SubtaskResponse(BaseModel):
     id: UUID
@@ -34,6 +34,9 @@ class SubtaskResponse(BaseModel):
     created_at: datetime
     class Config:
         from_attributes = True
+
+class SubtaskListResponse(BaseModel):
+    data: List[SubtaskResponse]
 
 def to_response(subtask) -> SubtaskResponse:
     return SubtaskResponse.model_validate(subtask)

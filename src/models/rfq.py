@@ -44,6 +44,7 @@ class RFQ(Base):
     deadline = Column(Date, nullable=False, index=True)  # submission deadline
     owner = Column(String(200), nullable=False)          # "Proposals Team A"
     description = Column(String(2000), nullable=True)    # free text
+    rfq_code = Column(String(20), unique=True, nullable=True, index=True)  # IF-0001 or IB-0001
 
     # ── Workflow link ─────────────────────────────────
     workflow_id = Column(

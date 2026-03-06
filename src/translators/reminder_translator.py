@@ -9,14 +9,14 @@ Functions:
 
 from uuid import UUID
 from datetime import date, datetime
-from typing import Optional, List
+from typing import Optional, List, Literal
 from pydantic import BaseModel
 
 
 class ReminderCreateRequest(BaseModel):
     rfq_id: UUID
     rfq_stage_id: Optional[UUID] = None
-    type: str                    # internal | external
+    type: Literal["internal", "external"]
     message: str
     due_date: date
     assigned_to: Optional[str] = None
@@ -56,6 +56,12 @@ class ReminderStatsResponse(BaseModel):
     overdue_tasks: int
     due_this_week: int
     with_active_reminders: int
+
+class ReminderListResponse(BaseModel):
+    data: List[ReminderResponse]
+
+class ReminderRuleListResponse(BaseModel):
+    data: List[ReminderRuleResponse]
 
 
 def to_response(reminder) -> ReminderResponse:

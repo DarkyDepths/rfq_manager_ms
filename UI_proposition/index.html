@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Dashboard – GHI Tender Manager</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="styles.css" />
+  <script defer src="app.js"></script>
+  <script defer src="script.js"></script>
+</head>
+<body>
+  <div class="app-shell">
+
+    <aside class="sidebar">
+      <div class="sidebar-logo">
+        <div class="sidebar-logo-mark">G</div>
+        <div class="sidebar-logo-text">
+          <span>Gulf Heavy</span>
+          <span>Tender Manager</span>
+        </div>
+      </div>
+      <div>
+        <div class="sidebar-section-label">Main</div>
+        <ul class="nav-list">
+          <li class="nav-item">
+            <a href="index.html" class="nav-link active">
+              <span class="nav-link-icon">📊</span>
+              <span class="nav-link-label">Dashboard</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="rfq_overview.html" class="nav-link">
+              <span class="nav-link-icon">📄</span>
+              <span class="nav-link-label">RFQ 360 View</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="create_rfq.html" class="nav-link">
+              <span class="nav-link-icon">➕</span>
+              <span class="nav-link-label">Create RFQ</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="workspace.html" class="nav-link">
+              <span class="nav-link-icon">🛠️</span>
+              <span class="nav-link-label">Workspace</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="analytics.html" class="nav-link">
+              <span class="nav-link-icon">📈</span>
+              <span class="nav-link-label">Analytics</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="tasks.html" class="nav-link">
+              <span class="nav-link-icon">⏰</span>
+              <span class="nav-link-label">Tasks & Reminders</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="copilot.html" class="nav-link">
+              <span class="nav-link-icon">🤖</span>
+              <span class="nav-link-label">Copilot</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="admin.html" class="nav-link">
+              <span class="nav-link-icon">🛡️</span>
+              <span class="nav-link-label">Admin</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="settings.html" class="nav-link">
+              <span class="nav-link-icon">⚙️</span>
+              <span class="nav-link-label">Settings</span>
+            </a>
+          </li>
+        </ul>
+      </div>
+      <div class="sidebar-footer">
+        <div><strong>Gulf Heavy Industries Co.</strong></div>
+        <div>360° RFQ lifecycle for all teams.</div>
+      </div>
+    </aside>
+    <main class="main">
+      <header class="topbar">
+        <div>
+          <div class="breadcrumbs">Dashboard</div>
+          <div class="page-title">Dashboard</div>
+          <div class="page-subtitle">KPIs + RFQ directory + analytics in one 360° view.</div>
+        </div>
+        <div class="topbar-right">
+          
+<button class="btn btn-ghost btn-sm" type="button" onclick="window.location.href='workspace.html'">Open Workspace</button>
+<button class="btn btn-primary btn-sm" type="button" onclick="window.location.href='create_rfq.html'">New RFQ</button>
+
+        </div>
+      </header>
+      <section class="page-content">
+
+<div class="panel">
+  <div class="panel-header">
+    <div>
+      <div class="panel-title">Global RFQ health</div>
+      <div class="panel-subtitle">Single 360° view shared by management and all teams.</div>
+    </div>
+  </div>
+  <div class="kpi-grid">
+    <div class="kpi-card">
+      <div class="kpi-label">Total RFQs (last 12 months)</div>
+      <div class="kpi-value">96</div>
+      <div class="kpi-trend positive">+14% vs previous year</div>
+      <div class="progress-bar" data-progress="70"><div class="progress-bar-fill"></div></div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Open RFQs</div>
+      <div class="kpi-value">18</div>
+      <div class="kpi-trend">11 in preparation · 7 submitted</div>
+      <div class="progress-bar" data-progress="45"><div class="progress-bar-fill"></div></div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Critical RFQs (&lt; 7 days)</div>
+      <div class="kpi-value">5</div>
+      <div class="kpi-trend">Escalated in Tasks &amp; Workspace</div>
+      <div class="progress-bar" data-progress="65"><div class="progress-bar-fill"></div></div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Average margin (submitted)</div>
+      <div class="kpi-value">17.8%</div>
+      <div class="kpi-trend positive">Target &gt; 16%</div>
+      <div class="progress-bar" data-progress="80"><div class="progress-bar-fill"></div></div>
+    </div>
+  </div>
+
+  <div class="kpi-grid" style="margin-top:10px;">
+    <div class="kpi-card">
+      <div class="kpi-label">Average margin (awarded)</div>
+      <div class="kpi-value">18.1%</div>
+      <div class="kpi-trend positive">+1.2 pts vs last year</div>
+      <div class="progress-bar" data-progress="82"><div class="progress-bar-fill"></div></div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Estimation accuracy</div>
+      <div class="kpi-value">94%</div>
+      <div class="kpi-trend positive">Final estimation vs real cost</div>
+      <div class="progress-bar" data-progress="94"><div class="progress-bar-fill"></div></div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Win rate</div>
+      <div class="kpi-value">32%</div>
+      <div class="kpi-trend">31 RFQs awarded / 96 submitted</div>
+      <div class="progress-bar" data-progress="32"><div class="progress-bar-fill"></div></div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Average cycle time</div>
+      <div class="kpi-value">21 days</div>
+      <div class="kpi-trend">RFQ reception → offer submission</div>
+      <div class="progress-bar" data-progress="60"><div class="progress-bar-fill"></div></div>
+    </div>
+  </div>
+</div>
+
+<div class="panel">
+  <div class="panel-header">
+    <div>
+      <div class="panel-title">RFQ portfolio &amp; directory</div>
+      <div class="panel-subtitle">Single table used by all teams to access RFQ 360 &amp; Workspace.</div>
+    </div>
+  </div>
+
+  <div class="filters-row">
+    <input class="input" placeholder="Search by RFQ ID, name, client…" />
+    <select>
+      <option>All statuses</option>
+      <option>Draft</option>
+      <option>In preparation</option>
+      <option>Submitted</option>
+      <option>Awarded</option>
+      <option>Lost</option>
+    </select>
+    <select>
+      <option>All workflow types</option>
+      <option>GHI long workflow</option>
+      <option>GHI short workflow</option>
+      <option>Custom workflow</option>
+    </select>
+    <select>
+      <option>All teams</option>
+      <option>Sales / BD</option>
+      <option>Engineering</option>
+      <option>Estimation</option>
+      <option>Procurement</option>
+      <option>Management</option>
+    </select>
+  </div>
+
+  <div class="table-wrapper">
+    <table>
+      <thead>
+        <tr>
+          <th>RFQ ID</th>
+          <th>RFQ name</th>
+          <th>Client</th>
+          <th>Country</th>
+          <th>Owner team</th>
+          <th>Workflow</th>
+          <th>Status</th>
+          <th>Global progress</th>
+          <th>Deadline</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+
+        <tr>
+          <td>RFQ-2025-0012</td>
+          <td>HP Separator Package – Offshore</td>
+          <td>Saudi Aramco</td>
+          <td>Saudi Arabia</td>
+          <td>Proposals Team A</td>
+          <td>GHI long workflow</td>
+          <td><span class="status-pill open">In preparation</span></td>
+          <td>
+            <div class="progress-bar" data-progress="42">
+              <div class="progress-bar-fill"></div>
+            </div>
+          </td>
+          <td>2025-01-12</td>
+          <td>
+            <button class="btn btn-ghost btn-sm" type="button" onclick="window.location.href='rfq_overview.html'">360 view</button>
+          </td>
+        </tr>
+        <tr>
+          <td>RFQ-2025-0009</td>
+          <td>Crude Oil Storage Tank – 60,000 m³</td>
+          <td>QatarEnergy</td>
+          <td>Qatar</td>
+          <td>Proposals Team B</td>
+          <td>GHI long workflow</td>
+          <td><span class="status-pill critical">Critical</span></td>
+          <td>
+            <div class="progress-bar" data-progress="71">
+              <div class="progress-bar-fill"></div>
+            </div>
+          </td>
+          <td>2025-01-04</td>
+          <td>
+            <button class="btn btn-ghost btn-sm" type="button" onclick="window.location.href='rfq_overview.html'">360 view</button>
+          </td>
+        </tr>
+        <tr>
+          <td>RFQ-2024-0344</td>
+          <td>SS Spools – Repeat Order</td>
+          <td>TotalEnergies</td>
+          <td>UAE</td>
+          <td>Proposals Team B</td>
+          <td>GHI short workflow</td>
+          <td><span class="status-pill open">Submitted</span></td>
+          <td>
+            <div class="progress-bar" data-progress="100">
+              <div class="progress-bar-fill"></div>
+            </div>
+          </td>
+          <td>2024-12-21</td>
+          <td>
+            <button class="btn btn-ghost btn-sm" type="button" onclick="window.location.href='rfq_overview.html'">360 view</button>
+          </td>
+        </tr>
+        <tr>
+          <td>RFQ-2024-0310</td>
+          <td>Gas Dehydration Skid</td>
+          <td>ADNOC</td>
+          <td>UAE</td>
+          <td>Proposals Team C</td>
+          <td>GHI long workflow</td>
+          <td><span class="status-pill open">Submitted</span></td>
+          <td>
+            <div class="progress-bar" data-progress="88">
+              <div class="progress-bar-fill"></div>
+            </div>
+          </td>
+          <td>2024-12-15</td>
+          <td>
+            <button class="btn btn-ghost btn-sm" type="button" onclick="window.location.href='rfq_overview.html'">360 view</button>
+          </td>
+        </tr>
+
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="panel">
+  <div class="panel-header">
+    <div>
+      <div class="panel-title">Analytics &amp; estimation accuracy</div>
+      <div class="panel-subtitle">Directly linked to estimation vs real cost, same logic as future AI Copilot.</div>
+    </div>
+  </div>
+
+  <div class="kpi-grid">
+    <div class="kpi-card">
+      <div class="kpi-label">Revenue (awarded RFQs)</div>
+      <div class="kpi-value">~ 215 M SAR</div>
+      <div class="kpi-trend positive">Rolling 12 months</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Top client by volume</div>
+      <div class="kpi-value">Saudi Aramco</div>
+      <div class="kpi-trend">~ 28% of awarded value</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Top segment</div>
+      <div class="kpi-value">Oil &amp; Gas – Upstream</div>
+      <div class="kpi-trend">Vessels &amp; tanks</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Average delay vs client deadline</div>
+      <div class="kpi-value">-2 days</div>
+      <div class="kpi-trend positive">We submit in advance on average</div>
+    </div>
+  </div>
+
+  <div class="table-wrapper" style="margin-top:10px;">
+    <table>
+      <thead>
+        <tr>
+          <th>RFQ ID</th>
+          <th>RFQ</th>
+          <th>Client</th>
+          <th>Final estimation</th>
+          <th>Real cost</th>
+          <th>Accuracy %</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>RFQ-2024-0301</td>
+          <td>Pressure Vessels – Bundle</td>
+          <td>PDO</td>
+          <td>5.8 M SAR</td>
+          <td>5.7 M SAR</td>
+          <td>97%</td>
+        </tr>
+        <tr>
+          <td>RFQ-2024-0344</td>
+          <td>SS Spools – Repeat Order</td>
+          <td>TotalEnergies</td>
+          <td>1.9 M SAR</td>
+          <td>2.0 M SAR</td>
+          <td>95%</td>
+        </tr>
+        <tr>
+          <td>RFQ-2024-0287</td>
+          <td>Columns Revamp Package</td>
+          <td>ADNOC</td>
+          <td>7.4 M SAR</td>
+          <td>7.1 M SAR</td>
+          <td>96%</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+      </section>
+    </main>
+  </div>
+</body>
+</html>

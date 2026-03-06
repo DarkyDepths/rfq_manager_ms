@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Analytics – GHI Tender Manager</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="styles.css" />
+  <script defer src="app.js"></script>
+  <script defer src="script.js"></script>
+</head>
+<body>
+  <div class="app-shell">
+
+    <aside class="sidebar">
+      <div class="sidebar-logo">
+        <div class="sidebar-logo-mark">G</div>
+        <div class="sidebar-logo-text">
+          <span>Gulf Heavy</span>
+          <span>Tender Manager</span>
+        </div>
+      </div>
+      <div>
+        <div class="sidebar-section-label">Main</div>
+        <ul class="nav-list">
+          <li class="nav-item">
+            <a href="index.html" class="nav-link">
+              <span class="nav-link-icon">📊</span>
+              <span class="nav-link-label">Dashboard</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="rfq_overview.html" class="nav-link">
+              <span class="nav-link-icon">📄</span>
+              <span class="nav-link-label">RFQ 360 View</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="create_rfq.html" class="nav-link">
+              <span class="nav-link-icon">➕</span>
+              <span class="nav-link-label">Create RFQ</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="workspace.html" class="nav-link">
+              <span class="nav-link-icon">🛠️</span>
+              <span class="nav-link-label">Workspace</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="analytics.html" class="nav-link active">
+              <span class="nav-link-icon">📈</span>
+              <span class="nav-link-label">Analytics</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="tasks.html" class="nav-link">
+              <span class="nav-link-icon">⏰</span>
+              <span class="nav-link-label">Tasks & Reminders</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="copilot.html" class="nav-link">
+              <span class="nav-link-icon">🤖</span>
+              <span class="nav-link-label">Copilot</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="admin.html" class="nav-link">
+              <span class="nav-link-icon">🛡️</span>
+              <span class="nav-link-label">Admin</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="settings.html" class="nav-link">
+              <span class="nav-link-icon">⚙️</span>
+              <span class="nav-link-label">Settings</span>
+            </a>
+          </li>
+        </ul>
+      </div>
+      <div class="sidebar-footer">
+        <div><strong>Gulf Heavy Industries Co.</strong></div>
+        <div>360° RFQ lifecycle for all teams.</div>
+      </div>
+    </aside>
+    <main class="main">
+      <header class="topbar">
+        <div>
+          <div class="breadcrumbs">Analytics</div>
+          <div class="page-title">Analytics</div>
+          <div class="page-subtitle">Optional deeper KPIs on top of what is already visible in the Dashboard.</div>
+        </div>
+        <div class="topbar-right">
+          
+        </div>
+      </header>
+      <section class="page-content">
+
+<div class="panel">
+  <div class="panel-header">
+    <div>
+      <div class="panel-title">Analytics – detailed view</div>
+      <div class="panel-subtitle">More detail than Dashboard: trends by client, segment and estimation accuracy.</div>
+    </div>
+  </div>
+  <div class="kpi-grid">
+    <div class="kpi-card">
+      <div class="kpi-label">Average margin (awarded)</div>
+      <div class="kpi-value">18.1%</div>
+      <div class="kpi-trend positive">+1.2 pts vs last year</div>
+      <div class="progress-bar" data-progress="81"><div class="progress-bar-fill"></div></div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Estimation accuracy</div>
+      <div class="kpi-value">94%</div>
+      <div class="kpi-trend positive">Target &gt; 92%</div>
+      <div class="progress-bar" data-progress="94"><div class="progress-bar-fill"></div></div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">RFQs submitted</div>
+      <div class="kpi-value">96</div>
+      <div class="kpi-trend">Rolling 12 months</div>
+      <div class="progress-bar" data-progress="60"><div class="progress-bar-fill"></div></div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">RFQs awarded</div>
+      <div class="kpi-value">31</div>
+      <div class="kpi-trend">Win rate: 32%</div>
+      <div class="progress-bar" data-progress="32"><div class="progress-bar-fill"></div></div>
+    </div>
+  </div>
+</div>
+
+<div class="panel">
+  <div class="panel-header">
+    <div>
+      <div class="panel-title">Margins by client (sample)</div>
+      <div class="panel-subtitle">Helps management to see where we are strong or too aggressive.</div>
+    </div>
+  </div>
+  <div class="table-wrapper">
+    <table>
+      <thead>
+        <tr><th>Client</th><th>Number of RFQs</th><th>Awarded value (M SAR)</th><th>Average margin</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Saudi Aramco</td><td>24</td><td>60</td><td>18.5%</td></tr>
+        <tr><td>ADNOC</td><td>18</td><td>48</td><td>17.9%</td></tr>
+        <tr><td>QatarEnergy</td><td>12</td><td>35</td><td>17.2%</td></tr>
+        <tr><td>TotalEnergies</td><td>9</td><td>22</td><td>18.8%</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+      </section>
+    </main>
+  </div>
+</body>
+</html>

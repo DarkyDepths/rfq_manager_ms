@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Tasks & Reminders – GHI Tender Manager</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="styles.css" />
+  <script defer src="app.js"></script>
+  <script defer src="script.js"></script>
+</head>
+<body>
+  <div class="app-shell">
+
+    <aside class="sidebar">
+      <div class="sidebar-logo">
+        <div class="sidebar-logo-mark">G</div>
+        <div class="sidebar-logo-text">
+          <span>Gulf Heavy</span>
+          <span>Tender Manager</span>
+        </div>
+      </div>
+      <div>
+        <div class="sidebar-section-label">Main</div>
+        <ul class="nav-list">
+          <li class="nav-item">
+            <a href="index.html" class="nav-link">
+              <span class="nav-link-icon">📊</span>
+              <span class="nav-link-label">Dashboard</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="rfq_overview.html" class="nav-link">
+              <span class="nav-link-icon">📄</span>
+              <span class="nav-link-label">RFQ 360 View</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="create_rfq.html" class="nav-link">
+              <span class="nav-link-icon">➕</span>
+              <span class="nav-link-label">Create RFQ</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="workspace.html" class="nav-link">
+              <span class="nav-link-icon">🛠️</span>
+              <span class="nav-link-label">Workspace</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="analytics.html" class="nav-link">
+              <span class="nav-link-icon">📈</span>
+              <span class="nav-link-label">Analytics</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="tasks.html" class="nav-link active">
+              <span class="nav-link-icon">⏰</span>
+              <span class="nav-link-label">Tasks & Reminders</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="copilot.html" class="nav-link">
+              <span class="nav-link-icon">🤖</span>
+              <span class="nav-link-label">Copilot</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="admin.html" class="nav-link">
+              <span class="nav-link-icon">🛡️</span>
+              <span class="nav-link-label">Admin</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="settings.html" class="nav-link">
+              <span class="nav-link-icon">⚙️</span>
+              <span class="nav-link-label">Settings</span>
+            </a>
+          </li>
+        </ul>
+      </div>
+      <div class="sidebar-footer">
+        <div><strong>Gulf Heavy Industries Co.</strong></div>
+        <div>360° RFQ lifecycle for all teams.</div>
+      </div>
+    </aside>
+    <main class="main">
+      <header class="topbar">
+        <div>
+          <div class="breadcrumbs">Tasks & Reminders</div>
+          <div class="page-title">Tasks & Reminders</div>
+          <div class="page-subtitle">Concrete rules and views for deadlines, delays and email reminders.</div>
+        </div>
+        <div class="topbar-right">
+          
+        </div>
+      </header>
+      <section class="page-content">
+
+<div class="panel">
+  <div class="panel-header">
+    <div>
+      <div class="panel-title">Tasks &amp; reminders</div>
+      <div class="panel-subtitle">Follow-up engine for all RFQ stages and all teams.</div>
+    </div>
+  </div>
+  <div class="kpi-grid">
+    <div class="kpi-card">
+      <div class="kpi-label">Open tasks</div>
+      <div class="kpi-value">27</div>
+      <div class="kpi-trend">All RFQs / all teams</div>
+      <div class="progress-bar" data-progress="55"><div class="progress-bar-fill"></div></div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Overdue tasks</div>
+      <div class="kpi-value">6</div>
+      <div class="kpi-trend critical">Need attention today</div>
+      <div class="progress-bar" data-progress="22"><div class="progress-bar-fill"></div></div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Due this week</div>
+      <div class="kpi-value">11</div>
+      <div class="kpi-trend">Focus for next 7 days</div>
+      <div class="progress-bar" data-progress="40"><div class="progress-bar-fill"></div></div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Tasks with reminders</div>
+      <div class="kpi-value">19</div>
+      <div class="kpi-trend">Email notification active</div>
+      <div class="progress-bar" data-progress="70"><div class="progress-bar-fill"></div></div>
+    </div>
+  </div>
+</div>
+
+<div class="two-cols">
+  <div class="panel">
+    <div class="panel-header">
+      <div>
+        <div class="panel-title">My upcoming deadlines</div>
+        <div class="panel-subtitle">User-centric view of all RFQ-related tasks.</div>
+      </div>
+    </div>
+    <div class="table-wrapper">
+      <table>
+        <thead>
+          <tr><th>Task</th><th>RFQ ID</th><th>Stage</th><th>Team</th><th>Due date</th><th>Status</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Finalize BOM for HP Separator</td>
+            <td>RFQ-2025-0012</td>
+            <td>BOQ / BOM preparation</td>
+            <td>Engineering</td>
+            <td>2024-12-20</td>
+            <td><span class="status-pill open">In progress</span></td>
+          </tr>
+          <tr>
+            <td>Issue vendor inquiries</td>
+            <td>RFQ-2025-0009</td>
+            <td>Vendor inquiry</td>
+            <td>Procurement</td>
+            <td>2024-12-22</td>
+            <td><span class="status-pill open">Open</span></td>
+          </tr>
+          <tr>
+            <td>Review design dossier</td>
+            <td>RFQ-2024-0344</td>
+            <td>Preliminary design</td>
+            <td>Engineering</td>
+            <td>2024-12-18</td>
+            <td><span class="status-pill open">Open</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-header">
+      <div>
+        <div class="panel-title">Overdue &amp; critical</div>
+        <div class="panel-subtitle">Tasks that are late or close to RFQ deadlines.</div>
+      </div>
+    </div>
+    <div class="table-wrapper">
+      <table>
+        <thead>
+          <tr><th>Task</th><th>RFQ ID</th><th>Stage</th><th>Owner</th><th>Due date</th><th>Delay</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Answer final client clarification</td>
+            <td>RFQ-2025-0009</td>
+            <td>Pre-bid clarifications</td>
+            <td>Sales / BD</td>
+            <td>2024-12-10</td>
+            <td>+3 days</td>
+          </tr>
+          <tr>
+            <td>Internal margin review</td>
+            <td>RFQ-2025-0009</td>
+            <td>Internal approval</td>
+            <td>Management</td>
+            <td>2024-12-15</td>
+            <td>+1 day</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="panel">
+  <div class="panel-header">
+    <div>
+      <div class="panel-title">Reminder rules (email)</div>
+      <div class="panel-subtitle">How the system reminds teams and managers before deadlines.</div>
+    </div>
+  </div>
+  <div class="two-cols">
+    <div>
+      <ul style="font-size:13px; line-height:1.6;">
+        <li><strong>Rule 1:</strong> For each RFQ stage with a due date, send an email reminder to the assigned team 5 days before due date.</li>
+        <li><strong>Rule 2:</strong> If the stage progress &lt; 80% two days before due date, send a reminder to team + RFQ owner.</li>
+        <li><strong>Rule 3:</strong> If the due date is exceeded and stage still open, send daily digest to RFQ owner and Management until closed.</li>
+        <li><strong>Rule 4:</strong> For critical RFQs (deadline &lt; 7 days), highlight tasks in red in the Dashboard and Workspace.</li>
+      </ul>
+      <div class="table-wrapper" style="margin-top:10px;">
+        <table>
+          <thead>
+            <tr><th>Rule</th><th>Scope</th><th>Active</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Standard stage reminder</td><td>All RFQs / all stages</td><td><input type="checkbox" checked /></td></tr>
+            <tr><td>Critical RFQ escalation</td><td>Critical RFQs only</td><td><input type="checkbox" checked /></td></tr>
+            <tr><td>Management daily digest</td><td>Overdue tasks &gt; 3 days</td><td><input type="checkbox" /></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div>
+      <div class="panel-subtitle">Email preview (simulation)</div>
+      <div style="font-size:13px; border-radius:8px; padding:10px; border:1px solid var(--color-border-soft); background:var(--color-bg-elevated);">
+        <p><strong>To:</strong> engineering@ghi.sa; proposals@ghi.sa</p>
+        <p><strong>Subject:</strong> Reminder – BOQ / BOM preparation for RFQ-2025-0012 (due 2024-12-20)</p>
+        <p><strong>Body (sample):</strong></p>
+        <p>
+          Dear team,<br />
+          This is an automatic reminder that stage <strong>BOQ / BOM preparation</strong> for 
+          <strong>RFQ-2025-0012 – HP Separator Package – Offshore</strong> is due on <strong>2024-12-20</strong>.<br />
+          Current progress is 45%. Please update tasks and upload latest files in the Workspace page.<br /><br />
+          Best regards,<br />
+          GHI Tender Manager
+        </p>
+      </div>
+      <button class="btn btn-primary btn-sm" type="button" style="margin-top:8px;">Simulate sending test email</button>
+    </div>
+  </div>
+</div>
+
+      </section>
+    </main>
+  </div>
+</body>
+</html>

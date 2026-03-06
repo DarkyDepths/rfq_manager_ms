@@ -15,7 +15,8 @@ from typing import Optional
 from fastapi import APIRouter, Depends, Query
 
 from src.translators.reminder_translator import (
-    ReminderCreateRequest, ReminderResponse, ReminderRuleUpdateRequest, ReminderRuleResponse,
+    ReminderCreateRequest, ReminderRuleUpdateRequest, ReminderListResponse,
+    ReminderResponse, ReminderRuleResponse, ReminderStatsResponse, ReminderRuleListResponse
 )
 from src.app_context import get_reminder_controller
 from src.controllers.reminder_controller import ReminderController
@@ -29,7 +30,7 @@ def create_reminder(body: ReminderCreateRequest, ctrl: ReminderController = Depe
     return ctrl.create(body)
 
 
-@router.get("")
+@router.get("", response_model=ReminderListResponse)
 def list_reminders(
     user: Optional[str] = Query(None),
     status: Optional[str] = Query(None),
@@ -40,13 +41,13 @@ def list_reminders(
     return ctrl.list(user=user, status=status, rfq_id=rfq_id)
 
 
-@router.get("/stats")
+@router.get("/stats", response_model=ReminderStatsResponse)
 def reminder_stats(ctrl: ReminderController = Depends(get_reminder_controller)):
     """#22 — Reminder KPIs."""
     return ctrl.get_stats()
 
 
-@router.get("/rules")
+@router.get("/rules", response_model=ReminderRuleListResponse)
 def list_rules(ctrl: ReminderController = Depends(get_reminder_controller)):
     """#23 — List reminder rules."""
     return ctrl.list_rules()

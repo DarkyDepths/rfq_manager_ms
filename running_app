@@ -1,0 +1,4 @@
+cd d:\rfq_manager_ms
+$env:DATABASE_URL='postgresql+psycopg://postgres:postgres@localhost:5555/rfq_manager_db'
+& .\.venv\Scripts\python.exe seed.py
+& .\.venv\Scripts\uvicorn.exe src.app:app --reload --port 8000

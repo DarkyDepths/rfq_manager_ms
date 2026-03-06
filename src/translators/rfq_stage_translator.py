@@ -11,7 +11,7 @@ Functions:
 
 from uuid import UUID
 from datetime import date, datetime
-from typing import Optional, List
+from typing import Optional, List, Literal
 
 from pydantic import BaseModel
 
@@ -24,7 +24,7 @@ class RfqStageUpdateRequest(BaseModel):
     progress: Optional[int] = None
     assigned_team: Optional[str] = None
     captured_data: Optional[dict] = None
-    blocker_status: Optional[str] = None      # Blocked | Resolved
+    blocker_status: Optional[Literal["Blocked", "Resolved"]] = None
     blocker_reason_code: Optional[str] = None
 
 class NoteCreateRequest(BaseModel):
@@ -78,6 +78,11 @@ class RfqStageResponse(BaseModel):
     actual_end: Optional[date] = None
     blocker_status: Optional[str] = None
     blocker_reason_code: Optional[str] = None
+    class Config:
+        from_attributes = True
+
+class RfqStageListResponse(BaseModel):
+    data: List[RfqStageResponse]
     class Config:
         from_attributes = True
 

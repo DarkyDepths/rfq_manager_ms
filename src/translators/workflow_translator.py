@@ -51,6 +51,9 @@ class WorkflowSummary(BaseModel):
     class Config:
         from_attributes = True
 
+class WorkflowListResponse(BaseModel):
+    data: List[WorkflowSummary]
+
 
 class WorkflowDetail(BaseModel):
     id: UUID

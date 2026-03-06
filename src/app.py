@@ -15,6 +15,8 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from fastapi import APIRouter
+
 from src.config.settings import settings
 from src.utils.errors import AppError
 
@@ -65,7 +67,7 @@ def create_app() -> FastAPI:
     async def app_error_handler(request: Request, error: AppError):
         return JSONResponse(
             status_code=error.status_code,
-            content={"error": error.message},
+            content={"error": error.__class__.__name__, "message": error.message},
         )
 
     # ── Health Check ──────────────────────────────────
@@ -77,6 +79,7 @@ def create_app() -> FastAPI:
         return {"status": "ok"}
 
     # ── Route Registration ────────────────────────────
+    # All API routes live under /rfq-manager/v1 (matches OpenAPI spec servers.url)
     from src.routes.rfq_route import router as rfq_router
     from src.routes.workflow_route import router as workflow_router
     from src.routes.rfq_stage_route import router as rfq_stage_router
@@ -84,13 +87,16 @@ def create_app() -> FastAPI:
     from src.routes.file_route import stage_files_router, file_router
     from src.routes.reminder_route import router as reminder_router
 
-    app.include_router(rfq_router)
-    app.include_router(workflow_router)
-    app.include_router(rfq_stage_router)
-    app.include_router(subtask_router)
-    app.include_router(stage_files_router)
-    app.include_router(file_router)
-    app.include_router(reminder_router)
+    v1 = APIRouter(prefix="/rfq-manager/v1")
+    v1.include_router(rfq_router)
+    v1.include_router(workflow_router)
+    v1.include_router(rfq_stage_router)
+    v1.include_router(subtask_router)
+    v1.include_router(stage_files_router)
+    v1.include_router(file_router)
+    v1.include_router(reminder_router)
+
+    app.include_router(v1)
 
     return app
 
