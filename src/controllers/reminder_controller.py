@@ -8,8 +8,6 @@ Orchestrates:
 - Reminder rules: list and toggle is_active
 - Test reminder email (send to current user)
 - Batch processing support (rate-limit via last_sent_at, increment send_count)
-
-Dependencies: ReminderDatasource, EventBusConnector, IamServiceConnector
 """
 
 import logging

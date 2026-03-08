@@ -16,6 +16,13 @@ class NotificationService:
         """
         Pure, testable function to process due reminders.
         Finds open/overdue reminders due on or before today.
+
+        Note: Execution relies on a daily rate-limit gate. To change the
+        cadence (e.g., hourly), adjust the `last_sent_at` check.
+        Note: Exhausted reminders (send_count >= max_sends) are deliberately
+        left active (open/overdue) until the user officially Resolves them.
+        'sent' is not forced as a terminal business state, avoiding confusion
+        with actual task resolution.
         """
         today = date.today()
         now = datetime.now()
@@ -37,9 +44,12 @@ class NotificationService:
                 reminder.status = "open"
 
             # 2. Execution gates: max exhaustion and daily rate limit
+            #    If attempts are exhausted, we simply skip sending. We do NOT mark
+            #    as 'sent' or 'resolved' since true resolution is a business action.
             if reminder.send_count >= max_sends:
                 continue
 
+            #    Daily cadence block: prevents spamming if processed multiple times a day
             if reminder.last_sent_at and reminder.last_sent_at.date() == today:
                 continue
 
