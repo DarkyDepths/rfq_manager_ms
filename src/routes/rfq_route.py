@@ -13,7 +13,9 @@ Endpoints:
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
-from typing import Optional
+from fastapi.responses import Response
+from typing import Optional, Literal, List
+from datetime import date
 
 from src.translators.rfq_translator import (
     RfqCreateRequest,
@@ -45,15 +47,42 @@ def create_rfq(
 @router.get("", response_model=RfqListResponse)
 def list_rfqs(
     search: Optional[str] = Query(None, description="Search in name and client"),
-    status: Optional[str] = Query(None, description="Filter by status"),
-    priority: Optional[str] = Query(None, description="Filter by priority"),
+    status: Optional[List[Literal["Draft", "In preparation", "Submitted", "Awarded", "Lost", "Cancelled"]]] = Query(None, description="Filter by multiple statuses"),
+    priority: Optional[Literal["normal", "critical"]] = Query(None, description="Filter by priority"),
+    owner: Optional[str] = Query(None, description="Filter by exact owner"),
+    created_after: Optional[date] = Query(None, description="Filter RFQs created on or after this date"),
+    created_before: Optional[date] = Query(None, description="Filter RFQs created on or before this date"),
     sort: Optional[str] = Query(None, description="Sort field, prefix - for desc"),
     page: int = Query(1, ge=1, description="Page number"),
     size: int = Query(20, ge=1, le=100, description="Items per page"),
     ctrl: RfqController = Depends(get_rfq_controller),
 ):
     """Paginated list with search, filters, and sort."""
-    return ctrl.list(search=search, status=status, priority=priority, sort=sort, page=page, size=size)
+    return ctrl.list(search=search, status=status, priority=priority, owner=owner, created_after=created_after, created_before=created_before, sort=sort, page=page, size=size)
+
+
+@router.get("/export", response_class=Response)
+def export_rfqs(
+    search: Optional[str] = Query(None, description="Search in name and client"),
+    status: Optional[List[Literal["Draft", "In preparation", "Submitted", "Awarded", "Lost", "Cancelled"]]] = Query(None, description="Filter by multiple statuses"),
+    priority: Optional[Literal["normal", "critical"]] = Query(None, description="Filter by priority"),
+    owner: Optional[str] = Query(None, description="Filter by exact owner"),
+    created_after: Optional[date] = Query(None, description="Filter RFQs created on or after this date"),
+    created_before: Optional[date] = Query(None, description="Filter RFQs created on or before this date"),
+    sort: Optional[str] = Query(None, description="Sort field, prefix - for desc"),
+    ctrl: RfqController = Depends(get_rfq_controller),
+):
+    """Export filtered RFQs as a CSV file."""
+    csv_content = ctrl.export_csv(
+        search=search, status=status, priority=priority, 
+        owner=owner, created_after=created_after, created_before=created_before, 
+        sort=sort
+    )
+    return Response(
+        content=csv_content, 
+        media_type="text/csv", 
+        headers={"Content-Disposition": "attachment; filename=rfqs_export.csv"}
+    )
 
 
 # ── #5 — RFQ Stats ───────────────────────────────────

@@ -14,6 +14,7 @@ Run with: `uvicorn src.app:app --reload`
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.exceptions import RequestValidationError
 
 from fastapi import APIRouter
 
@@ -68,6 +69,24 @@ def create_app() -> FastAPI:
         return JSONResponse(
             status_code=error.status_code,
             content={"error": error.__class__.__name__, "message": error.message},
+        )
+
+    # ── Validation Error Handler ──────────────────────
+    # Catch Pydantic/FastAPI validation errors and format
+    # them to match the AppError shape
+    @app.exception_handler(RequestValidationError)
+    async def validation_exception_handler(request: Request, exc: RequestValidationError):
+        error_msgs = []
+        for err in exc.errors():
+            loc = ".".join([str(x) for x in err["loc"]])
+            msg = err["msg"]
+            error_msgs.append(f"{loc}: {msg}")
+        return JSONResponse(
+            status_code=422,
+            content={
+                "error": "UnprocessableEntityError",
+                "message": "Validation failed: " + " | ".join(error_msgs)
+            },
         )
 
     # ── Health Check ──────────────────────────────────
