@@ -680,7 +680,7 @@ paths:
       description: |
         Admin endpoint to manually trigger the background worker logic.
         Finds all 'open' or 'overdue' reminders where due_date <= today.
-        Sends them, increments send_count, updates last_sent_at, and marks as 'sent' if max_sends is reached.
+        Sends them according to rate limits, increments send_count, updates last_sent_at cooldowns, and updates temporal status.
       operationId: processDueReminders
       responses:
         '200':

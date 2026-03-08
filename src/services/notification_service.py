@@ -28,30 +28,29 @@ class NotificationService:
         )
 
         processed = 0
-        completed = 0
 
         for reminder in due_reminders:
-            # 0. Check daily rate limit to prevent spam
+            # 1. Update lifecycle state based purely on date, regardless of sending
+            if reminder.due_date < today:
+                reminder.status = "overdue"
+            else:
+                reminder.status = "open"
+
+            # 2. Execution gates: max exhaustion and daily rate limit
+            if reminder.send_count >= max_sends:
+                continue
+
             if reminder.last_sent_at and reminder.last_sent_at.date() == today:
                 continue
 
-            # 1. Mock sending logic
+            # 3. Mock sending logic
             recipient = reminder.assigned_to or "Unassigned"
             logger.info(f"Sending reminder [{reminder.type}]: '{reminder.message}' to {recipient}")
 
-            # 2. Update execution state
+            # 4. Update execution state
             reminder.last_sent_at = now
             reminder.send_count += 1
             processed += 1
 
-            # 3. Exhaustion check
-            if reminder.send_count >= max_sends:
-                reminder.status = "sent"  # terminal state
-                completed += 1
-            elif reminder.due_date < today:
-                reminder.status = "overdue"
-            else:
-                reminder.status = "open"  # preserve non-late status if due today
-
         self.session.commit()
-        return {"processed_count": processed, "completed_count": completed}
+        return {"processed_count": processed}
