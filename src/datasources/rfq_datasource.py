@@ -4,6 +4,7 @@ RFQ datasource — database queries for the `rfq` table.
 
 from sqlalchemy import or_, func
 from sqlalchemy.orm import Session
+from typing import List
 
 from src.models.rfq import RFQ
 
@@ -28,8 +29,11 @@ class RfqDatasource:
     def list(
         self,
         search: str = None,
-        status: str = None,
+        status: List[str] = None,
         priority: str = None,
+        owner: str = None,
+        created_after = None,
+        created_before = None,
         sort: str = None,
     ):
         """Build a filtered, sorted query. Returns the query object for pagination."""
@@ -37,12 +41,26 @@ class RfqDatasource:
 
         # ── Filters ───────────────────────────────────
         if status:
-            query = query.filter(RFQ.status == status)
+            query = query.filter(RFQ.status.in_(status))
         else:
             query = query.filter(RFQ.status != "Draft")
 
         if priority:
             query = query.filter(RFQ.priority == priority)
+
+        if owner:
+            query = query.filter(RFQ.owner == owner)
+
+        if created_after:
+            query = query.filter(RFQ.created_at >= created_after)
+
+        if created_before:
+            from datetime import date as _date, datetime as _datetime, timedelta
+            if isinstance(created_before, (_datetime, _date)):
+                next_day = created_before + timedelta(days=1)
+                query = query.filter(RFQ.created_at < next_day)
+            else:
+                query = query.filter(RFQ.created_at <= created_before)
 
         if search:
             search_term = f"%{search}%"

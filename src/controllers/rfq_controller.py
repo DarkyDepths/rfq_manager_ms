@@ -22,6 +22,9 @@ from src.datasources.rfq_stage_datasource import RfqStageDatasource
 from src.models.rfq_stage import RFQStage
 from src.translators import rfq_translator
 from src.utils.errors import NotFoundError, BadRequestError, ConflictError
+import csv
+import io
+from typing import List
 from src.utils.pagination import PaginationParams, paginate, paginated_response
 
 
@@ -143,30 +146,67 @@ class RfqController:
     def list(
         self,
         search: str = None,
-        status: str = None,
+        status: List[str] = None,
         priority: str = None,
+        owner: str = None,
+        created_after = None,
+        created_before = None,
         sort: str = None,
         page: int = 1,
         size: int = 20,
     ) -> dict:
         """List RFQs with filters, sort, and pagination."""
-        query = self.rfq_ds.list(search=search, status=status, priority=priority, sort=sort)
+        query = self.rfq_ds.list(
+            search=search, status=status, priority=priority, 
+            owner=owner, created_after=created_after, created_before=created_before, 
+            sort=sort
+        )
 
         params = PaginationParams(page=page, size=size)
         items, total = paginate(query, params)
 
-        # Pre-load stage names and workflow names for enriched list responses
-        summaries = []
-        for rfq in items:
-            current_stage_name = self._get_current_stage_name(rfq)
-            workflow_name = self._get_workflow_name(rfq.workflow_id)
-            summaries.append(rfq_translator.to_summary(
-                rfq,
-                current_stage_name=current_stage_name,
-                workflow_name=workflow_name,
-            ))
+        # ── Pre-load names to avoid N+1 queries ──
+        summary_items = self._enrich_summaries(items)
+        return paginated_response(summary_items, total, params)
 
-        return paginated_response(summaries, total, params)
+    def export_csv(
+        self,
+        search: str = None,
+        status: List[str] = None,
+        priority: str = None,
+        owner: str = None,
+        created_after = None,
+        created_before = None,
+        sort: str = None,
+    ) -> str:
+        """Export filtered RFQs as a CSV string."""
+        query = self.rfq_ds.list(
+            search=search, status=status, priority=priority, 
+            owner=owner, created_after=created_after, created_before=created_before, 
+            sort=sort
+        )
+        rfqs = query.all()
+
+        output = io.StringIO()
+        writer = csv.writer(output)
+        
+        # Header
+        writer.writerow(["RFQ Code", "Name", "Client", "Priority", "Status", "Progress (%)", "Deadline", "Owner", "Created At"])
+        
+        for rfq in rfqs:
+            writer.writerow([
+                rfq.rfq_code or "",
+                rfq.name,
+                rfq.client,
+                rfq.priority,
+                rfq.status,
+                rfq.progress,
+                rfq.deadline.isoformat() if rfq.deadline else "",
+                rfq.owner,
+                rfq.created_at.isoformat() if rfq.created_at else ""
+            ])
+            
+        return output.getvalue()
 
     # ══════════════════════════════════════════════════
     # STATS (#5)

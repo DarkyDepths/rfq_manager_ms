@@ -8,8 +8,6 @@ Orchestrates:
 - Reminder rules: list and toggle is_active
 - Test reminder email (send to current user)
 - Batch processing support (rate-limit via last_sent_at, increment send_count)
-
-Dependencies: ReminderDatasource, EventBusConnector, IamServiceConnector
 """
 
 import logging
@@ -56,6 +54,13 @@ class ReminderController:
         return reminder_translator.rule_to_response(rule)
 
     def test_email(self):
-        """V1: log-only. Real email integration comes with rfq_communication_ms."""
+        """V1: outbound delivery is stubbed to logger. Reminder ownership remains inside rfq_manager_ms."""
         logger.info("TEST EMAIL: Would send test reminder email to current user")
         return {"message": "Test email logged (V1 — no actual send)"}
+
+    def process_reminders(self):
+        """Invoke the pure batch processing logic."""
+        from src.services.notification_service import NotificationService
+        svc = NotificationService(self.session)
+        result = svc.process_due_reminders()
+        return {"message": "Batch processing complete", "data": result}

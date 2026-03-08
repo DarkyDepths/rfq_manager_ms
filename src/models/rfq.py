@@ -40,9 +40,9 @@ class RFQ(Base):
     client = Column(String(200), nullable=False, index=True)  # "Saudi Aramco"
     industry = Column(String(200), nullable=True)        # "Oil & Gas – Upstream"
     country = Column(String(100), nullable=True)         # "Saudi Arabia"
-    priority = Column(String(20), nullable=False, default="normal")  # normal | critical
+    priority = Column(String(20), nullable=False, default="normal", index=True)  # normal | critical
     deadline = Column(Date, nullable=False, index=True)  # submission deadline
-    owner = Column(String(200), nullable=False)          # "Proposals Team A"
+    owner = Column(String(200), nullable=False, index=True)          # "Proposals Team A"
     description = Column(String(2000), nullable=True)    # free text
     rfq_code = Column(String(20), unique=True, nullable=True, index=True)  # IF-0001 or IB-0001
 
@@ -76,5 +76,5 @@ class RFQ(Base):
     outcome_reason = Column(String(1000), nullable=True)  # "Best technical score"
 
     # ── Timestamps ────────────────────────────────────
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())

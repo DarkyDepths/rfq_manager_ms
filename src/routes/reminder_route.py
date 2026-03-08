@@ -63,3 +63,8 @@ def update_rule(rule_id: UUID, body: ReminderRuleUpdateRequest, ctrl: ReminderCo
 def test_reminder(ctrl: ReminderController = Depends(get_reminder_controller)):
     """#25 — Test reminder email (log-only in V1)."""
     return ctrl.test_email()
+
+@router.post("/process")
+def process_reminders(ctrl: ReminderController = Depends(get_reminder_controller)):
+    """#26 — Trigger batch processing of due reminders."""
+    return ctrl.process_reminders()

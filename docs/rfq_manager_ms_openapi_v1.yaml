@@ -75,6 +75,9 @@ paths:
         - $ref: '#/components/parameters/SearchParam'
         - $ref: '#/components/parameters/StatusFilterParam'
         - $ref: '#/components/parameters/PriorityFilterParam'
+        - $ref: '#/components/parameters/OwnerFilterParam'
+        - $ref: '#/components/parameters/CreatedAfterParam'
+        - $ref: '#/components/parameters/CreatedBeforeParam'
         - $ref: '#/components/parameters/PageParam'
         - $ref: '#/components/parameters/SizeParam'
         - $ref: '#/components/parameters/SortParam'
@@ -85,6 +88,30 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/RfqListResponse'
+
+  /rfqs/export:
+    get:
+      summary: Export RFQs as CSV
+      description: Returns a CSV file of RFQs matching the provided filters. Reuses the exact same filtering parameters as `GET /rfqs` but ignores pagination parameters.
+      tags:
+        - RFQ Core
+      operationId: exportRfqs
+      parameters:
+        - $ref: '#/components/parameters/SearchParam'
+        - $ref: '#/components/parameters/StatusFilterParam'
+        - $ref: '#/components/parameters/PriorityFilterParam'
+        - $ref: '#/components/parameters/OwnerFilterParam'
+        - $ref: '#/components/parameters/CreatedAfterParam'
+        - $ref: '#/components/parameters/CreatedBeforeParam'
+        - $ref: '#/components/parameters/SortParam'
+      responses:
+        '200':
+          description: A CSV text file containing the filtered RFQs.
+          content:
+            text/csv:
+              schema:
+                type: string
+                format: binary
 
   /rfqs/{rfqId}:
     get:
@@ -641,11 +668,23 @@ paths:
     post:
       tags: [Reminder]
       summary: "#25 — Test reminder email"
-      description: Sends a test reminder email to the current user.
-      operationId: testReminder
+      description: Sends a test email to the current user (log output only in V1).
+      operationId: testReminderEmail
       responses:
         '200':
-          description: Test email sent
+          description: Test email triggered
+  /reminders/process:
+    post:
+      tags: [Reminder]
+      summary: "#26 — Batch process due reminders"
+      description: |
+        Admin endpoint to manually trigger the background worker logic.
+        Finds all 'open' or 'overdue' reminders where due_date <= today.
+        Sends them according to rate limits, increments send_count, updates last_sent_at cooldowns, and updates temporal status.
+      operationId: processDueReminders
+      responses:
+        '200':
+          description: Batch processing results
           content:
             application/json:
               schema:
@@ -721,14 +760,38 @@ components:
       name: status
       in: query
       schema:
-        type: string
-        enum: [Draft, In preparation, Submitted, Awarded, Lost, Cancelled]
+        type: array
+        items:
+          type: string
+          enum: [Draft, In preparation, Submitted, Awarded, Lost, Cancelled]
+      style: form
+      explode: true
     PriorityFilterParam:
       name: priority
       in: query
       schema:
         type: string
         enum: [normal, critical]
+    OwnerFilterParam:
+      name: owner
+      in: query
+      schema:
+        type: string
+      description: Filter by exact owner name
+    CreatedAfterParam:
+      name: created_after
+      in: query
+      schema:
+        type: string
+        format: date
+      description: Filter RFQs created on or after this date (YYYY-MM-DD)
+    CreatedBeforeParam:
+      name: created_before
+      in: query
+      schema:
+        type: string
+        format: date
+      description: Filter RFQs created on or before this date (YYYY-MM-DD)
     PageParam:
       name: page
       in: query

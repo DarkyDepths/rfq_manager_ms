@@ -24,15 +24,15 @@ utils/           →  Shared helpers (errors, pagination)
 - **Validation:** Pydantic v2
 - **Python:** 3.11+
 
-## API Endpoints (29 total)
+## API Endpoints (31 total)
 
 | Resource    | Endpoints | Description                                  |
 |-------------|-----------|----------------------------------------------|
-| RFQ         | 6         | CRUD + stats + analytics                     |
+| RFQ         | 7         | CRUD + stats + analytics + export            |
 | Workflow    | 3         | List, get, update templates                  |
 | RFQ Stage   | 6         | List, get, update, notes, files, advance     |
 | Subtask     | 4         | CRUD with soft delete + progress rollup      |
-| Reminder    | 6         | CRUD + rules + stats + test email            |
+| Reminder    | 7         | CRUD + rules + stats + test email + process  |
 | File        | 3         | List, download, soft delete                  |
 | Health      | 1         | Liveness check                               |
 
@@ -53,7 +53,7 @@ cp .env.example .env
 
 # 4. Create tables & seed data
 $env:DATABASE_URL='postgresql+psycopg://user:pass@localhost:5432/rfq_manager_db'
-python seed.py
+python scripts/seed.py --scenario=demo
 
 # 5. Run the server
 uvicorn src.app:app --reload
