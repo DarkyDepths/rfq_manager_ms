@@ -43,3 +43,6 @@ migrations/__pycache__/
 # ── Antigravity / Gemini ──────────────────────────
 .gemini/
 
+# ── Node / Newman ─────────────────────────────────
+node_modules/
+*newman_results*.json
