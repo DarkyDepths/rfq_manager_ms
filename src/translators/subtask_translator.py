@@ -26,6 +26,7 @@ class SubtaskUpdateRequest(BaseModel):
 
 class SubtaskResponse(BaseModel):
     id: UUID
+    rfq_stage_id: UUID
     name: str
     assigned_to: Optional[str] = None
     due_date: Optional[date] = None
