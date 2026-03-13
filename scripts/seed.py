@@ -180,10 +180,19 @@ def generate_scenario(session, fake, scenario, base_workflow_long, base_workflow
             stages[0].actual_start = date.today() - timedelta(days=5)
             rfq.current_stage_id = stages[0].id
             
-            # fast-forward some stages
-            stages_to_complete = random.randint(0, len(stages) - 2)
+            # semantically align stages with RFQ status
+            submission_idx = next((i for i, s in enumerate(stages) if s.name == "Offer submission"), len(stages) - 2)
+
             if force_terminal:
                 stages_to_complete = len(stages) - 1
+            elif target_status == "In preparation":
+                stages_to_complete = random.randint(0, submission_idx)
+            elif target_status == "Submitted":
+                # ensure Offer submission is among the completed stages
+                # upper bound allows reaching the final stage (In Progress)
+                stages_to_complete = random.randint(submission_idx + 1, len(stages) - 1)
+            else:
+                stages_to_complete = random.randint(0, len(stages) - 2)
             
             for i in range(stages_to_complete):
                 stages[i].status = "Completed"
