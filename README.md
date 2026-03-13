@@ -39,26 +39,30 @@ utils/           →  Shared helpers (errors, pagination)
 ## Quick Start
 
 ```bash
-# 1. Create virtual environment
+# 1. Start Database (Docker)
+docker run --name rfq_db -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=rfq_manager_db -p 5555:5432 -d postgres:15
+
+# 2. Create virtual environment
 python -m venv .venv
 .venv\Scripts\Activate.ps1  # Windows
 # source .venv/bin/activate  # Linux/Mac
 
-# 2. Install dependencies
+# 3. Install dependencies
 pip install -r requirements.txt
 
-# 3. Configure environment
+# 4. Configure environment
 cp .env.example .env
-# Edit .env with your DATABASE_URL
 
-# 4. Create tables & seed data
-$env:DATABASE_URL='postgresql+psycopg://user:pass@localhost:5432/rfq_manager_db'
+# 5. Create tables & seed data
+# Note: Ensure the port matches the docker command (5555)
+$env:DATABASE_URL='postgresql+psycopg://postgres:postgres@localhost:5555/rfq_manager_db'
+alembic upgrade head
 python scripts/seed.py --scenario=demo
 
-# 5. Run the server
-uvicorn src.app:app --reload
+# 6. Run the server
+uvicorn src.app:app --reload --port 8000
 
-# 6. Open API docs
+# 7. Open API docs
 # http://localhost:8000/docs
 ```
 
