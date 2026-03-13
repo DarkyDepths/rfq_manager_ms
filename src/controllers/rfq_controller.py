@@ -284,6 +284,31 @@ class RfqController:
     # PRIVATE HELPERS
     # ══════════════════════════════════════════════════
 
+    def _enrich_summaries(self, rfqs) -> list:
+        """Pre-load workflow and stage names in bulk to avoid N+1 queries."""
+        if not rfqs:
+            return []
+
+        workflow_ids = {r.workflow_id for r in rfqs if r.workflow_id}
+        stage_ids = {r.current_stage_id for r in rfqs if r.current_stage_id}
+
+        from src.models.workflow import Workflow
+        from src.models.rfq_stage import RFQStage
+
+        workflows = self.session.query(Workflow).filter(Workflow.id.in_(workflow_ids)).all()
+        wf_map = {w.id: w.name for w in workflows}
+
+        stages = self.session.query(RFQStage).filter(RFQStage.id.in_(stage_ids)).all()
+        st_map = {s.id: s.name for s in stages}
+
+        results = []
+        for rfq in rfqs:
+            wf_name = wf_map.get(rfq.workflow_id)
+            st_name = st_map.get(rfq.current_stage_id)
+            results.append(rfq_translator.to_summary(rfq, current_stage_name=st_name, workflow_name=wf_name))
+            
+        return results
+
     def _calculate_stage_dates(self, deadline: date, stages) -> dict:
         """Back-calculate planned_start/planned_end from the deadline.
         Uses sequential order (1, 2, 3...) after any skip filtering.
