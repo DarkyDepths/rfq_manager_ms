@@ -39,30 +39,51 @@ utils/           →  Shared helpers (errors, pagination)
 ## Quick Start
 
 ```bash
-# 1. Start Database (Docker)
+# 1. Start PostgreSQL in Docker
 docker run --name rfq_db -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=rfq_manager_db -p 5555:5432 -d postgres:15
+# Linux/Mac: same command
+
+# If the container already exists, start it instead
+# docker start rfq_db
+# Linux/Mac: same command
 
 # 2. Create virtual environment
 python -m venv .venv
-.venv\Scripts\Activate.ps1  # Windows
-# source .venv/bin/activate  # Linux/Mac
+# Linux/Mac: python3 -m venv .venv
 
-# 3. Install dependencies
+# 3. Activate virtual environment
+.venv\Scripts\Activate.ps1
+# Linux/Mac: source .venv/bin/activate
+
+# 4. Install dependencies
 pip install -r requirements.txt
+# Linux/Mac: pip install -r requirements.txt
 
-# 4. Configure environment
-cp .env.example .env
+# 5. Create local environment file
+Copy-Item .env.example .env
+# Linux/Mac: cp .env.example .env
 
-# 5. Create tables & seed data
-# Note: Ensure the port matches the docker command (5555)
-$env:DATABASE_URL='postgresql+psycopg://postgres:postgres@localhost:5555/rfq_manager_db'
+# 6. Make repo root importable for scripts
+$env:PYTHONPATH="."
+# Linux/Mac: export PYTHONPATH=.
+
+# 7. Configure database connection
+$env:DATABASE_URL="postgresql+psycopg2://postgres:postgres@localhost:5555/rfq_manager_db"
+# Linux/Mac: export DATABASE_URL="postgresql+psycopg2://postgres:postgres@localhost:5555/rfq_manager_db"
+
+# 8. Run migrations
 alembic upgrade head
+# Linux/Mac: alembic upgrade head
+
+# 9. Seed demo data
 python scripts/seed.py --scenario=demo
+# Linux/Mac: python scripts/seed.py --scenario=demo
 
-# 6. Run the server
+# 10. Start the API
 uvicorn src.app:app --reload --port 8000
+# Linux/Mac: uvicorn src.app:app --reload --port 8000
 
-# 7. Open API docs
+# 11. Open Swagger
 # http://localhost:8000/docs
 ```
 

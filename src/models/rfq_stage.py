@@ -62,7 +62,7 @@ class RFQStage(Base):
     status = Column(
         String(50),
         nullable=False,
-        default="Not started",  # Not started | In Progress | Completed | Skipped
+        default="Not Started",  # Not Started | In Progress | Completed | Skipped
     )
     progress = Column(Integer, nullable=False, default=0)  # 0–100
 

@@ -88,5 +88,7 @@ class SubtaskController:
             stage.progress = 0  # no active subtasks → reset
         else:
             avg = sum(s.progress for s in subtasks) // len(subtasks)
+            if avg == 100 and stage.status != "Completed":
+                avg = 99
             stage.progress = avg
         self.session.flush()

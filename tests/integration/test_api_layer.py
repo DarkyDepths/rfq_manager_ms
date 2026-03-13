@@ -54,13 +54,15 @@ def test_rich_filters_parsing():
     """Verify that FastAPI correctly parses multi-value status, dates, and other Phase 2 filters."""
     # Note: Using valid enums for status and priority
     response = client.get(
-        "/rfq-manager/v1/rfqs"
-        "?status=Submitted&status=In preparation"
-        "&priority=critical"
-        "&owner=Engineering Team"
-        "&created_after=2023-01-01"
-        "&created_before=2023-12-31"
-        "&search=Pump"
+        "/rfq-manager/v1/rfqs",
+        params={
+            "status": ["Submitted", "In preparation"],
+            "priority": "critical",
+            "owner": "Engineering Team",
+            "created_after": "2023-01-01",
+            "created_before": "2023-12-31",
+            "search": "Pump"
+        }
     )
     
     assert response.status_code == 200

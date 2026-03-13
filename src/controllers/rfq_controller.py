@@ -96,7 +96,7 @@ class RfqController:
                 "name": template.name,
                 "order": new_order,  # re-numbered sequentially
                 "assigned_team": assigned_team,
-                "status": "Not started",
+                "status": "Not Started",
                 "progress": 0,
                 "planned_start": dates["start"],
                 "planned_end": dates["end"],
@@ -259,7 +259,7 @@ class RfqController:
                     if stage.status == "In Progress":
                         stage.status = "Skipped"
                         stage.actual_end = date.today()
-                    elif stage.status == "Not started":
+                    elif stage.status == "Not Started":
                         stage.status = "Skipped"
                     break
 

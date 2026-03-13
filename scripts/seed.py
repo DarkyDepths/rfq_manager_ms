@@ -164,9 +164,8 @@ def generate_scenario(session, fake, scenario, base_workflow_long, base_workflow
         stages = []
         for t in templates:
             stage = RFQStage(
-                rfq_id=rfq.id, name=t.name, order=t.order, default_team=t.default_team,
-                planned_duration_days=t.planned_duration_days, mandatory_fields=t.mandatory_fields,
-                status="Not Started", progress=0
+                rfq_id=rfq.id, name=t.name, order=t.order, assigned_team=t.default_team,
+                mandatory_fields=t.mandatory_fields, status="Not Started", progress=0
             )
             stages.append(stage)
             session.add(stage)
@@ -194,6 +193,11 @@ def generate_scenario(session, fake, scenario, base_workflow_long, base_workflow
                 stages[i+1].status = "In Progress"
                 stages[i+1].actual_start = date.today()
                 rfq.current_stage_id = stages[i+1].id
+                
+            if stages_to_complete > 0 and not force_terminal:
+                rfq.progress = int((stages_to_complete / len(stages)) * 100)
+                if rfq.progress == 100:
+                    rfq.progress = 99
                 
             if force_terminal:
                 stages[-1].status = "Completed"

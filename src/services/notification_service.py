@@ -63,4 +63,9 @@ class NotificationService:
             processed += 1
 
         self.session.commit()
-        return {"processed_count": processed}
+        if processed == 0:
+            message = "0 reminders processed (no active reminders due, max attempts reached, or daily rate-limit enforced)"
+        else:
+            message = f"Successfully processed and sent {processed} reminder(s)"
+            
+        return {"processed_count": processed, "message": message}

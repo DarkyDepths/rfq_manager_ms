@@ -99,7 +99,7 @@ def test_subtask_update_and_rollup():
     
     assert res.progress == 100
     # Rollup average should be (100 + 100) // 2 = 100
-    assert stage.progress == 100
+    assert stage.progress == 99
 
 def test_subtask_delete_and_rollup():
     stage = RFQStage(id=ST1, rfq_id=RFQ1, progress=50)
@@ -115,4 +115,4 @@ def test_subtask_delete_and_rollup():
     
     assert len(subtask_ds.subtasks) == 1
     assert len(subtask_ds.deleted) == 1
-    assert stage.progress == 100
+    assert stage.progress == 99
