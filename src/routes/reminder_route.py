@@ -8,6 +8,7 @@ Endpoints:
 - GET    /reminders/rules        — #23 List reminder rules
 - PATCH  /reminders/rules/{ruleId} — #24 Toggle reminder rule
 - POST   /reminders/test         — #25 Test reminder email
+- POST   /reminders/process      — #26 Trigger batch processing of due reminders
 """
 
 from uuid import UUID
