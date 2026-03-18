@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>rfq_manager_ms — Current Swagger UI</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.11.0/swagger-ui.min.css">
+  <style>
+    body {
+      margin: 0;
+      background: #fafafa;
+    }
+
+    .swagger-ui .topbar {
+      display: none;
+    }
+
+    .custom-header {
+      background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+      color: white;
+      padding: 24px 32px;
+      font-family: 'Inter', -apple-system, sans-serif;
+    }
+
+    .custom-header h1 {
+      font-size: 22px;
+      font-weight: 700;
+      margin: 0 0 6px;
+    }
+
+    .custom-header p {
+      font-size: 13px;
+      opacity: 0.8;
+      margin: 0 0 12px;
+    }
+
+    .custom-header .badges {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .custom-header .badge {
+      background: rgba(255, 255, 255, 0.15);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      padding: 4px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+  </style>
+</head>
+
+<body>
+  
+
+  <div class="custom-header">
+    <h1>rfq_manager_ms — Current API Explorer</h1>
+    <p>OpenAPI 3.0 specification — reflecting current repository reality</p>
+    <div class="badges">
+      <span class="badge">V1.0</span>
+      <span class="badge">31 Endpoints</span>
+      <span class="badge">6 Resources</span>
+      <span class="badge">9 Tables</span>
+    </div>
+  </div>
+
+  <div id="swagger-ui"></div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.11.0/swagger-ui-bundle.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.11.0/swagger-ui-standalone-preset.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/js-yaml/4.1.0/js-yaml.min.js"></script>
+  <script>
+    function initSwagger(spec) {
+      SwaggerUIBundle({
+        spec: spec,
+        dom_id: '#swagger-ui',
+        deepLinking: true,
+        presets: [
+          SwaggerUIBundle.presets.apis,
+          SwaggerUIStandalonePreset
+        ],
+        plugins: [
+          SwaggerUIBundle.plugins.DownloadUrl
+        ],
+        layout: "StandaloneLayout",
+        defaultModelsExpandDepth: 2,
+        defaultModelExpandDepth: 2,
+        docExpansion: "list",
+        filter: true,
+        tagsSorter: function (a, b) {
+          var order = ["RFQ", "Workflow", "RFQ_Stage", "Subtask", "File", "Reminder"];
+          return order.indexOf(a) - order.indexOf(b);
+        }
+      });
+    }
+
+    function showFallback() {
+      document.getElementById('swagger-ui').innerHTML =
+        '<div style="padding:40px;text-align:center;font-family:Inter,sans-serif;">' +
+        '<h2 style="color:#1e293b;">Cannot load YAML from file:// protocol</h2>' +
+        '<p>Chrome blocks local file loading. Open a terminal in <code style="background:#f1f5f9;padding:2px 8px;border-radius:4px;">d:\\Current</code> and run:</p>' +
+        '<pre style="background:#1e293b;color:#e2e8f0;padding:16px 24px;border-radius:8px;display:inline-block;font-size:14px;">npx -y serve .</pre>' +
+        '<p style="margin-top:16px;">Then open <a href="http://localhost:3000/rfq_manager_ms_swagger_v1.html" style="color:#2563eb;">http://localhost:3000/rfq_manager_ms_swagger_v1.html</a></p>' +
+        '</div>';
+    }
+
+    // Try fetch first, fallback to XHR for file:// protocol
+    fetch("./rfq_manager_ms_openapi_current.yaml")
+      .then(function (r) { return r.text(); })
+      .then(function (yamlText) {
+        initSwagger(jsyaml.load(yamlText));
+      })
+      .catch(function () {
+        try {
+          var xhr = new XMLHttpRequest();
+          xhr.open("GET", "./rfq_manager_ms_openapi_current.yaml", false);
+          xhr.send();
+          if (xhr.status === 200 || xhr.status === 0) {
+            initSwagger(jsyaml.load(xhr.responseText));
+          } else {
+            showFallback();
+          }
+        } catch (e) {
+          showFallback();
+        }
+      });
+  </script>
+
+</body>
+
+</html>

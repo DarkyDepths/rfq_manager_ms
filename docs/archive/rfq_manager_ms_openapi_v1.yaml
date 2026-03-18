@@ -2,6 +2,8 @@ openapi: 3.0.3
 info:
   title: rfq_manager_ms — RFQ Lifecycle Management API
   description: |
+    **ARCHIVED BASELINE MATERIAL:** This document reflects the V1 initial contract design. It contains features (like connectors, rfq_history, rfq_stage_field_value) and mutable endpoints that may have drifted in the current live implementation. Please refer to README.md and the live codebase for strict runtime truth.
+    
     Interface contract for the RFQ Manager microservice (V1).
     Front-to-back design: 9 UI screens → 47 user actions → 6 resources → 28 endpoints → 9 tables.
   version: "1.0.0"

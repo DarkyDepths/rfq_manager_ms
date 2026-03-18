@@ -9,8 +9,8 @@ routes/          →  API endpoints (FastAPI routers)
 controllers/     →  Business logic & transaction management
 datasources/     →  Database queries (SQLAlchemy ORM)
 translators/     →  Pydantic schemas & model ↔ schema conversion
-models/          →  SQLAlchemy table definitions
-connectors/      →  External service clients (IAM, event bus)
+models/          →  SQLAlchemy table definitions (9 active, 2 dormant)
+connectors/      →  External service clients (IAM, event bus — dormant in V1)
 config/          →  Settings from environment variables
 utils/           →  Shared helpers (errors, pagination)
 ```

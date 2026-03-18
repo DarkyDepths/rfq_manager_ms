@@ -1,0 +1,1419 @@
+openapi: 3.0.3
+info:
+  title: rfq_manager_ms — RFQ Lifecycle Management API
+  description: |
+    Current interface contract for the RFQ Manager microservice.
+    Front-to-back design: 9 UI screens → 47 user actions → 6 resources → 31 endpoints → 9 tables.
+  version: "1.0.0"
+  contact:
+    name: RFQ Manager Team
+
+servers:
+  - url: /rfq-manager/v1
+    description: Base path — convention /{ms_name}/{version}
+
+tags:
+  - name: Health
+    description: Liveness check
+  - name: RFQ
+    description: Core RFQ lifecycle (create, list, detail, update, stats, analytics)
+  - name: Workflow
+    description: Reusable workflow templates (pre-seeded, patchable metadata)
+  - name: RFQ_Stage
+    description: Live stage instances per RFQ — progress, notes, files, advance
+  - name: Subtask
+    description: Work items per stage — the UI's subtask management
+  - name: File
+    description: File download and delete (shortcut pattern — fileId is globally unique)
+  - name: Reminder
+    description: Manual and auto-created reminders, rules, batch processing
+
+# security:
+#   - bearerAuth: []
+
+# ═══════════════════════════════════════════════════
+# PATHS
+# ═══════════════════════════════════════════════════
+paths:
+
+  # ──── RFQ ────────────────────────────────────────
+  /rfqs:
+    post:
+      tags: [RFQ]
+      summary: "#1 — Create RFQ"
+      description: |
+        Creates a new RFQ and auto-generates all rfq_stage instances from the selected workflow.
+        Back-calculates planned_start / planned_end from deadline.
+        Sets current_stage_id = first stage, status = "In preparation".
+        Note: Draft status is reserved for a future "save without submitting" flow — this endpoint always creates in "In preparation".
+      operationId: createRfq
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RfqCreateRequest'
+      responses:
+        '201':
+          description: RFQ created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RfqDetail'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+
+    get:
+      tags: [RFQ]
+      summary: "#2 — List RFQs"
+      description: |
+        Paginated list with search, status filter, priority filter, and sort.
+        Used by index.html portfolio table and workspace.html RFQ selector.
+        Excludes Draft RFQs by default — pass ?status=Draft to include them.
+      operationId: listRfqs
+      parameters:
+        - $ref: '#/components/parameters/SearchParam'
+        - $ref: '#/components/parameters/StatusFilterParam'
+        - $ref: '#/components/parameters/PriorityFilterParam'
+        - $ref: '#/components/parameters/OwnerFilterParam'
+        - $ref: '#/components/parameters/CreatedAfterParam'
+        - $ref: '#/components/parameters/CreatedBeforeParam'
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/SizeParam'
+        - $ref: '#/components/parameters/SortParam'
+      responses:
+        '200':
+          description: Paginated RFQ list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RfqListResponse'
+
+  /rfqs/export:
+    get:
+      summary: Export RFQs as CSV
+      description: Returns a CSV file of RFQs matching the provided filters. Reuses the exact same filtering parameters as `GET /rfqs` but ignores pagination parameters.
+      tags:
+        - RFQ
+      operationId: exportRfqs
+      parameters:
+        - $ref: '#/components/parameters/SearchParam'
+        - $ref: '#/components/parameters/StatusFilterParam'
+        - $ref: '#/components/parameters/PriorityFilterParam'
+        - $ref: '#/components/parameters/OwnerFilterParam'
+        - $ref: '#/components/parameters/CreatedAfterParam'
+        - $ref: '#/components/parameters/CreatedBeforeParam'
+        - $ref: '#/components/parameters/SortParam'
+      responses:
+        '200':
+          description: A CSV text file containing the filtered RFQs.
+          content:
+            text/csv:
+              schema:
+                type: string
+                format: binary
+
+  /rfqs/{rfqId}:
+    get:
+      tags: [RFQ]
+      summary: "#3 — Get RFQ detail"
+      description: Full RFQ detail — all list fields + industry, priority, description, workflow_id, current_stage_id, timestamps.
+      operationId: getRfq
+      parameters:
+        - $ref: '#/components/parameters/RfqIdParam'
+      responses:
+        '200':
+          description: RFQ detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RfqDetail'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    patch:
+      tags: [RFQ]
+      summary: "#4 — Update RFQ"
+      description: |
+        Update RFQ metadata or set final outcome (Awarded / Lost / Cancelled).
+        Changing deadline triggers recalculation of all rfq_stage planned dates.
+      operationId: updateRfq
+      parameters:
+        - $ref: '#/components/parameters/RfqIdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RfqUpdateRequest'
+      responses:
+        '200':
+          description: RFQ updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RfqDetail'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /rfqs/stats:
+    get:
+      tags: [RFQ]
+      summary: "#5 — Dashboard KPIs"
+      description: Lightweight stats for index.html KPI cards. Called on every page load.
+      operationId: getRfqStats
+      responses:
+        '200':
+          description: Dashboard stats
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RfqStats'
+
+  /rfqs/analytics:
+    get:
+      tags: [RFQ]
+      summary: "#6 — Business analytics"
+      description: Heavy business data with client breakdown. Used by index.html estimation accuracy table and analytics.html.
+      operationId: getRfqAnalytics
+      responses:
+        '200':
+          description: Analytics data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RfqAnalytics'
+
+  # ──── WORKFLOW ───────────────────────────────────
+  /workflows:
+    get:
+      tags: [Workflow]
+      summary: "#7 — List workflows"
+      description: Returns all workflows (active and inactive). Used by create_rfq.html cards and admin.html toggle.
+      operationId: listWorkflows
+      responses:
+        '200':
+          description: Workflow list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/WorkflowSummary'
+
+  /workflows/{workflowId}:
+    get:
+      tags: [Workflow]
+      summary: "#8 — Get workflow detail"
+      description: Returns workflow + ordered stages[] with id, name, order, default_team, planned_duration_days.
+      operationId: getWorkflow
+      parameters:
+        - $ref: '#/components/parameters/WorkflowIdParam'
+      responses:
+        '200':
+          description: Workflow with stages
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkflowDetail'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    patch:
+      tags: [Workflow]
+      summary: "#9 — Update workflow"
+      description: "Updatable: name, description, is_active, is_default."
+      operationId: updateWorkflow
+      operationId: updateWorkflow
+      parameters:
+        - $ref: '#/components/parameters/WorkflowIdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkflowUpdateRequest'
+      responses:
+        '200':
+          description: Workflow updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkflowDetail'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ──── RFQ_STAGE ──────────────────────────────────
+  /rfqs/{rfqId}/stages:
+    get:
+      tags: [RFQ_Stage]
+      summary: "#10 — List stages for RFQ"
+      description: All stages for an RFQ, ordered by `order`. Used by rfq_overview.html timeline and workspace.html stage tabs.
+      operationId: listRfqStages
+      parameters:
+        - $ref: '#/components/parameters/RfqIdParam'
+      responses:
+        '200':
+          description: Stage list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/RfqStage'
+
+  /rfqs/{rfqId}/stages/{stageId}:
+    get:
+      tags: [RFQ_Stage]
+      summary: "#11 — Get stage detail"
+      description: Same as list item + embedded subtasks[], files[], full captured_data, blocker_status, blocker_reason_code.
+      operationId: getRfqStage
+      parameters:
+        - $ref: '#/components/parameters/RfqIdParam'
+        - $ref: '#/components/parameters/StageIdParam'
+      responses:
+        '200':
+          description: Stage detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RfqStageDetail'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    patch:
+      tags: [RFQ_Stage]
+      summary: "#12 — Update stage"
+      description: |
+        Update progress, captured_data, blocker_status, blocker_reason_code, assigned_team.
+        Set blocker_status = "Blocked" with a reason code to flag a blocker.
+        Set blocker_status = "Resolved" to clear it.
+      operationId: updateRfqStage
+      parameters:
+        - $ref: '#/components/parameters/RfqIdParam'
+        - $ref: '#/components/parameters/StageIdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RfqStageUpdateRequest'
+      responses:
+        '200':
+          description: Stage updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RfqStageDetail'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /rfqs/{rfqId}/stages/{stageId}/notes:
+    post:
+      tags: [RFQ_Stage]
+      summary: "#13 — Add note to stage"
+      description: |
+        Append-only — prevents concurrent overwrite.
+        Auto-sets: user_name (hardcoded placeholder 'System' in V1), created_at (server timestamp), id.
+      operationId: addStageNote
+      parameters:
+        - $ref: '#/components/parameters/RfqIdParam'
+        - $ref: '#/components/parameters/StageIdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [text]
+              properties:
+                text:
+                  type: string
+                  example: "Main vessel shell/head plates identified."
+      responses:
+        '201':
+          description: Note added
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StageNote'
+
+  /rfqs/{rfqId}/stages/{stageId}/files:
+    post:
+      tags: [RFQ_Stage]
+      summary: "#14 — Upload file to stage"
+      description: |
+        Multipart upload. Type: "Client RFQ", "Design report", "BOQ / BOM", "Estimation Workbook", "Other".
+        V2: type = "Estimation Workbook" will trigger intelligence parsing.
+      operationId: uploadStageFile
+      parameters:
+        - $ref: '#/components/parameters/RfqIdParam'
+        - $ref: '#/components/parameters/StageIdParam'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file, type]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                type:
+                  type: string
+                  enum: [Client RFQ, Design report, BOQ / BOM, Estimation Workbook, Other]
+      responses:
+        '201':
+          description: File uploaded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StageFile'
+
+    get:
+      tags: [RFQ_Stage]
+      summary: "#26 — List files for stage"
+      description: Returns list of files for this stage. Also embedded in GET stage detail, but useful for lazy-loading file lists.
+      operationId: listStageFiles
+      parameters:
+        - $ref: '#/components/parameters/RfqIdParam'
+        - $ref: '#/components/parameters/StageIdParam'
+      responses:
+        '200':
+          description: File list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/StageFile'
+
+  /rfqs/{rfqId}/stages/{stageId}/advance:
+    post:
+      tags: [RFQ_Stage]
+      summary: "#15 — Advance to next stage"
+      description: |
+        Sets actual_end on current stage → status = Completed.
+        Sets actual_start on next stage → status = In Progress.
+        Updates RFQ.current_stage_id + recalculates RFQ.progress.
+      operationId: advanceStage
+      parameters:
+        - $ref: '#/components/parameters/RfqIdParam'
+        - $ref: '#/components/parameters/StageIdParam'
+      responses:
+        '200':
+          description: Stage advanced
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RfqStageDetail'
+        '403':
+          description: Not assigned to this stage's team
+        '409':
+          description: Stage is blocked (blocker_status = Blocked)
+        '422':
+          description: Mandatory fields missing in captured_data
+
+  # ──── SUBTASK ────────────────────────────────────
+  /rfqs/{rfqId}/stages/{stageId}/subtasks:
+    post:
+      tags: [Subtask]
+      summary: "#16 — Create subtask"
+      description: "Auto-sets: progress = 0, status = Open."
+      operationId: createSubtask
+      parameters:
+        - $ref: '#/components/parameters/RfqIdParam'
+        - $ref: '#/components/parameters/StageIdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubtaskCreateRequest'
+      responses:
+        '201':
+          description: Subtask created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Subtask'
+
+    get:
+      tags: [Subtask]
+      summary: "#17 — List subtasks"
+      description: Returns active subtasks (WHERE deleted_at IS NULL).
+      operationId: listSubtasks
+      parameters:
+        - $ref: '#/components/parameters/RfqIdParam'
+        - $ref: '#/components/parameters/StageIdParam'
+      responses:
+        '200':
+          description: Subtask list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Subtask'
+
+  /rfqs/{rfqId}/stages/{stageId}/subtasks/{subtaskId}:
+    patch:
+      tags: [Subtask]
+      summary: "#18 — Update subtask"
+      description: |
+        Updatable: name, assigned_to, due_date, progress, status.
+        When all subtasks = 100% → stage progress auto-updates.
+      operationId: updateSubtask
+      parameters:
+        - $ref: '#/components/parameters/RfqIdParam'
+        - $ref: '#/components/parameters/StageIdParam'
+        - $ref: '#/components/parameters/SubtaskIdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubtaskUpdateRequest'
+      responses:
+        '200':
+          description: Subtask updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Subtask'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      tags: [Subtask]
+      summary: "#19 — Delete subtask"
+      description: Soft delete — sets deleted_at = NOW(). Keeps for audit.
+      operationId: deleteSubtask
+      parameters:
+        - $ref: '#/components/parameters/RfqIdParam'
+        - $ref: '#/components/parameters/StageIdParam'
+        - $ref: '#/components/parameters/SubtaskIdParam'
+      responses:
+        '204':
+          description: Subtask soft-deleted
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ──── FILE (shortcut) ────────────────────────────
+  /files/{fileId}/download:
+    get:
+      tags: [File]
+      summary: "#27 — Download file"
+      description: Returns local file stream. (Azure Blob integration is dormant/backlog). Shortcut pattern — fileId is globally unique UUID.
+      operationId: downloadFile
+      parameters:
+        - $ref: '#/components/parameters/FileIdParam'
+      responses:
+        '200':
+          description: File stream or redirect to signed URL
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /files/{fileId}:
+    delete:
+      tags: [File]
+      summary: "#28 — Delete file"
+      description: Soft delete — sets deleted_at = NOW(). All GETs filter WHERE deleted_at IS NULL.
+      operationId: deleteFile
+      parameters:
+        - $ref: '#/components/parameters/FileIdParam'
+      responses:
+        '204':
+          description: File soft-deleted
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ──── REMINDER ───────────────────────────────────
+  /reminders:
+    post:
+      tags: [Reminder]
+      summary: "#20 — Create reminder"
+      description: |
+        Auto-sets: created_by, created_at, status = "open", send_count = 0.
+        Batch process picks these up for notification.
+      operationId: createReminder
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReminderCreateRequest'
+      responses:
+        '201':
+          description: Reminder created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Reminder'
+
+    get:
+      tags: [Reminder]
+      summary: "#21 — List reminders"
+      description: Filter by user, status, rfq_id. Main feed for tasks.html.
+      operationId: listReminders
+      parameters:
+        - name: user
+          in: query
+          schema:
+            type: string
+          example: me
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [open, sent, overdue, resolved]
+        - name: rfq_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Reminder list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Reminder'
+
+  /reminders/stats:
+    get:
+      tags: [Reminder]
+      summary: "#22 — Reminder KPIs"
+      description: 4 KPI cards for tasks.html.
+      operationId: getReminderStats
+      responses:
+        '200':
+          description: Reminder stats
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReminderStats'
+
+  /reminders/rules:
+    get:
+      tags: [Reminder]
+      summary: "#23 — List reminder rules"
+      description: Pre-seeded rules that the batch process reads to auto-create reminders.
+      operationId: listReminderRules
+      responses:
+        '200':
+          description: Rule list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ReminderRule'
+
+  /reminders/rules/{ruleId}:
+    patch:
+      tags: [Reminder]
+      summary: "#24 — Toggle reminder rule"
+      description: Toggle is_active on/off.
+      operationId: updateReminderRule
+      parameters:
+        - $ref: '#/components/parameters/RuleIdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                is_active:
+                  type: boolean
+      responses:
+        '200':
+          description: Rule updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReminderRule'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /reminders/test:
+    post:
+      tags: [Reminder]
+      summary: "#25 — Test reminder email"
+      description: Sends a test email to the current user (log output only in V1).
+      operationId: testReminderEmail
+      responses:
+        '200':
+          description: Test email triggered
+  /reminders/process:
+    post:
+      tags: [Reminder]
+      summary: "#26 — Batch process due reminders"
+      description: |
+        Admin endpoint to manually trigger the background worker logic.
+        Finds all 'open' or 'overdue' reminders where due_date <= today.
+        Sends them according to rate limits, increments send_count, updates last_sent_at cooldowns, and updates temporal status.
+      operationId: processDueReminders
+      responses:
+        '200':
+          description: Batch processing results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Test email sent to user@company.com"
+
+  /health:
+    get:
+      tags: [Health]
+      summary: "Health Liveness Check"
+      description: Returns service liveness status.
+      operationId: getHealth
+      responses:
+        '200':
+          description: OK
+
+# ═══════════════════════════════════════════════════
+# COMPONENTS
+# ═══════════════════════════════════════════════════
+components:
+
+  # securitySchemes:
+  #   bearerAuth:
+  #     type: http
+  #     scheme: bearer
+  #     bearerFormat: JWT
+  #     description: JWT token from rfq_iam_ms
+
+  # ──── PARAMETERS ─────────────────────────────────
+  parameters:
+    RfqIdParam:
+      name: rfqId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    WorkflowIdParam:
+      name: workflowId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    StageIdParam:
+      name: stageId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    SubtaskIdParam:
+      name: subtaskId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    FileIdParam:
+      name: fileId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    RuleIdParam:
+      name: ruleId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    SearchParam:
+      name: search
+      in: query
+      schema:
+        type: string
+      description: Free-text search on name, client
+    StatusFilterParam:
+      name: status
+      in: query
+      schema:
+        type: array
+        items:
+          type: string
+          enum: [Draft, In preparation, Submitted, Awarded, Lost, Cancelled]
+      style: form
+      explode: true
+    PriorityFilterParam:
+      name: priority
+      in: query
+      schema:
+        type: string
+        enum: [normal, critical]
+    OwnerFilterParam:
+      name: owner
+      in: query
+      schema:
+        type: string
+      description: Filter by exact owner name
+    CreatedAfterParam:
+      name: created_after
+      in: query
+      schema:
+        type: string
+        format: date
+      description: Filter RFQs created on or after this date (YYYY-MM-DD)
+    CreatedBeforeParam:
+      name: created_before
+      in: query
+      schema:
+        type: string
+        format: date
+      description: Filter RFQs created on or before this date (YYYY-MM-DD)
+    PageParam:
+      name: page
+      in: query
+      schema:
+        type: integer
+        default: 1
+    SizeParam:
+      name: size
+      in: query
+      schema:
+        type: integer
+        default: 20
+    SortParam:
+      name: sort
+      in: query
+      schema:
+        type: string
+      description: "Field to sort by, prefix with - for desc. e.g. -deadline"
+
+  # ──── RESPONSES ──────────────────────────────────
+  responses:
+    BadRequest:
+      description: Invalid request body or parameters
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    UnprocessableEntity:
+      description: Validation error — required fields missing or invalid values
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+  # ──── SCHEMAS ────────────────────────────────────
+  schemas:
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          example: "Not found"
+        message:
+          type: string
+          example: "RFQ with id 'xxx' does not exist"
+
+    # ── RFQ ──
+    RfqCreateRequest:
+      type: object
+      required: [name, client, deadline, owner, workflow_id]
+      properties:
+        name:
+          type: string
+          example: "HP Separator Package – Offshore"
+        client:
+          type: string
+          example: "Saudi Aramco"
+        industry:
+          type: string
+          example: "Oil & Gas – Upstream"
+        country:
+          type: string
+          example: "Saudi Arabia"
+        priority:
+          type: string
+          enum: [normal, critical]
+          default: normal
+        deadline:
+          type: string
+          format: date
+          example: "2025-01-12"
+        owner:
+          type: string
+          example: "Proposals Team A"
+        description:
+          type: string
+          example: "12x HP Separator for offshore platform..."
+        workflow_id:
+          type: string
+          format: uuid
+          example: "wf-ghi-long"
+        code_prefix:
+          type: string
+          enum: [IF, IB]
+          default: IF
+          description: "Prefix for auto-generated RFQ code (e.g. IF-0001, IB-0002)"
+        stage_overrides:
+          type: array
+          items:
+            type: object
+            properties:
+              stage_template_id:
+                type: string
+                format: uuid
+              assigned_team:
+                type: string
+        skip_stages:
+          type: array
+          description: "Stage template IDs to exclude (for custom workflow — cherry-pick stages)"
+          items:
+            type: string
+            format: uuid
+
+    RfqUpdateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        client:
+          type: string
+        industry:
+          type: string
+        country:
+          type: string
+        priority:
+          type: string
+          enum: [normal, critical]
+        deadline:
+          type: string
+          format: date
+        owner:
+          type: string
+        description:
+          type: string
+        status:
+          type: string
+          enum: [Draft, In preparation, Submitted, Awarded, Lost, Cancelled]
+        outcome_reason:
+          type: string
+          description: "Covers all outcomes: why awarded, why lost, why cancelled"
+          example: "Best technical score"
+
+    RfqSummary:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        rfq_code:
+          type: string
+          example: "IF-0001"
+          description: "Human-readable RFQ identifier (auto-generated)"
+        name:
+          type: string
+          example: "HP Separator Package"
+        client:
+          type: string
+          example: "Saudi Aramco"
+        country:
+          type: string
+          example: "Saudi Arabia"
+        owner:
+          type: string
+          example: "Proposals Team A"
+        priority:
+          type: string
+          enum: [normal, critical]
+        status:
+          type: string
+          enum: [Draft, In preparation, Submitted, Awarded, Lost, Cancelled]
+        progress:
+          type: integer
+          example: 42
+        deadline:
+          type: string
+          format: date
+        current_stage_name:
+          type: string
+          example: "BOQ / BOM preparation"
+        workflow_name:
+          type: string
+          example: "GHI long workflow"
+
+    RfqDetail:
+      allOf:
+        - $ref: '#/components/schemas/RfqSummary'
+        - type: object
+          properties:
+            industry:
+              type: string
+            description:
+              type: string
+            workflow_id:
+              type: string
+              format: uuid
+            current_stage_id:
+              type: string
+              format: uuid
+              nullable: true
+              description: "NULL when RFQ is in Draft (no stages yet). Set to first stage on finalization."
+            outcome_reason:
+              type: string
+              nullable: true
+            created_at:
+              type: string
+              format: date-time
+            updated_at:
+              type: string
+              format: date-time
+
+    RfqListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/RfqSummary'
+        total:
+          type: integer
+          example: 96
+        page:
+          type: integer
+          example: 1
+        size:
+          type: integer
+          example: 20
+
+    RfqStats:
+      type: object
+      properties:
+        total_rfqs_12m:
+          type: integer
+          example: 96
+        open_rfqs:
+          type: integer
+          example: 18
+        critical_rfqs:
+          type: integer
+          example: 5
+        avg_cycle_days:
+          type: integer
+          example: 21
+
+    RfqAnalytics:
+      type: object
+      properties:
+        avg_margin_submitted:
+          type: number
+          example: 17.8
+        avg_margin_awarded:
+          type: number
+          example: 18.1
+        estimation_accuracy:
+          type: number
+          example: 94
+        win_rate:
+          type: number
+          example: 32
+        by_client:
+          type: array
+          items:
+            type: object
+            properties:
+              client:
+                type: string
+              rfq_count:
+                type: integer
+              avg_margin:
+                type: number
+
+    # ── WORKFLOW ──
+    WorkflowSummary:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          example: "GHI long workflow"
+        code:
+          type: string
+          example: "GHI-LONG"
+        stage_count:
+          type: integer
+          example: 11
+        is_active:
+          type: boolean
+        is_default:
+          type: boolean
+
+    WorkflowDetail:
+      allOf:
+        - $ref: '#/components/schemas/WorkflowSummary'
+        - type: object
+          properties:
+            description:
+              type: string
+            stages:
+              type: array
+              items:
+                $ref: '#/components/schemas/StageTemplate'
+
+    WorkflowUpdateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        is_active:
+          type: boolean
+        is_default:
+          type: boolean
+
+    StageTemplate:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          example: "RFQ received"
+        order:
+          type: integer
+          example: 1
+        default_team:
+          type: string
+          example: "Sales / BD"
+        planned_duration_days:
+          type: integer
+          example: 2
+
+    # ── RFQ_STAGE ──
+    RfqStage:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          example: "RFQ received"
+        order:
+          type: integer
+        assigned_team:
+          type: string
+        status:
+          type: string
+          enum: [Not started, In Progress, Completed, Skipped]
+        progress:
+          type: integer
+        planned_start:
+          type: string
+          format: date
+        planned_end:
+          type: string
+          format: date
+        actual_start:
+          type: string
+          format: date
+          nullable: true
+        actual_end:
+          type: string
+          format: date
+          nullable: true
+        blocker_status:
+          type: string
+          enum: [Blocked, Resolved]
+          nullable: true
+          description: "NULL = never blocked. Orthogonal to status."
+        blocker_reason_code:
+          type: string
+          nullable: true
+          description: "Examples: supplier_delay, missing_client_docs, awaiting_internal_approval, technical_clarification, workbook_issue, budget_hold, pending_lab_results"
+
+    RfqStageDetail:
+      allOf:
+        - $ref: '#/components/schemas/RfqStage'
+        - type: object
+          properties:
+            captured_data:
+              type: object
+              description: "Free-form JSON for stage-specific form fields"
+            mandatory_fields:
+              type: string
+              description: "Snapshot from stage_template — used by /advance guard"
+            notes:
+              type: array
+              items:
+                $ref: '#/components/schemas/StageNote'
+            files:
+              type: array
+              items:
+                $ref: '#/components/schemas/StageFile'
+            subtasks:
+              type: array
+              items:
+                $ref: '#/components/schemas/Subtask'
+
+    RfqStageUpdateRequest:
+      type: object
+      properties:
+        progress:
+          type: integer
+        assigned_team:
+          type: string
+        captured_data:
+          type: object
+        blocker_status:
+          type: string
+          enum: [Blocked, Resolved]
+          nullable: true
+        blocker_reason_code:
+          type: string
+          nullable: true
+
+    StageNote:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_name:
+          type: string
+          example: "Sales Eng."
+        text:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+
+    StageFile:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        filename:
+          type: string
+          example: "HP_Separator_BOQ_v2.xlsx"
+        file_path:
+          type: string
+        type:
+          type: string
+          enum: [Client RFQ, Design report, BOQ / BOM, Estimation Workbook, Other]
+        uploaded_by:
+          type: string
+        size_bytes:
+          type: integer
+          format: int64
+        uploaded_at:
+          type: string
+          format: date-time
+
+    # ── SUBTASK ──
+    SubtaskCreateRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          example: "Finish vessel plates BOQ"
+        assigned_to:
+          type: string
+          example: "Mechanical"
+        due_date:
+          type: string
+          format: date
+
+    SubtaskUpdateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        assigned_to:
+          type: string
+        due_date:
+          type: string
+          format: date
+        progress:
+          type: integer
+        status:
+          type: string
+          enum: [Open, In progress, Done]
+
+    Subtask:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        assigned_to:
+          type: string
+          nullable: true
+        due_date:
+          type: string
+          format: date
+          nullable: true
+        progress:
+          type: integer
+        status:
+          type: string
+          enum: [Open, In progress, Done]
+        created_at:
+          type: string
+          format: date-time
+
+    # ── REMINDER ──
+    ReminderCreateRequest:
+      type: object
+      required: [rfq_id, type, message, due_date]
+      properties:
+        rfq_id:
+          type: string
+          format: uuid
+        rfq_stage_id:
+          type: string
+          format: uuid
+          nullable: true
+        type:
+          type: string
+          enum: [internal, external]
+        message:
+          type: string
+          example: "Follow up on nozzle material confirmation"
+        due_date:
+          type: string
+          format: date
+        assigned_to:
+          type: string
+          example: "Engineering"
+
+    Reminder:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        rfq_id:
+          type: string
+          format: uuid
+        rfq_stage_id:
+          type: string
+          format: uuid
+          nullable: true
+        type:
+          type: string
+          enum: [internal, external]
+        message:
+          type: string
+        due_date:
+          type: string
+          format: date
+        assigned_to:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [open, sent, overdue, resolved]
+        delay_days:
+          type: integer
+          description: "Computed at query time: MAX(0, NOW()::date - due_date). NOT stored."
+        created_by:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        last_sent_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: "Used by batch to rate-limit re-sends"
+        send_count:
+          type: integer
+          description: "Number of times notification was sent"
+
+    ReminderStats:
+      type: object
+      properties:
+        open_tasks:
+          type: integer
+          example: 27
+        overdue_tasks:
+          type: integer
+          example: 6
+        due_this_week:
+          type: integer
+          example: 11
+        with_active_reminders:
+          type: integer
+          example: 19
+
+    ReminderRule:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          example: "Stage overdue alert"
+        description:
+          type: string
+        scope:
+          type: string
+          description: "Examples: all_rfqs, critical_only, stage_overdue, blocked_stages, upcoming_deadline"
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
