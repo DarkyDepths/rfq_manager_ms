@@ -30,6 +30,17 @@ from src.utils.pagination import PaginationParams, paginate, paginated_response
 
 class RfqController:
 
+    VALID_STATUS_TRANSITIONS = {
+        "Draft": {"In preparation", "Cancelled"},
+        "In preparation": {"Submitted", "Cancelled"},
+        "Submitted": {"Awarded", "Lost", "Cancelled"},
+        "Awarded": set(),
+        "Lost": set(),
+        "Cancelled": set(),
+    }
+
+    TERMINAL_STATUSES = {"Awarded", "Lost", "Cancelled"}
+
     def __init__(
         self,
         rfq_datasource: RfqDatasource,
@@ -232,18 +243,17 @@ class RfqController:
             raise NotFoundError(f"RFQ '{rfq_id}' not found")
 
         update_data = request.model_dump(exclude_unset=True)
+        new_status = update_data.get("status")
 
-        # ── GAP-2: Prevent terminal-to-terminal transitions ─────────────
-        terminal_states = ["Awarded", "Lost", "Cancelled"]
-        if rfq.status in terminal_states and "status" in update_data and update_data["status"] != rfq.status:
-            raise ConflictError(f"RFQ is in a terminal state ({rfq.status}) and cannot be transitioned to {update_data['status']}.")
+        # ── LG-01: Enforce RFQ lifecycle FSM transitions ─────────────
+        if new_status:
+            self._validate_status_transition(rfq.status, new_status)
 
         if "deadline" in update_data:
             self._recalculate_stage_dates(rfq, update_data["deadline"])
 
         # ── GAP-1 & 3: Handle terminal state stage freezing ─────────────
-        new_status = update_data.get("status")
-        if new_status in terminal_states and rfq.status != new_status:
+        if new_status in self.TERMINAL_STATUSES and rfq.status != new_status:
             # 1. Skip current stage if not completed
             stages = (
                 self.session.query(RFQStage)
@@ -384,3 +394,14 @@ class RfqController:
             return None
         workflow = self.workflow_ds.get_by_id(workflow_id)
         return workflow.name if workflow else None
+
+    def _validate_status_transition(self, current_status: str, new_status: str):
+        """Raise 409 when a status transition violates lifecycle FSM."""
+        if new_status == current_status:
+            return
+
+        allowed_next = self.VALID_STATUS_TRANSITIONS.get(current_status, set())
+        if new_status not in allowed_next:
+            raise ConflictError(
+                f"Invalid RFQ status transition from '{current_status}' to '{new_status}'."
+            )
