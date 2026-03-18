@@ -63,6 +63,17 @@ class RfqStageController:
     def update(self, rfq_id, stage_id, request: rfq_stage_translator.RfqStageUpdateRequest):
         stage = self._get_stage_or_404(rfq_id, stage_id)
         update_data = request.model_dump(exclude_unset=True)
+
+        # PR4: Enforce subtask ownership of stage progress
+        if "progress" in update_data:
+            has_subtasks = (
+                self.session.query(Subtask)
+                .filter(Subtask.rfq_stage_id == stage.id, Subtask.deleted_at.is_(None))
+                .count() > 0
+            )
+            if has_subtasks:
+                raise ConflictError("Cannot manually update progress when active subtasks exist. Progress is determined by subtask rollup.")
+
         stage = self.stage_ds.update(stage, update_data)
         self.session.commit()
         self.session.refresh(stage)
