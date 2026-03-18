@@ -174,8 +174,7 @@ class RfqStageController:
             rfq.current_stage_id = next_stage.id
             self.session.flush()
         else:
-            # Last stage completed — RFQ preparation workflow is done
-            rfq.status = "Submitted"
+            # Last stage completed — keep RFQ status explicit (no hardcoded auto-transition)
             rfq.progress = 100
             self.session.flush()
 
