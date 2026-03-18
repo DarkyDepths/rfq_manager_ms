@@ -171,3 +171,18 @@ def test_advance_last_stage_does_not_force_submitted_status():
     assert stage.status == "Completed"
     assert rfq.status == "In preparation"
     assert rfq.progress == 100
+
+
+def test_update_rfq_progress_ignores_skipped_stages():
+    stage_ds = MockStageDatasource()
+    stage_ds.list_by_rfq = lambda _rfq_id: [
+        RFQStage(id=ST1, rfq_id=RFQ1, status="Completed", progress=100, order=1, name="A"),
+        RFQStage(id=ST2, rfq_id=RFQ1, status="Skipped", progress=0, order=2, name="B"),
+    ]
+
+    rfq = RFQ(id=RFQ1, current_stage_id=ST1, status="In preparation", progress=0)
+    ctrl = RfqStageController(stage_ds, MockRfqDatasource(), MockSession())
+
+    ctrl._update_rfq_progress(rfq)
+
+    assert rfq.progress == 100

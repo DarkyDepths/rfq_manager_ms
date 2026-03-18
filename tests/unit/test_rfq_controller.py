@@ -115,6 +115,79 @@ class MockRfqDatasourceForUpdate:
             setattr(rfq, key, value)
         return rfq
 
+
+class MockTemplate:
+    def __init__(self, template_id, order=1, name="Stage", default_team="Team", mandatory_fields=None, planned_duration_days=5):
+        self.id = template_id
+        self.order = order
+        self.name = name
+        self.default_team = default_team
+        self.mandatory_fields = mandatory_fields
+        self.planned_duration_days = planned_duration_days
+
+
+class MockWorkflowForCreate:
+    def __init__(self, workflow_id):
+        self.id = workflow_id
+        self.name = "Workflow Create"
+        self.stages = [MockTemplate(uuid.uuid4(), order=1, name="Stage 1")]
+
+
+class MockWorkflowDatasourceForCreate:
+    def __init__(self, workflow):
+        self.workflow = workflow
+
+    def get_by_id(self, workflow_id):
+        if workflow_id == self.workflow.id:
+            return self.workflow
+        return None
+
+
+class MockRfqDatasourceForCreate:
+    def __init__(self):
+        self.last_create_data = None
+
+    def get_next_code(self, _prefix):
+        return "IF-1002"
+
+    def create(self, data):
+        self.last_create_data = dict(data)
+
+        class _RFQ:
+            id = uuid.uuid4()
+            rfq_code = "IF-1002"
+            name = data["name"]
+            client = data["client"]
+            status = data["status"]
+            progress = 0
+            deadline = data["deadline"]
+            current_stage_id = None
+            workflow_id = data["workflow_id"]
+            industry = data.get("industry")
+            country = data.get("country")
+            priority = data.get("priority", "normal")
+            owner = data["owner"]
+            description = data.get("description")
+            outcome_reason = None
+            created_at = date(2026, 1, 1)
+            updated_at = date(2026, 1, 1)
+
+        return _RFQ()
+
+
+class MockRfqStageDatasourceForCreate:
+    def __init__(self):
+        self.created_stages = []
+
+    def create(self, stage_data):
+        self.created_stages.append(dict(stage_data))
+
+        class _Stage:
+            id = uuid.uuid4()
+            name = stage_data["name"]
+
+        return _Stage()
+
 def test_export_csv_formatting_and_filtering():
     """Verify that export_csv delegates filters to datasource and streams properly formatted CSV."""
     ds = MockRfqDatasource()
@@ -193,3 +266,89 @@ def test_update_allows_valid_status_transition_submitted_to_awarded():
     assert result.status == "Awarded"
     assert result.current_stage_id is None
     assert session.committed is True
+
+
+def test_update_terminal_progress_ignores_skipped_stages():
+    rfq = MockRfqForUpdate(status="Submitted")
+    session = MockSession()
+
+    stage_completed = type(
+        "Stage",
+        (),
+        {
+            "id": uuid.uuid4(),
+            "order": 1,
+            "status": "Completed",
+            "progress": 100,
+            "actual_end": None,
+        },
+    )()
+    stage_skipped = type(
+        "Stage",
+        (),
+        {
+            "id": uuid.uuid4(),
+            "order": 2,
+            "status": "Not Started",
+            "progress": 0,
+            "actual_end": None,
+        },
+    )()
+    rfq.current_stage_id = stage_skipped.id
+
+    class _Query:
+        def filter_by(self, **_kwargs):
+            return self
+
+        def order_by(self, *_args, **_kwargs):
+            return self
+
+        def all(self):
+            return [stage_completed, stage_skipped]
+
+        def filter(self, *_args, **_kwargs):
+            return self
+
+        def first(self):
+            return None
+
+    session.query = lambda _model: _Query()
+
+    ds = MockRfqDatasourceForUpdate(rfq)
+    ctrl = RfqController(ds, MockWorkflowDatasource(), None, session)
+
+    result = ctrl.update(rfq.id, RfqUpdateRequest(status="Awarded"))
+
+    assert result.progress == 100
+    assert stage_skipped.status == "Skipped"
+
+
+def test_create_sets_explicit_initial_status_in_preparation():
+    workflow_id = uuid.uuid4()
+    workflow = MockWorkflowForCreate(workflow_id)
+    rfq_ds = MockRfqDatasourceForCreate()
+    stage_ds = MockRfqStageDatasourceForCreate()
+    session = MockSession()
+
+    ctrl = RfqController(
+        rfq_datasource=rfq_ds,
+        workflow_datasource=MockWorkflowDatasourceForCreate(workflow),
+        rfq_stage_datasource=stage_ds,
+        session=session,
+    )
+
+    from src.translators.rfq_translator import RfqCreateRequest
+
+    req = RfqCreateRequest(
+        name="RFQ Create",
+        client="Client",
+        deadline=date(2030, 1, 1),
+        owner="Owner",
+        workflow_id=workflow_id,
+        code_prefix="IF",
+    )
+
+    ctrl.create(req)
+
+    assert rfq_ds.last_create_data is not None
+    assert rfq_ds.last_create_data["status"] == "In preparation"

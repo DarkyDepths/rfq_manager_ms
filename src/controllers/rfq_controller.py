@@ -73,6 +73,7 @@ class RfqController:
         # ── 3. Create the RFQ row ─────────────────────
         rfq_data = rfq_translator.from_create_request(request)
         rfq_data["rfq_code"] = rfq_code
+        rfq_data["status"] = "In preparation"
         rfq = self.rfq_ds.create(rfq_data)
 
         # ── 4. Filter stages for custom workflows ─────
@@ -280,7 +281,7 @@ class RfqController:
 
             # 3. Clear current_stage_id & freeze progress at current value
             update_data["current_stage_id"] = None
-            # Do NOT update progress to 100, let the terminal status carry the business meaning
+            update_data["progress"] = self._calculate_progress_excluding_skipped(stages)
 
         rfq = self.rfq_ds.update(rfq, update_data)
         self.session.commit()
@@ -405,3 +406,15 @@ class RfqController:
             raise ConflictError(
                 f"Invalid RFQ status transition from '{current_status}' to '{new_status}'."
             )
+
+    def _calculate_progress_excluding_skipped(self, stages) -> int:
+        """Compute RFQ progress from non-skipped stages to avoid progress deflation."""
+        non_skipped = [stage for stage in stages if stage.status != "Skipped"]
+        if not non_skipped:
+            return 100
+
+        if all(stage.status == "Completed" for stage in non_skipped):
+            return 100
+
+        total_progress = sum(stage.progress for stage in non_skipped)
+        return total_progress // len(non_skipped)
