@@ -43,7 +43,10 @@ class MockRfqDatasource:
 class MockSession:
     def __init__(self):
         self.query_mock = MagicMock()
-        self.query_mock.filter.return_value.order_by.return_value.all.return_value = []
+        self.filter_mock = MagicMock()
+        self.query_mock.filter.return_value = self.filter_mock
+        self.filter_mock.order_by.return_value.all.return_value = []
+        self.filter_mock.count.return_value = 0
     def query(self, model): return self.query_mock
     def commit(self): pass
     def flush(self): pass
@@ -64,6 +67,23 @@ def test_stage_update():
     req = RfqStageUpdateRequest(progress=75)
     res = ctrl.update(RFQ1, ST1, req)
     assert res.progress == 75
+
+def test_stage_update_rejected_with_subtasks():
+    session = MockSession()
+    session.filter_mock.count.return_value = 1
+    ctrl = RfqStageController(MockStageDatasource(), MockRfqDatasource(), session)
+    req = RfqStageUpdateRequest(progress=75)
+    with pytest.raises(ConflictError) as exc:
+        ctrl.update(RFQ1, ST1, req)
+    assert "Cannot manually update progress" in str(exc.value)
+
+def test_stage_update_non_progress_allowed_with_subtasks():
+    session = MockSession()
+    session.filter_mock.count.return_value = 1
+    ctrl = RfqStageController(MockStageDatasource(), MockRfqDatasource(), session)
+    req = RfqStageUpdateRequest(blocker_status="Blocked")
+    res = ctrl.update(RFQ1, ST1, req)
+    assert res.blocker_status == "Blocked"
 
 def test_add_note():
     ctrl = RfqStageController(MockStageDatasource(), MockRfqDatasource(), MockSession())
