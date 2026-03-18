@@ -61,7 +61,23 @@ class MockSession:
         return None
 
     def query(self, _model):
-        raise AssertionError("query() should not be called in these transition tests")
+        class _Query:
+            def filter_by(self, **_kwargs):
+                return self
+
+            def order_by(self, *_args, **_kwargs):
+                return self
+
+            def all(self):
+                return []
+
+            def filter(self, *_args, **_kwargs):
+                return self
+
+            def first(self):
+                return None
+
+        return _Query()
 
 
 class MockRfqForUpdate:
@@ -152,4 +168,28 @@ def test_update_allows_valid_status_transition_in_preparation_to_submitted():
     result = ctrl.update(rfq.id, RfqUpdateRequest(status="Submitted"))
 
     assert result.status == "Submitted"
+    assert session.committed is True
+
+
+def test_update_rejects_invalid_status_transition_in_preparation_to_awarded():
+    rfq = MockRfqForUpdate(status="In preparation")
+    ds = MockRfqDatasourceForUpdate(rfq)
+    ctrl = RfqController(ds, MockWorkflowDatasource(), None, MockSession())
+
+    with pytest.raises(ConflictError) as exc:
+        ctrl.update(rfq.id, RfqUpdateRequest(status="Awarded"))
+
+    assert "Invalid RFQ status transition" in str(exc.value)
+
+
+def test_update_allows_valid_status_transition_submitted_to_awarded():
+    rfq = MockRfqForUpdate(status="Submitted")
+    session = MockSession()
+    ds = MockRfqDatasourceForUpdate(rfq)
+    ctrl = RfqController(ds, MockWorkflowDatasource(), None, session)
+
+    result = ctrl.update(rfq.id, RfqUpdateRequest(status="Awarded"))
+
+    assert result.status == "Awarded"
+    assert result.current_stage_id is None
     assert session.committed is True
