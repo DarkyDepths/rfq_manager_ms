@@ -40,7 +40,7 @@ utils/           →  Shared helpers (errors, pagination)
 
 ```bash
 # 1. Start PostgreSQL in Docker
-docker run --name rfq_db -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=rfq_manager_db -p 5555:5432 -d postgres:15
+docker run --name rfq_db -e POSTGRES_USER=rfq_user -e POSTGRES_PASSWORD=changeme -e POSTGRES_DB=rfq_manager_db -p 5432:5432 -d postgres:16
 # Linux/Mac: same command
 
 # If the container already exists, start it instead
@@ -68,8 +68,8 @@ $env:PYTHONPATH="."
 # Linux/Mac: export PYTHONPATH=.
 
 # 7. Configure database connection
-$env:DATABASE_URL="postgresql+psycopg2://postgres:postgres@localhost:5555/rfq_manager_db"
-# Linux/Mac: export DATABASE_URL="postgresql+psycopg2://postgres:postgres@localhost:5555/rfq_manager_db"
+$env:DATABASE_URL="postgresql+psycopg2://rfq_user:changeme@localhost:5432/rfq_manager_db"
+# Linux/Mac: export DATABASE_URL="postgresql+psycopg2://rfq_user:changeme@localhost:5432/rfq_manager_db"
 
 # 8. Run migrations
 alembic upgrade head
