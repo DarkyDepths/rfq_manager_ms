@@ -144,3 +144,30 @@ def test_advance_success():
     assert stage.status == "Completed"
     assert stage.progress == 100
     assert rfq.current_stage_id == ST2
+
+
+def test_advance_last_stage_does_not_force_submitted_status():
+    stage_ds = MockStageDatasource()
+    stage = RFQStage(
+        id=ST1,
+        rfq_id=RFQ1,
+        status="In preparation",
+        blocker_status="None",
+        mandatory_fields="po_number",
+        captured_data={"po_number": "123"},
+        order=1,
+        name="Final Stage",
+    )
+    stage_ds.get_by_id = lambda _id: stage
+    stage_ds.get_next_stage = lambda _rfq_id, _order: None
+
+    rfq_ds = MockRfqDatasource()
+    rfq = RFQ(id=RFQ1, current_stage_id=ST1, status="In preparation", progress=40)
+    rfq_ds.get_by_id = lambda _id: rfq
+
+    ctrl = RfqStageController(stage_ds, rfq_ds, MockSession())
+    ctrl.advance(RFQ1, ST1)
+
+    assert stage.status == "Completed"
+    assert rfq.status == "In preparation"
+    assert rfq.progress == 100
