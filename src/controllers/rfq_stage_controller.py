@@ -233,10 +233,21 @@ class RfqStageController:
             )
 
     def _update_rfq_progress(self, rfq):
-        """Recalculate RFQ progress from the average of all stage progresses."""
+        """Recalculate RFQ progress from non-skipped stages only."""
         stages = self.stage_ds.list_by_rfq(rfq.id)
         if not stages:
             return
-        total_progress = sum(s.progress for s in stages)
-        rfq.progress = total_progress // len(stages)
+
+        non_skipped = [stage for stage in stages if stage.status != "Skipped"]
+        if not non_skipped:
+            rfq.progress = 100
+            self.session.flush()
+            return
+
+        if all(stage.status == "Completed" for stage in non_skipped):
+            rfq.progress = 100
+        else:
+            total_progress = sum(stage.progress for stage in non_skipped)
+            rfq.progress = total_progress // len(non_skipped)
+
         self.session.flush()
