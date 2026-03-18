@@ -9,7 +9,7 @@ Endpoints:
 - POST   /rfqs/{rfqId}/stages/{stageId}/files          — #14 Upload file
 - POST   /rfqs/{rfqId}/stages/{stageId}/advance        — #15 Advance to next stage
 
-File endpoints (#26–#28) are in file_route.py.
+File endpoints (#27–#29) are in file_route.py.
 """
 
 from uuid import UUID

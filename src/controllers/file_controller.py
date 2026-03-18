@@ -5,9 +5,8 @@ Orchestrates:
 - List files for a stage (WHERE deleted_at IS NULL)
 - Download file (stream from local storage or generate signed Azure Blob URL)
 - Soft-delete file (set deleted_at = NOW())
-- Event publishing on file.deleted (via event_bus connector)
 
-Dependencies: FileDatasource, EventBusConnector
+Dependencies: FileDatasource
 """
 
 import os

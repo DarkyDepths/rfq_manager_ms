@@ -93,11 +93,12 @@ uvicorn src.app:app --reload --port 8000
 rfq_manager_ms/
 ├── src/
 │   ├── config/          # Settings (env vars)
-│   ├── connectors/      # External service clients
+│   ├── connectors/      # External service definitions (stubs/dormant in V1)
 │   ├── controllers/     # Business logic
 │   ├── datasources/     # Database queries
-│   ├── models/          # SQLAlchemy models (11 tables)
+│   ├── models/          # SQLAlchemy models (9 active, 2 dormant)
 │   ├── routes/          # API endpoints
+│   ├── services/        # Service layer for background/batch logic
 │   ├── translators/     # Pydantic schemas
 │   ├── utils/           # Errors, pagination
 │   ├── app.py           # FastAPI factory
@@ -105,14 +106,14 @@ rfq_manager_ms/
 │   └── database.py      # Engine + session
 ├── migrations/          # Alembic migrations
 ├── tests/               # Unit + integration tests
-├── seed.py              # DB init + sample data
+├── scripts/             # DB init + sample data (seed.py)
 ├── alembic.ini          # Migration config
 ├── requirements.txt     # Python dependencies
 ├── .env.example         # Environment template
 └── README.md
 ```
 
-## Database Schema (11 tables)
+## Database Schema (11 tables total, 9 active)
 
 | Table                   | Purpose                              |
 |-------------------------|--------------------------------------|
@@ -123,8 +124,8 @@ rfq_manager_ms/
 | `subtask`               | Tasks within stages (soft delete)    |
 | `rfq_note`              | Append-only notes per stage          |
 | `rfq_file`              | File attachments (soft delete)       |
-| `rfq_stage_field_value` | Key-value captured data per stage    |
-| `rfq_history`           | Audit trail                          |
+| `rfq_stage_field_value` | Key-value captured data (Schema-only / Dormant in V1)|
+| `rfq_history`           | Audit trail (Schema-only / Dormant in V1) |
 | `reminder`              | Scheduled notifications              |
 | `reminder_rule`         | Automation rules for reminders       |
 
