@@ -104,8 +104,8 @@ class RfqStageController:
         # Absolute path for OS writing
         absolute_path = upload_dir / safe_filename
         
-        # Relative POSIX path for database storage (no backslashes)
-        relative_posix_path = (Path("uploads") / str(rfq_id) / str(stage_id) / safe_filename).as_posix()
+        # Relative POSIX path for database storage (no hardcoded "uploads")
+        relative_posix_path = (Path(str(rfq_id)) / str(stage_id) / safe_filename).as_posix()
 
         with open(absolute_path, "wb") as f:
             f.write(file_content)
