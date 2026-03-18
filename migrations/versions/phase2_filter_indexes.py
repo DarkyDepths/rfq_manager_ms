@@ -14,8 +14,11 @@ depends_on = None
 
 
 def upgrade() -> None:
+    # Legacy no-op revision kept for compatibility with previously stamped databases.
+    # Authoritative schema creation begins in revision: bc8fe52aaace.
     pass
 
 
 def downgrade() -> None:
+    # No downgrade action for legacy compatibility revision.
     pass

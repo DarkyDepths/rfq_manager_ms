@@ -1,5 +1,5 @@
 """
-Seed script — creates tables and inserts default workflows + stage templates.
+Seed script — applies Alembic migrations then inserts default workflows + stage templates.
 Upgraded to Phase 2: Scenario-driven CLI for dev/QA.
 
 Usage:
@@ -18,12 +18,14 @@ import sys
 import json
 import random
 import argparse
+from pathlib import Path
 from datetime import date, timedelta
 from faker import Faker
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+from alembic import command
+from alembic.config import Config
 
-from src.database import Base
 from src.models.rfq import RFQ
 from src.models.workflow import Workflow, StageTemplate
 from src.models.rfq_stage import RFQStage
@@ -107,6 +109,19 @@ def _make_engine_and_session():
     engine = create_engine(db_url, future=True)
     SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     return engine, SessionLocal
+
+
+def _run_migrations(reset: bool):
+    """Apply schema via Alembic so migrations are the source of truth."""
+    project_root = Path(__file__).resolve().parents[1]
+    alembic_cfg = Config(str(project_root / "alembic.ini"))
+
+    if reset:
+        print(">> Reset requested: downgrading schema to base via Alembic...")
+        command.downgrade(alembic_cfg, "base")
+
+    print(">> Applying schema via Alembic (upgrade head)...")
+    command.upgrade(alembic_cfg, "head")
 
 def seed_base_data(session):
     for wf_def in WORKFLOWS:
@@ -266,13 +281,9 @@ def main():
         fake = Faker()
         args.seed = "random"
 
+    _run_migrations(reset=args.reset)
+
     engine, SessionLocal = _make_engine_and_session()
-    
-    if args.reset:
-        print(">> Dropping all tables (--reset)...")
-        Base.metadata.drop_all(engine)
-        
-    Base.metadata.create_all(engine)
     
     session = SessionLocal()
     try:
