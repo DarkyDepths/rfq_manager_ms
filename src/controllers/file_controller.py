@@ -10,13 +10,24 @@ Dependencies: FileDatasource
 """
 
 import os
+from pathlib import Path
 from sqlalchemy.orm import Session
 
 from src.datasources.file_datasource import FileDatasource
 from src.datasources.rfq_stage_datasource import RfqStageDatasource
 from src.translators import file_translator
 from src.utils.errors import NotFoundError
+from src.config.settings import settings
 
+def _resolve_physical_path(stored_path: str) -> str:
+    """
+    Safely resolves the DB stored path to an absolute physical path.
+    Handles legacy records that started with 'uploads/'.
+    """
+    if stored_path.startswith("uploads/"):
+        stored_path = stored_path[len("uploads/"):]
+        
+    return (Path(settings.FILE_STORAGE_PATH) / stored_path).resolve().as_posix()
 
 class FileController:
 
@@ -38,9 +49,12 @@ class FileController:
         file = self.ds.get_by_id(file_id)
         if not file:
             raise NotFoundError(f"File '{file_id}' not found")
-        if not os.path.exists(file.file_path):
+            
+        physical_path = _resolve_physical_path(file.file_path)
+            
+        if not os.path.exists(physical_path):
             raise NotFoundError(f"File '{file.filename}' not found on disk")
-        return file.file_path, file.filename
+        return physical_path, file.filename
 
     def delete(self, file_id):
         file = self.ds.get_by_id(file_id)
