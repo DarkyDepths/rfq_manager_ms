@@ -1,0 +1,1768 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>rfq_manager_ms — Current API Contract & Data Model V1</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.6.1/mermaid.min.js"></script>
+  <style>
+    :root {
+      --bg: #fafaf9;
+      --surface: #ffffff;
+      --border: #e5e2dd;
+      --text: #1a1a1a;
+      --text-dim: #6b6560;
+      --accent: #2563eb;
+      --accent-light: #eff6ff;
+      --green: #16a34a;
+      --green-bg: #f0fdf4;
+      --amber: #d97706;
+      --amber-bg: #fffbeb;
+      --red: #dc2626;
+      --red-bg: #fef2f2;
+      --purple: #7c3aed;
+      --purple-bg: #f5f3ff;
+      --mono: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+      --sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: var(--sans);
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      font-size: 14px;
+    }
+
+    .container {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 40px 24px;
+    }
+
+    .header {
+      margin-bottom: 40px;
+    }
+
+    .header h1 {
+      font-size: 26px;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+
+    .header .subtitle {
+      font-size: 14px;
+      color: var(--text-dim);
+      margin-bottom: 12px;
+    }
+
+    .header .meta {
+      display: flex;
+      gap: 20px;
+      font-size: 12px;
+      color: var(--text-dim);
+    }
+
+    section {
+      margin-bottom: 48px;
+    }
+
+    section>h2 {
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 6px;
+      padding-bottom: 10px;
+      border-bottom: 2px solid var(--border);
+    }
+
+    section>h3 {
+      font-size: 15px;
+      font-weight: 600;
+      margin: 20px 0 10px;
+    }
+
+    .section-sub {
+      font-size: 13px;
+      color: var(--text-dim);
+      margin-bottom: 20px;
+      display: block;
+    }
+
+    .flow {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      margin: 16px 0 24px;
+      flex-wrap: wrap;
+    }
+
+    .flow-step {
+      background: var(--accent-light);
+      border: 1px solid #bfdbfe;
+      border-radius: 6px;
+      padding: 8px 14px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--accent);
+      text-align: center;
+    }
+
+    .flow-arrow {
+      font-size: 16px;
+      color: var(--text-dim);
+      padding: 0 6px;
+    }
+
+    .diff-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 12px 0 20px;
+      font-size: 13px;
+    }
+
+    .diff-table th {
+      text-align: left;
+      padding: 8px 12px;
+      border-bottom: 2px solid var(--border);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-dim);
+    }
+
+    .diff-table td {
+      padding: 7px 12px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+
+    .diff-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .tag-removed {
+      color: var(--red);
+      font-weight: 600;
+      font-size: 11px;
+    }
+
+    .tag-added {
+      color: var(--green);
+      font-weight: 600;
+      font-size: 11px;
+    }
+
+    .tag-simplified {
+      color: var(--amber);
+      font-weight: 600;
+      font-size: 11px;
+    }
+
+    .resource-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 31px 0 14px;
+    }
+
+    .resource-header h3 {
+      font-size: 16px;
+      font-weight: 700;
+      margin: 0;
+    }
+
+    .count-badge {
+      display: inline-block;
+      background: var(--accent);
+      color: white;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 1px 8px;
+      border-radius: 10px;
+    }
+
+    .endpoint {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      margin-bottom: 14px;
+      overflow: hidden;
+    }
+
+    .endpoint-header {
+      padding: 12px 18px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .method {
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 4px;
+      letter-spacing: 0.5px;
+      min-width: 54px;
+      text-align: center;
+    }
+
+    .method-get {
+      background: var(--green-bg);
+      color: var(--green);
+    }
+
+    .method-post {
+      background: var(--accent-light);
+      color: var(--accent);
+    }
+
+    .method-patch {
+      background: var(--amber-bg);
+      color: var(--amber);
+    }
+
+    .method-delete {
+      background: var(--red-bg);
+      color: var(--red);
+    }
+
+    .endpoint-path {
+      font-family: var(--mono);
+      font-size: 13px;
+      font-weight: 500;
+    }
+
+    .endpoint-path .p {
+      color: var(--accent);
+    }
+
+    .ui-tag {
+      font-size: 10px;
+      color: var(--text-dim);
+      background: #f3f3f0;
+      padding: 2px 8px;
+      border-radius: 10px;
+      margin-left: auto;
+      white-space: nowrap;
+    }
+
+    .endpoint-body {
+      padding: 14px 18px;
+    }
+
+    .side-effects {
+      font-size: 12px;
+      color: var(--text-dim);
+      margin: 8px 0 0 16px;
+    }
+
+    .side-effects li {
+      margin-bottom: 2px;
+    }
+
+    pre {
+      background: #1e293b;
+      color: #e2e8f0;
+      padding: 12px 16px;
+      border-radius: 6px;
+      font-family: var(--mono);
+      font-size: 11.5px;
+      line-height: 1.5;
+      overflow-x: auto;
+      margin: 8px 0;
+    }
+
+    .k {
+      color: #7dd3fc;
+    }
+
+    .s {
+      color: #86efac;
+    }
+
+    .n {
+      color: #fbbf24;
+    }
+
+    .c {
+      color: #64748b;
+      font-style: italic;
+    }
+
+    .nl {
+      color: #94a3b8;
+    }
+
+    .body-label {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-dim);
+      margin-top: 8px;
+    }
+
+    .guard {
+      font-size: 12px;
+      color: var(--red);
+      margin-top: 6px;
+    }
+
+    .mermaid {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 20px;
+      margin: 16px 0 24px;
+      text-align: center;
+    }
+
+    .entity-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 8px 0 6px;
+      font-size: 12px;
+    }
+
+    .entity-table th {
+      text-align: left;
+      padding: 6px 10px;
+      border-bottom: 2px solid var(--border);
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-dim);
+    }
+
+    .entity-table td {
+      padding: 5px 10px;
+      border-bottom: 1px solid #f0efec;
+      font-family: var(--mono);
+      font-size: 11.5px;
+    }
+
+    .entity-table td:nth-child(2) {
+      font-family: var(--sans);
+      color: var(--text-dim);
+    }
+
+    .entity-table td:nth-child(3) {
+      font-family: var(--sans);
+      font-size: 11px;
+      color: var(--text-dim);
+    }
+
+    .entity-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .table-note {
+      font-size: 12px;
+      color: var(--text-dim);
+      background: #f8f8f6;
+      border-left: 3px solid var(--accent);
+      padding: 8px 14px;
+      border-radius: 0 6px 6px 0;
+      margin: 6px 0 20px;
+    }
+
+    .table-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px 18px;
+      margin-bottom: 16px;
+    }
+
+    .table-card h4 {
+      font-size: 14px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .table-card .purpose {
+      font-size: 12px;
+      color: var(--text-dim);
+      margin-bottom: 10px;
+    }
+
+    .enum-line {
+      font-size: 11px;
+      color: var(--text-dim);
+      margin-top: 4px;
+    }
+
+    .enum-line code {
+      font-family: var(--mono);
+      background: #f3f3f0;
+      padding: 1px 5px;
+      border-radius: 3px;
+      font-size: 10.5px;
+    }
+
+    @media (max-width: 640px) {
+      .flow {
+        flex-direction: column;
+      }
+
+      .flow-arrow {
+        transform: rotate(90deg);
+      }
+    }
+  </style>
+</head>
+
+<body>
+  
+  <div class="container">
+
+    <!-- ═══════════ HEADER ═══════════ -->
+    <div class="header">
+      <h1>rfq_manager_ms — Current API Contract & Data Model</h1>
+      <div class="subtitle">Current interface contract reflecting actual implemented repository state.</div>
+      <div class="meta">
+        <span><strong>Version:</strong> 1.0</span>
+        <span><strong>Date:</strong> February 2026</span>
+        <span><strong>Endpoints:</strong> 31</span>
+        <span><strong>Tables:</strong> 9</span>
+        <span><strong>Status:</strong> Live / Active</span>
+      </div>
+    </div>
+
+
+    <!-- ═══════════════════════════════════════════ -->
+    <!-- SECTION 1 — APPROACH                        -->
+    <!-- ═══════════════════════════════════════════ -->
+    <section>
+      <h2>1. Approach</h2>
+      <span class="section-sub">Front-to-back: start from what the user sees, derive the API, then the storage.</span>
+
+      <div class="flow">
+        <div class="flow-step">9 UI Screens<br>analyzed</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step">47 User Actions<br>identified</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step">6 API Resources<br>designed</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step">31 Endpoints<br>specified</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step">9 Tables<br>modeled</div>
+      </div>
+
+      <h3>What Changed vs. Old Model</h3>
+      <table class="diff-table">
+        <thead>
+          <tr>
+            <th>Entity</th>
+            <th>Old Model</th>
+            <th>V1 Decision</th>
+            <th>Why</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>RFQ_Blocker</td>
+            <td>4 endpoints, own entity</td>
+            <td><span class="tag-simplified">Simplified</span> → 2 fields on rfq_stage</td>
+            <td><code>blocker_status</code> + <code>blocker_reason_code</code> — enough for KPIs</td>
+          </tr>
+          <tr>
+            <td>RFQ_Supplier</td>
+            <td>4 endpoints, own entity</td>
+            <td><span class="tag-removed">Removed</span></td>
+            <td>Vendor inquiry handled as a workflow stage</td>
+          </tr>
+          <tr>
+            <td>RFQ_Workbook</td>
+            <td>4 endpoints, own entity</td>
+            <td><span class="tag-simplified">Simplified</span> → file upload on stage</td>
+            <td><code>type = "Estimation Workbook"</code> on rfq_stage_file</td>
+          </tr>
+          <tr>
+            <td>RFQ_Stage_Member</td>
+            <td>3 endpoints, own entity</td>
+            <td><span class="tag-removed">Deferred V2</span></td>
+            <td><code>assigned_team</code> on rfq_stage suffices</td>
+          </tr>
+          <tr>
+            <td>Stage Template CRUD</td>
+            <td>3 endpoints</td>
+            <td><span class="tag-added">Implemented</span></td>
+            <td>Workflow metadata is patchable. Templates are read-only.</td>
+          </tr>
+          <tr>
+            <td>Subtask</td>
+            <td>—</td>
+            <td><span class="tag-added">New</span> — 4 endpoints</td>
+            <td>UI workspace has subtask management per stage</td>
+          </tr>
+          <tr>
+            <td>Reminder</td>
+            <td>—</td>
+            <td><span class="tag-added">New</span> — 6 endpoints</td>
+            <td>Tasks page + meeting requirement for batch alerting</td>
+          </tr>
+          <tr>
+            <td>Stage Notes</td>
+            <td>JSON array on PATCH</td>
+            <td><span class="tag-added">New</span> — append-only POST</td>
+            <td>Prevents concurrent overwrite. Own table</td>
+          </tr>
+          <tr>
+            <td>File Upload</td>
+            <td>—</td>
+            <td><span class="tag-added">New</span> — multipart POST</td>
+            <td>Every stage in workspace UI has "Attach files"</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+
+    <!-- ═══════════════════════════════════════════ -->
+    <!-- SECTION 2 — API CONTRACT                    -->
+    <!-- ═══════════════════════════════════════════ -->
+    <section>
+      <h2>2. API Contract</h2>
+      <span class="section-sub">Base: <code>/rfq-manager/v1</code> · Convention:
+        <code>/{ms_name}/{version}/{resource}/{id}/{action}</code></span>
+
+      <!-- ──── RFQ ──── -->
+      <div class="resource-header">
+        <h3>RFQ</h3><span class="count-badge">7</span>
+      </div>
+
+      <div class="endpoint">
+        <div class="endpoint-header"><span class="method method-post">POST</span><span
+            class="endpoint-path">/rfqs</span><span class="ui-tag">create_rfq.html</span></div>
+        <div class="endpoint-body">
+          <div class="body-label">Request</div>
+          <pre>{
+  <span class="k">"name"</span>: <span class="s">"HP Separator Package – Offshore"</span>,
+  <span class="k">"client"</span>: <span class="s">"Saudi Aramco"</span>,
+  <span class="k">"industry"</span>: <span class="s">"Oil & Gas – Upstream"</span>,
+  <span class="k">"country"</span>: <span class="s">"Saudi Arabia"</span>,
+  <span class="k">"priority"</span>: <span class="s">"normal"</span>,
+  <span class="k">"deadline"</span>: <span class="s">"2025-01-12"</span>,
+  <span class="k">"owner"</span>: <span class="s">"Proposals Team A"</span>,
+  <span class="k">"description"</span>: <span class="s">"12x HP Separator for offshore platform..."</span>,
+  <span class="k">"workflow_id"</span>: <span class="s">"wf-ghi-long"</span>,
+  <span class="k">"stage_overrides"</span>: [
+    { <span class="k">"stage_template_id"</span>: <span class="s">"st-03"</span>, <span class="k">"assigned_team"</span>: <span class="s">"Engineering"</span> }
+  ]
+}</pre>
+          <ul class="side-effects">
+            <li>Auto-creates all rfq_stage instances from workflow</li>
+            <li>Back-calculates planned_start / planned_end from deadline</li>
+            <li>Sets current_stage_id = first stage, status = "In preparation"</li>
+          </ul>
+          <div class="table-note"><code>Draft</code> = saved without finalizing (no stages, current_stage_id = NULL). On
+            create, backend skips Draft and goes straight to "In preparation". Draft is reserved for a future "save
+            without submitting" flow.</div>
+        </div>
+      </div>
+
+      <div class="endpoint">
+        <div class="endpoint-header"><span class="method method-get">GET</span><span
+            class="endpoint-path">/rfqs?search=&status=&priority=&sort=&page=&size=</span><span class="ui-tag">index +
+            workspace</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="body-label">Response</div>
+          <pre>{
+  <span class="k">"data"</span>: [{
+    <span class="k">"id"</span>: <span class="s">"rfq-2025-0012"</span>, <span class="k">"name"</span>: <span class="s">"HP Separator Package"</span>,
+    <span class="k">"client"</span>: <span class="s">"Saudi Aramco"</span>, <span class="k">"status"</span>: <span class="s">"In preparation"</span>,
+    <span class="k">"progress"</span>: <span class="n">42</span>, <span class="k">"deadline"</span>: <span class="s">"2025-01-12"</span>,
+    <span class="k">"current_stage_name"</span>: <span class="s">"BOQ / BOM preparation"</span>
+  }],
+  <span class="k">"total"</span>: <span class="n">96</span>, <span class="k">"page"</span>: <span class="n">1</span>, <span class="k">"size"</span>: <span class="n">20</span>
+}</pre>
+        </div>
+      </div>
+
+      <div class="endpoint">
+        <div class="endpoint-header"><span class="method method-get">GET</span><span class="endpoint-path">/rfqs/<span
+              class="p">{rfqId}</span></span><span class="ui-tag">rfq_overview + workspace</span></div>
+        <div class="endpoint-body">Full RFQ detail: all list fields + industry, priority, description, workflow_id,
+          current_stage_id, created_at, updated_at.</div>
+      </div>
+
+      <div class="endpoint">
+        <div class="endpoint-header"><span class="method method-patch">PATCH</span><span
+            class="endpoint-path">/rfqs/<span class="p">{rfqId}</span></span><span class="ui-tag">workspace
+            (outcome)</span></div>
+        <div class="endpoint-body">
+          <div class="body-label">RFQ outcome examples</div>
+          <pre><span class="c">// Award</span>
+{ <span class="k">"status"</span>: <span class="s">"Awarded"</span>, <span class="k">"outcome_reason"</span>: <span class="s">"Best technical score"</span> }
+
+<span class="c">// Lost</span>
+{ <span class="k">"status"</span>: <span class="s">"Lost"</span>, <span class="k">"outcome_reason"</span>: <span class="s">"Price too high vs competitor"</span> }
+
+<span class="c">// Cancelled</span>
+{ <span class="k">"status"</span>: <span class="s">"Cancelled"</span>, <span class="k">"outcome_reason"</span>: <span class="s">"Client withdrew RFQ"</span> }</pre>
+          <ul class="side-effects">
+            <li>Changing deadline triggers recalculation of all rfq_stage planned dates</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="endpoint">
+        <div class="endpoint-header"><span class="method method-get">GET</span><span
+            class="endpoint-path">/rfqs/stats</span><span class="ui-tag">index (KPI cards)</span></div>
+        <div class="endpoint-body">
+          <div class="body-label">Response — lightweight, every page load</div>
+          <pre>{ <span class="k">"total_rfqs_12m"</span>: <span class="n">96</span>, <span class="k">"open_rfqs"</span>: <span class="n">18</span>, <span class="k">"critical_rfqs"</span>: <span class="n">5</span>, <span class="k">"avg_cycle_days"</span>: <span class="n">21</span> }</pre>
+        </div>
+      </div>
+
+      <div class="endpoint">
+        <div class="endpoint-header"><span class="method method-get">GET</span><span
+            class="endpoint-path">/rfqs/analytics</span><span class="ui-tag">index + analytics</span></div>
+        <div class="endpoint-body">
+          <div class="body-label">Response — heavy, business data with client breakdown</div>
+          <pre>{
+  <span class="k">"avg_margin_submitted"</span>: <span class="n">17.8</span>, <span class="k">"avg_margin_awarded"</span>: <span class="n">18.1</span>,
+  <span class="k">"estimation_accuracy"</span>: <span class="n">94</span>, <span class="k">"win_rate"</span>: <span class="n">32</span>,
+  <span class="k">"by_client"</span>: [
+    { <span class="k">"client"</span>: <span class="s">"Saudi Aramco"</span>, <span class="k">"rfq_count"</span>: <span class="n">24</span>, <span class="k">"avg_margin"</span>: <span class="n">18.5</span> }
+  ]
+}</pre>
+        </div>
+      </div>
+
+      <!-- ──── WORKFLOW ──── -->
+      <div class="resource-header">
+        <h3>Workflow</h3><span class="count-badge">3</span>
+      </div>
+
+      <div class="endpoint">
+        <div class="endpoint-header"><span class="method method-get">GET</span><span
+            class="endpoint-path">/workflows</span><span class="ui-tag">create_rfq + admin</span></div>
+        <div class="endpoint-body">
+          <pre>{ <span class="k">"data"</span>: [{ <span class="k">"id"</span>: <span class="s">"wf-ghi-long"</span>, <span class="k">"name"</span>: <span class="s">"GHI long workflow"</span>, <span class="k">"code"</span>: <span class="s">"GHI-LONG"</span>, <span class="k">"stage_count"</span>: <span class="n">11</span>, <span class="k">"is_active"</span>: <span class="n">true</span>, <span class="k">"is_default"</span>: <span class="n">true</span> }] }</pre>
+        </div>
+      </div>
+
+      <div class="endpoint">
+        <div class="endpoint-header"><span class="method method-get">GET</span><span
+            class="endpoint-path">/workflows/<span class="p">{workflowId}</span></span><span class="ui-tag">create_rfq
+            (stage list)</span></div>
+        <div class="endpoint-body">Returns workflow + ordered <code>stages[]</code>: id, name, order, default_team,
+          planned_duration_days.</div>
+      </div>
+
+      <div class="endpoint">
+        <div class="endpoint-header"><span class="method method-patch">PATCH</span><span
+            class="endpoint-path">/workflows/<span class="p">{workflowId}</span></span><span class="ui-tag">admin
+            (toggle)</span></div>
+        <div class="endpoint-body">Updatable: <code>name</code>, <code>description</code>, <code>is_active</code>,
+          <code>is_default</code>.
+        </div>
+      </div>
+
+      <!-- ──── RFQ_STAGE ──── -->
+      <div class="resource-header">
+        <h3>RFQ_Stage</h3><span class="count-badge">7</span>
+      </div>
+
+      <div class="endpoint">
+        <div class="endpoint-header"><span class="method method-get">GET</span><span class="endpoint-path">/rfqs/<span
+              class="p">{rfqId}</span>/stages</span><span class="ui-tag">rfq_overview + workspace</span></div>
+        <div class="endpoint-body">
+          <pre>{ <span class="k">"data"</span>: [{
+    <span class="k">"id"</span>: <span class="s">"rs-001"</span>, <span class="k">"name"</span>: <span class="s">"RFQ received"</span>, <span class="k">"order"</span>: <span class="n">1</span>,
+    <span class="k">"assigned_team"</span>: <span class="s">"Sales / BD"</span>, <span class="k">"status"</span>: <span class="s">"Completed"</span>, <span class="k">"progress"</span>: <span class="n">100</span>,
+    <span class="k">"planned_start"</span>: <span class="s">"2024-12-01"</span>, <span class="k">"actual_end"</span>: <span class="s">"2024-12-01"</span>
+}] }</pre>
+        </div>
+      </div>
+
+      <div class="endpoint">
+        <div class="endpoint-header"><span class="method method-get">GET</span><span class="endpoint-path">/rfqs/<span
+              class="p">{rfqId}</span>/stages/<span class="p">{stageId}</span></span><span class="ui-tag">workspace
+            (stage tab)</span></div>
+        <div class="endpoint-body">Same as list item + embedded <code>subtasks[]</code>, <code>files[]</code>, full
+          <code>captured_data</code>, <code>blocker_status</code>, <code>blocker_reason_code</code>.
+        </div>
+      </div>
+
+      <div class="endpoint">
+        <div class="endpoint-header"><span class="method method-patch">PATCH</span><span
+            class="endpoint-path">/rfqs/<span class="p">{rfqId}</span>/stages/<span
+              class="p">{stageId}</span></span><span class="ui-tag">workspace (update)</span></div>
+        <div class="endpoint-body">
+          <pre><span class="c">// Update progress + form data</span>
+{ <span class="k">"progress"</span>: <span class="n">60</span>, <span class="k">"captured_data"</span>: { <span class="k">"is_feasible"</span>: <span class="n">true</span> } }
+
+<span class="c">// Mark as blocked</span>
+{ <span class="k">"blocker_status"</span>: <span class="s">"Blocked"</span>, <span class="k">"blocker_reason_code"</span>: <span class="s">"supplier_delay"</span> }
+
+<span class="c">// Unblock (resolved)</span>
+{ <span class="k">"blocker_status"</span>: <span class="s">"Resolved"</span>, <span class="k">"blocker_reason_code"</span>: <span class="nl">null</span> }</pre>
+        </div>
+      </div>
+
+      <div class="endpoint">
+        <div class="endpoint-header"><span class="method method-post">POST</span><span class="endpoint-path">/rfqs/<span
+              class="p">{rfqId}</span>/stages/<span class="p">{stageId}</span>/notes</span><span
+            class="ui-tag">workspace (comment)</span></div>
+        <div class="endpoint-body">
+          <div class="body-label">Append-only — prevents concurrent overwrite</div>
+          <pre>{ <span class="k">"text"</span>: <span class="s">"Main vessel shell/head plates identified."</span> }</pre>
+          <ul class="side-effects">
+            <li>Auto-set: user (hardcoded placeholder 'System'), date (server timestamp), id</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="endpoint">
+        <div class="endpoint-header"><span class="method method-post">POST</span><span class="endpoint-path">/rfqs/<span
+              class="p">{rfqId}</span>/stages/<span class="p">{stageId}</span>/files</span><span
+            class="ui-tag">workspace (attach)</span></div>
+        <div class="endpoint-body">
+          Multipart upload. Type: <code>"Client RFQ"</code>, <code>"Design report"</code>, <code>"BOQ / BOM"</code>,
+          <code>"Estimation Workbook"</code>, <code>"Other"</code>.
+          <ul class="side-effects">
+            <li>V2: type = "Estimation Workbook" will trigger intelligence parsing</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="endpoint">
+        <div class="endpoint-header"><span class="method method-get">GET</span><span class="endpoint-path">/rfqs/<span
+              class="p">{rfqId}</span>/stages/<span class="p">{stageId}</span>/files</span><span
+            class="ui-tag">workspace (files table)</span></div>
+        <div class="endpoint-body">Returns list of files for this stage. Also embedded in GET stage detail, but useful
+          for lazy-loading file lists.</div>
+      </div>
+
+      <div class="endpoint">
+        <div class="endpoint-header"><span class="method method-post">POST</span><span class="endpoint-path">/rfqs/<span
+              class="p">{rfqId}</span>/stages/<span class="p">{stageId}</span>/advance</span><span
+            class="ui-tag">workspace (complete)</span></div>
+        <div class="endpoint-body">
+          <ul class="side-effects">
+            <li>Sets actual_end on current stage → status = Completed</li>
+            <li>Sets actual_start on next stage → status = In Progress</li>
+            <li>Updates RFQ.current_stage_id + recalculates RFQ.progress</li>
+          </ul>
+          <div class="guard">Guard: 403 if not assigned_team · 409 if blocker_status = Blocked · 422 if mandatory fields
+            missing in captured_data</div>
+        </div>
+      </div>
+
+      <!-- ──── FILE (shortcut) ──── -->
+      <div class="resource-header">
+        <h3>File</h3><span class="count-badge">3</span>
+      </div>
+
+      <div class="endpoint">
+        <div class="endpoint-header"><span class="method method-get">GET</span><span class="endpoint-path">/files/<span
+              class="p">{fileId}</span>/download</span><span class="ui-tag">workspace (download)</span></div>
+        <div class="endpoint-body">Returns local file stream. (Azure Blob integration is dormant). Shortcut pattern — fileId is globally
+          unique UUID.</div>
+      </div>
+
+      <div class="endpoint">
+        <div class="endpoint-header"><span class="method method-delete">DELETE</span><span
+            class="endpoint-path">/files/<span class="p">{fileId}</span></span><span class="ui-tag">workspace
+            (remove)</span></div>
+        <div class="endpoint-body">Soft delete — sets <code>deleted_at = NOW()</code>. All GETs filter
+          <code>WHERE deleted_at IS NULL</code>.
+        </div>
+      </div>
+
+      <!-- ──── SUBTASK ──── -->
+      <div class="resource-header">
+        <h3>Subtask</h3><span class="count-badge">4</span>
+      </div>
+
+      <div class="endpoint">
+        <div class="endpoint-header"><span class="method method-post">POST</span><span class="endpoint-path">/rfqs/<span
+              class="p">{rfqId}</span>/stages/<span class="p">{stageId}</span>/subtasks</span><span
+            class="ui-tag">workspace (add)</span></div>
+        <div class="endpoint-body">
+          <pre>{ <span class="k">"name"</span>: <span class="s">"Finish vessel plates BOQ"</span>, <span class="k">"assigned_to"</span>: <span class="s">"Mechanical"</span>, <span class="k">"due_date"</span>: <span class="s">"2024-12-17"</span> }</pre>
+          <ul class="side-effects">
+            <li>Auto-sets: progress = 0, status = "Open"</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="endpoint">
+        <div class="endpoint-header"><span class="method method-get">GET</span><span class="endpoint-path">/rfqs/<span
+              class="p">{rfqId}</span>/stages/<span class="p">{stageId}</span>/subtasks</span><span
+            class="ui-tag">workspace (table)</span></div>
+      </div>
+
+      <div class="endpoint">
+        <div class="endpoint-header"><span class="method method-patch">PATCH</span><span
+            class="endpoint-path">/rfqs/<span class="p">{rfqId}</span>/stages/<span
+              class="p">{stageId}</span>/subtasks/<span class="p">{subtaskId}</span></span><span
+            class="ui-tag">workspace (update)</span></div>
+        <div class="endpoint-body">
+          Updatable: <code>name</code>, <code>assigned_to</code>, <code>due_date</code>, <code>progress</code>,
+          <code>status</code>.
+          <ul class="side-effects">
+            <li>When all subtasks = 100% → stage progress auto-updates</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="endpoint">
+        <div class="endpoint-header"><span class="method method-delete">DELETE</span><span
+            class="endpoint-path">/rfqs/<span class="p">{rfqId}</span>/stages/<span
+              class="p">{stageId}</span>/subtasks/<span class="p">{subtaskId}</span></span><span
+            class="ui-tag">workspace (remove)</span></div>
+        <div class="endpoint-body">Soft delete — marks as removed, keeps for audit.</div>
+      </div>
+
+      <!-- ──── REMINDER ──── -->
+      <div class="resource-header">
+        <h3>Reminder</h3><span class="count-badge">7</span>
+      </div>
+
+      <div class="endpoint">
+        <div class="endpoint-header"><span class="method method-post">POST</span><span
+            class="endpoint-path">/reminders</span><span class="ui-tag">tasks (manual + system)</span></div>
+        <div class="endpoint-body">
+          <pre>{
+  <span class="k">"rfq_id"</span>: <span class="s">"rfq-2025-0012"</span>, <span class="k">"rfq_stage_id"</span>: <span class="s">"rs-005"</span>,
+  <span class="k">"type"</span>: <span class="s">"internal"</span>,
+  <span class="k">"message"</span>: <span class="s">"Follow up on nozzle material confirmation"</span>,
+  <span class="k">"due_date"</span>: <span class="s">"2024-12-19"</span>, <span class="k">"assigned_to"</span>: <span class="s">"Engineering"</span>
+}</pre>
+          <ul class="side-effects">
+            <li>Auto-set: created_by, created_at, status = "open"</li>
+            <li>Batch process picks these up for notification</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="endpoint">
+        <div class="endpoint-header"><span class="method method-get">GET</span><span
+            class="endpoint-path">/reminders?user=me&status=overdue</span><span class="ui-tag">tasks (lists)</span>
+        </div>
+      </div>
+
+      <div class="endpoint">
+        <div class="endpoint-header"><span class="method method-get">GET</span><span
+            class="endpoint-path">/reminders/stats</span><span class="ui-tag">tasks (4 KPI cards)</span></div>
+        <div class="endpoint-body">
+          <pre>{ <span class="k">"open_tasks"</span>: <span class="n">27</span>, <span class="k">"overdue_tasks"</span>: <span class="n">6</span>, <span class="k">"due_this_week"</span>: <span class="n">11</span>, <span class="k">"with_active_reminders"</span>: <span class="n">19</span> }</pre>
+        </div>
+      </div>
+
+      <div class="endpoint">
+        <div class="endpoint-header"><span class="method method-get">GET</span><span
+            class="endpoint-path">/reminders/rules</span><span class="ui-tag">tasks (rules table)</span></div>
+      </div>
+
+      <div class="endpoint">
+        <div class="endpoint-header"><span class="method method-patch">PATCH</span><span
+            class="endpoint-path">/reminders/rules/<span class="p">{ruleId}</span></span><span class="ui-tag">tasks
+            (toggle)</span></div>
+      </div>
+
+      <div class="endpoint">
+        <div class="endpoint-header"><span class="method method-post">POST</span><span
+            class="endpoint-path">/reminders/test</span><span class="ui-tag">tasks (test email)</span></div>
+      </div>
+
+    </section>
+
+
+    <!-- ═══════════════════════════════════════════ -->
+    <!-- SECTION 3 — DATA MODEL                     -->
+    <!-- ═══════════════════════════════════════════ -->
+    <section>
+      <h2>3. Data Model</h2>
+      <span class="section-sub">9 tables — every column exists because an endpoint reads or writes it.</span>
+
+      <!-- Full Endpoint Summary -->
+      <h3>All 31 Endpoints</h3>
+      <table class="entity-table" style="margin-bottom: 31px;">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Method</th>
+            <th>URI</th>
+            <th>Resource</th>
+            <th>UI Page</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>1</td><td>POST</td><td>/rfqs</td><td>RFQ</td><td>create_rfq</td></tr>
+          <tr><td>2</td><td>GET</td><td>/rfqs</td><td>RFQ</td><td>index, workspace</td></tr>
+          <tr><td>3</td><td>GET</td><td>/rfqs/export</td><td>RFQ</td><td>N/A (CSV Export)</td></tr>
+          <tr><td>4</td><td>GET</td><td>/rfqs/{rfqId}</td><td>RFQ</td><td>rfq_overview, workspace</td></tr>
+          <tr><td>5</td><td>PATCH</td><td>/rfqs/{rfqId}</td><td>RFQ</td><td>workspace (outcome)</td></tr>
+          <tr><td>6</td><td>GET</td><td>/rfqs/stats</td><td>RFQ</td><td>index</td></tr>
+          <tr><td>7</td><td>GET</td><td>/rfqs/analytics</td><td>RFQ</td><td>index, analytics</td></tr>
+          <tr><td>8</td><td>GET</td><td>/workflows</td><td>Workflow</td><td>create_rfq, admin</td></tr>
+          <tr><td>9</td><td>GET</td><td>/workflows/{wfId}</td><td>Workflow</td><td>create_rfq</td></tr>
+          <tr><td>10</td><td>PATCH</td><td>/workflows/{wfId}</td><td>Workflow</td><td>admin</td></tr>
+          <tr><td>11</td><td>GET</td><td>/rfqs/{rfqId}/stages</td><td>RFQ_Stage</td><td>rfq_overview, workspace</td></tr>
+          <tr><td>12</td><td>GET</td><td>/rfqs/{rfqId}/stages/{stageId}</td><td>RFQ_Stage</td><td>workspace</td></tr>
+          <tr><td>13</td><td>PATCH</td><td>/rfqs/{rfqId}/stages/{stageId}</td><td>RFQ_Stage</td><td>workspace</td></tr>
+          <tr><td>14</td><td>POST</td><td>/rfqs/{rfqId}/stages/{stageId}/notes</td><td>RFQ_Stage</td><td>workspace</td></tr>
+          <tr><td>15</td><td>POST</td><td>/rfqs/{rfqId}/stages/{stageId}/files</td><td>RFQ_Stage</td><td>workspace</td></tr>
+          <tr><td>16</td><td>POST</td><td>/rfqs/{rfqId}/stages/{stageId}/advance</td><td>RFQ_Stage</td><td>workspace</td></tr>
+          <tr><td>17</td><td>POST</td><td>/rfqs/{rfqId}/stages/{stageId}/subtasks</td><td>Subtask</td><td>workspace</td></tr>
+          <tr><td>18</td><td>GET</td><td>/rfqs/{rfqId}/stages/{stageId}/subtasks</td><td>Subtask</td><td>workspace</td></tr>
+          <tr><td>19</td><td>PATCH</td><td>/rfqs/{rfqId}/stages/{stageId}/subtasks/{subId}</td><td>Subtask</td><td>workspace</td></tr>
+          <tr><td>20</td><td>DELETE</td><td>/rfqs/{rfqId}/stages/{stageId}/subtasks/{subId}</td><td>Subtask</td><td>workspace</td></tr>
+          <tr><td>21</td><td>POST</td><td>/reminders</td><td>Reminder</td><td>tasks</td></tr>
+          <tr><td>22</td><td>GET</td><td>/reminders</td><td>Reminder</td><td>tasks</td></tr>
+          <tr><td>23</td><td>GET</td><td>/reminders/stats</td><td>Reminder</td><td>tasks</td></tr>
+          <tr><td>24</td><td>GET</td><td>/reminders/rules</td><td>Reminder</td><td>tasks</td></tr>
+          <tr><td>25</td><td>PATCH</td><td>/reminders/rules/{ruleId}</td><td>Reminder</td><td>tasks</td></tr>
+          <tr><td>26</td><td>POST</td><td>/reminders/test</td><td>Reminder</td><td>tasks</td></tr>
+          <tr><td>27</td><td>POST</td><td>/reminders/process</td><td>Reminder</td><td>tasks (batch)</td></tr>
+          <tr><td>28</td><td>GET</td><td>/rfqs/{rfqId}/stages/{stageId}/files</td><td>File</td><td>workspace</td></tr>
+          <tr><td>29</td><td>GET</td><td>/files/{fileId}/download</td><td>File</td><td>workspace</td></tr>
+          <tr><td>30</td><td>DELETE</td><td>/files/{fileId}</td><td>File</td><td>workspace</td></tr>
+          <tr><td>31</td><td>GET</td><td>/health</td><td>Health</td><td>system</td></tr>
+        </tbody>        </tbody>
+      </table>
+
+      <!-- API Resources Summary -->
+      <h3>API Resources → Tables</h3>
+      <table class="entity-table" style="margin-bottom: 24px;">
+        <thead>
+          <tr>
+            <th>Resource</th>
+            <th>Endpoints</th>
+            <th>Methods</th>
+            <th>Primary Table</th>
+            <th>Supporting Tables</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>RFQ</td>
+            <td>7</td>
+            <td>POST GET PATCH</td>
+            <td>rfq</td>
+            <td>—</td>
+          </tr>
+          <tr>
+            <td>Workflow</td>
+            <td>3</td>
+            <td>GET PATCH</td>
+            <td>workflow</td>
+            <td>stage_template</td>
+          </tr>
+          <tr>
+            <td>RFQ_Stage</td>
+            <td>7</td>
+            <td>GET PATCH POST</td>
+            <td>rfq_stage</td>
+            <td>rfq_stage_note, rfq_stage_file</td>
+          </tr>
+          <tr>
+            <td>Subtask</td>
+            <td>4</td>
+            <td>POST GET PATCH DELETE</td>
+            <td>subtask</td>
+            <td>—</td>
+          </tr>
+          <tr>
+            <td>File</td>
+            <td>2</td>
+            <td>GET DELETE</td>
+            <td>rfq_stage_file</td>
+            <td>—</td>
+          </tr>
+          <tr>
+            <td>Reminder</td>
+            <td>7</td>
+            <td>POST GET PATCH</td>
+            <td>reminder</td>
+            <td>reminder_rule</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- ERD -->
+      <div class="mermaid">
+        erDiagram
+        workflow ||--o{ stage_template : "has many"
+        workflow ||--o{ rfq : "used by"
+        stage_template ||--o{ rfq_stage : "instantiated as"
+        rfq ||--o{ rfq_stage : "progresses through"
+        rfq_stage ||--o{ rfq_stage_note : "has many"
+        rfq_stage ||--o{ rfq_stage_file : "has many"
+        rfq_stage ||--o{ subtask : "has many"
+        rfq ||--o{ reminder : "has many"
+        rfq_stage }o--o{ reminder : "optionally linked"
+
+        workflow { uuid id PK string name string code boolean is_active boolean is_default }
+        stage_template { uuid id PK uuid workflow_id FK string name int order string default_team int
+        planned_duration_days }
+        rfq { uuid id PK uuid workflow_id FK uuid current_stage_id FK string name string client enum status int progress
+        string outcome_reason }
+        rfq_stage { uuid id PK uuid rfq_id FK uuid stage_template_id FK string name enum status int progress date
+        planned_start date actual_end enum blocker_status }
+        rfq_stage_note { uuid id PK uuid rfq_stage_id FK string user_name text text timestamp created_at }
+        rfq_stage_file { uuid id PK uuid rfq_stage_id FK string filename string type string uploaded_by }
+        subtask { uuid id PK uuid rfq_stage_id FK string name int progress enum status timestamp deleted_at }
+        reminder { uuid id PK uuid rfq_id FK uuid rfq_stage_id FK enum type date due_date enum status }
+        reminder_rule { uuid id PK string name string scope boolean is_active }
+      </div>
+
+      <!-- workflow -->
+      <div class="table-card">
+        <h4>workflow</h4>
+        <div class="purpose">Config — reusable workflow template. Pre-seeded, not user-created in V1.</div>
+        <table class="entity-table">
+          <thead>
+            <tr>
+              <th>Column</th>
+              <th>Type</th>
+              <th>Constraint</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>id</td>
+              <td>UUID</td>
+              <td>PK</td>
+            </tr>
+            <tr>
+              <td>name</td>
+              <td>VARCHAR(100)</td>
+              <td>NOT NULL</td>
+            </tr>
+            <tr>
+              <td>code</td>
+              <td>VARCHAR(20)</td>
+              <td>UNIQUE, NOT NULL</td>
+            </tr>
+            <tr>
+              <td>description</td>
+              <td>TEXT</td>
+              <td></td>
+            </tr>
+            <tr>
+              <td>is_active</td>
+              <td>BOOLEAN</td>
+              <td>DEFAULT true</td>
+            </tr>
+            <tr>
+              <td>is_default</td>
+              <td>BOOLEAN</td>
+              <td>DEFAULT false</td>
+            </tr>
+            <tr>
+              <td>created_at</td>
+              <td>TIMESTAMP</td>
+              <td>DEFAULT NOW</td>
+            </tr>
+            <tr>
+              <td>updated_at</td>
+              <td>TIMESTAMP</td>
+              <td>DEFAULT NOW</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- stage_template -->
+      <div class="table-card">
+        <h4>stage_template</h4>
+        <div class="purpose">Config — step definition within a workflow. Pre-seeded, read-only in V1.</div>
+        <table class="entity-table">
+          <thead>
+            <tr>
+              <th>Column</th>
+              <th>Type</th>
+              <th>Constraint</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>id</td>
+              <td>UUID</td>
+              <td>PK</td>
+            </tr>
+            <tr>
+              <td>workflow_id</td>
+              <td>UUID</td>
+              <td>FK → workflow</td>
+            </tr>
+            <tr>
+              <td>name</td>
+              <td>VARCHAR(100)</td>
+              <td>NOT NULL</td>
+            </tr>
+            <tr>
+              <td>order</td>
+              <td>INT</td>
+              <td>NOT NULL</td>
+            </tr>
+            <tr>
+              <td>default_team</td>
+              <td>VARCHAR(100)</td>
+              <td></td>
+            </tr>
+            <tr>
+              <td>planned_duration_days</td>
+              <td>INT</td>
+              <td></td>
+            </tr>
+            <tr>
+              <td>mandatory_fields</td>
+              <td>TEXT</td>
+              <td></td>
+            </tr>
+            <tr>
+              <td>created_at</td>
+              <td>TIMESTAMP</td>
+              <td>DEFAULT NOW</td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="table-note">Named <code>stage_template</code> (not <code>stage</code>) to distinguish from
+          <code>rfq_stage</code>. Template = blueprint definition. rfq_stage = live copy per RFQ.
+        </div>
+      </div>
+
+      <!-- rfq -->
+      <div class="table-card">
+        <h4>rfq</h4>
+        <div class="purpose">Core — anchor record for every Request for Quotation.</div>
+        <table class="entity-table">
+          <thead>
+            <tr>
+              <th>Column</th>
+              <th>Type</th>
+              <th>Constraint</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>id</td>
+              <td>UUID</td>
+              <td>PK</td>
+            </tr>
+            <tr>
+              <td>workflow_id</td>
+              <td>UUID</td>
+              <td>FK → workflow, NOT NULL</td>
+            </tr>
+            <tr>
+              <td>current_stage_id</td>
+              <td>UUID</td>
+              <td>FK → rfq_stage, NULL</td>
+            </tr>
+            <!-- current_stage_id NULL = Draft (no stages yet) or circular FK insert -->
+            <tr>
+              <td>name</td>
+              <td>VARCHAR(200)</td>
+              <td>NOT NULL</td>
+            </tr>
+            <tr>
+              <td>client</td>
+              <td>VARCHAR(150)</td>
+              <td>NOT NULL</td>
+            </tr>
+            <tr>
+              <td>industry</td>
+              <td>VARCHAR(100)</td>
+              <td></td>
+            </tr>
+            <tr>
+              <td>country</td>
+              <td>VARCHAR(80)</td>
+              <td></td>
+            </tr>
+            <tr>
+              <td>priority</td>
+              <td>ENUM</td>
+              <td>DEFAULT 'normal'</td>
+            </tr>
+            <tr>
+              <td>deadline</td>
+              <td>DATE</td>
+              <td>NOT NULL</td>
+            </tr>
+            <tr>
+              <td>owner</td>
+              <td>VARCHAR(100)</td>
+              <td>NOT NULL</td>
+            </tr>
+            <tr>
+              <td>description</td>
+              <td>TEXT</td>
+              <td></td>
+            </tr>
+            <tr>
+              <td>status</td>
+              <td>ENUM</td>
+              <td>NOT NULL, DEFAULT 'Draft'</td>
+            </tr>
+            <tr>
+              <td>progress</td>
+              <td>INT</td>
+              <td>DEFAULT 0</td>
+            </tr>
+            <tr>
+              <td>outcome_reason</td>
+              <td>VARCHAR(500)</td>
+              <td></td>
+            </tr>
+            <tr>
+              <td>created_at</td>
+              <td>TIMESTAMP</td>
+              <td>DEFAULT NOW</td>
+            </tr>
+            <tr>
+              <td>updated_at</td>
+              <td>TIMESTAMP</td>
+              <td>DEFAULT NOW</td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="enum-line"><strong>priority:</strong> <code>normal</code> <code>critical</code></div>
+        <div class="enum-line"><strong>status:</strong> <code>Draft</code> <code>In preparation</code>
+          <code>Submitted</code> <code>Awarded</code> <code>Lost</code> <code>Cancelled</code>
+        </div>
+        <div class="table-note"><code>outcome_reason</code> (not <code>loss_reason</code>) — covers all outcomes: why
+          awarded, why lost, why cancelled.</div>
+        <div class="table-note"><code>Draft</code> = saved without finalizing (no stages generated,
+          <code>current_stage_id = NULL</code>, <code>progress = 0</code>). <code>GET /rfqs</code> excludes Drafts by
+          default — pass <code>?status=Draft</code> to see them. On finalization, backend generates stages and sets
+          status = "In preparation".</div>
+      </div>
+
+      <!-- rfq_stage -->
+      <div class="table-card">
+        <h4>rfq_stage</h4>
+        <div class="purpose">Tracking — a specific RFQ's instance of a stage, with time tracking and blocker state.
+        </div>
+        <table class="entity-table">
+          <thead>
+            <tr>
+              <th>Column</th>
+              <th>Type</th>
+              <th>Constraint</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>id</td>
+              <td>UUID</td>
+              <td>PK</td>
+            </tr>
+            <tr>
+              <td>rfq_id</td>
+              <td>UUID</td>
+              <td>FK → rfq, NOT NULL</td>
+            </tr>
+            <tr>
+              <td>stage_template_id</td>
+              <td>UUID</td>
+              <td>FK → stage_template, NOT NULL</td>
+            </tr>
+            <tr>
+              <td>name</td>
+              <td>VARCHAR(100)</td>
+              <td>NOT NULL (snapshot)</td>
+            </tr>
+            <tr>
+              <td>order</td>
+              <td>INT</td>
+              <td>NOT NULL (snapshot)</td>
+            </tr>
+            <tr>
+              <td>assigned_team</td>
+              <td>VARCHAR(100)</td>
+              <td></td>
+            </tr>
+            <tr>
+              <td>status</td>
+              <td>ENUM</td>
+              <td>DEFAULT 'Not started'</td>
+            </tr>
+            <tr>
+              <td>progress</td>
+              <td>INT</td>
+              <td>DEFAULT 0</td>
+            </tr>
+            <tr>
+              <td>planned_start</td>
+              <td>DATE</td>
+              <td></td>
+            </tr>
+            <tr>
+              <td>planned_end</td>
+              <td>DATE</td>
+              <td></td>
+            </tr>
+            <tr>
+              <td>actual_start</td>
+              <td>DATE</td>
+              <td></td>
+            </tr>
+            <tr>
+              <td>actual_end</td>
+              <td>DATE</td>
+              <td></td>
+            </tr>
+            <tr>
+              <td>captured_data</td>
+              <td>JSONB</td>
+              <td></td>
+            </tr>
+            <tr>
+              <td>mandatory_fields</td>
+              <td>TEXT</td>
+              <td>(snapshot)</td>
+            </tr>
+            <tr>
+              <td>blocker_status</td>
+              <td>ENUM</td>
+              <td></td>
+            </tr>
+            <tr>
+              <td>blocker_reason_code</td>
+              <td>VARCHAR(50)</td>
+              <td></td>
+            </tr>
+            <tr>
+              <td>created_at</td>
+              <td>TIMESTAMP</td>
+              <td>DEFAULT NOW</td>
+            </tr>
+            <tr>
+              <td>updated_at</td>
+              <td>TIMESTAMP</td>
+              <td>DEFAULT NOW</td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="enum-line"><strong>status:</strong> <code>Not started</code> <code>In Progress</code>
+          <code>Completed</code> <code>Skipped</code>
+        </div>
+        <div class="enum-line"><strong>blocker_status:</strong> <code>Blocked</code> <code>Resolved</code> or
+          <code>NULL</code> (never blocked) — orthogonal to status
+        </div>
+        <div class="enum-line"><strong>blocker_reason_code examples:</strong> <code>supplier_delay</code>
+          <code>missing_client_docs</code> <code>awaiting_internal_approval</code> <code>technical_clarification</code>
+          <code>workbook_issue</code> <code>budget_hold</code> <code>pending_lab_results</code>
+        </div>
+        <div class="table-note"><code>status</code> = workflow progression. <code>blocker_status</code> = overlay flag
+          (a stage can be "In Progress" and "Blocked" simultaneously). Removed <code>Blocked</code> from status enum to
+          avoid redundancy with blocker_status. <code>Skipped</code> is for No-Go scenarios: remaining stages are set to
+          Skipped when an RFQ is cancelled.
+        </div>
+      </div>
+
+      <!-- rfq_stage_note -->
+      <div class="table-card">
+        <h4>rfq_stage_note</h4>
+        <div class="purpose">Append-only comments on a stage.</div>
+        <table class="entity-table">
+          <thead>
+            <tr>
+              <th>Column</th>
+              <th>Type</th>
+              <th>Constraint</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>id</td>
+              <td>UUID</td>
+              <td>PK</td>
+            </tr>
+            <tr>
+              <td>rfq_stage_id</td>
+              <td>UUID</td>
+              <td>FK → rfq_stage, NOT NULL</td>
+            </tr>
+            <tr>
+              <td>user_name</td>
+              <td>VARCHAR(100)</td>
+              <td>NOT NULL (auto)</td>
+            </tr>
+            <tr>
+              <td>text</td>
+              <td>TEXT</td>
+              <td>NOT NULL</td>
+            </tr>
+            <tr>
+              <td>created_at</td>
+              <td>TIMESTAMP</td>
+              <td>DEFAULT NOW</td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="table-note">Separate table (not JSON array on rfq_stage) — no concurrent overwrite, fast queries,
+          independent indexing.</div>
+      </div>
+
+      <!-- rfq_stage_file -->
+      <div class="table-card">
+        <h4>rfq_stage_file</h4>
+        <div class="purpose">File attachments per stage.</div>
+        <table class="entity-table">
+          <thead>
+            <tr>
+              <th>Column</th>
+              <th>Type</th>
+              <th>Constraint</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>id</td>
+              <td>UUID</td>
+              <td>PK</td>
+            </tr>
+            <tr>
+              <td>rfq_stage_id</td>
+              <td>UUID</td>
+              <td>FK → rfq_stage, NOT NULL</td>
+            </tr>
+            <tr>
+              <td>filename</td>
+              <td>VARCHAR(255)</td>
+              <td>NOT NULL</td>
+            </tr>
+            <tr>
+              <td>file_path</td>
+              <td>VARCHAR(500)</td>
+              <td>NOT NULL</td>
+            </tr>
+            <tr>
+              <td>type</td>
+              <td>VARCHAR(50)</td>
+              <td></td>
+            </tr>
+            <tr>
+              <td>uploaded_by</td>
+              <td>VARCHAR(100)</td>
+              <td>NOT NULL (auto)</td>
+            </tr>
+            <tr>
+              <td>size_bytes</td>
+              <td>BIGINT</td>
+              <td></td>
+            </tr>
+            <tr>
+              <td>uploaded_at</td>
+              <td>TIMESTAMP</td>
+              <td>DEFAULT NOW</td>
+            </tr>
+            <tr>
+              <td>deleted_at</td>
+              <td>TIMESTAMP</td>
+              <td>NULL</td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="table-note">V2: when <code>type = "Estimation Workbook"</code>, triggers workbook parsing. DELETE =
+          soft delete (<code>deleted_at = NOW()</code>). All GETs filter <code>WHERE deleted_at IS NULL</code>.</div>
+      </div>
+
+      <!-- subtask -->
+      <div class="table-card">
+        <h4>subtask</h4>
+        <div class="purpose">Work items per stage — the UI's subtask management.</div>
+        <table class="entity-table">
+          <thead>
+            <tr>
+              <th>Column</th>
+              <th>Type</th>
+              <th>Constraint</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>id</td>
+              <td>UUID</td>
+              <td>PK</td>
+            </tr>
+            <tr>
+              <td>rfq_stage_id</td>
+              <td>UUID</td>
+              <td>FK → rfq_stage, NOT NULL</td>
+            </tr>
+            <tr>
+              <td>name</td>
+              <td>VARCHAR(200)</td>
+              <td>NOT NULL</td>
+            </tr>
+            <tr>
+              <td>assigned_to</td>
+              <td>VARCHAR(100)</td>
+              <td></td>
+            </tr>
+            <tr>
+              <td>due_date</td>
+              <td>DATE</td>
+              <td></td>
+            </tr>
+            <tr>
+              <td>progress</td>
+              <td>INT</td>
+              <td>DEFAULT 0</td>
+            </tr>
+            <tr>
+              <td>status</td>
+              <td>ENUM</td>
+              <td>DEFAULT 'Open'</td>
+            </tr>
+            <tr>
+              <td>created_at</td>
+              <td>TIMESTAMP</td>
+              <td>DEFAULT NOW</td>
+            </tr>
+            <tr>
+              <td>deleted_at</td>
+              <td>TIMESTAMP</td>
+              <td>NULL</td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="enum-line"><strong>status:</strong> <code>Open</code> <code>In progress</code> <code>Done</code>
+        </div>
+        <div class="table-note">DELETE = soft delete (<code>deleted_at = NOW()</code>). All GETs filter
+          <code>WHERE deleted_at IS NULL</code>.
+        </div>
+      </div>
+
+      <!-- reminder -->
+      <div class="table-card">
+        <h4>reminder</h4>
+        <div class="purpose">Alerting — manual and auto-created reminders. Batch process picks them up.</div>
+        <table class="entity-table">
+          <thead>
+            <tr>
+              <th>Column</th>
+              <th>Type</th>
+              <th>Constraint</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>id</td>
+              <td>UUID</td>
+              <td>PK</td>
+            </tr>
+            <tr>
+              <td>rfq_id</td>
+              <td>UUID</td>
+              <td>FK → rfq, NOT NULL</td>
+            </tr>
+            <tr>
+              <td>rfq_stage_id</td>
+              <td>UUID</td>
+              <td>FK → rfq_stage, NULL</td>
+            </tr>
+            <tr>
+              <td>type</td>
+              <td>ENUM</td>
+              <td>NOT NULL</td>
+            </tr>
+            <tr>
+              <td>message</td>
+              <td>TEXT</td>
+              <td>NOT NULL</td>
+            </tr>
+            <tr>
+              <td>due_date</td>
+              <td>DATE</td>
+              <td>NOT NULL</td>
+            </tr>
+            <tr>
+              <td>assigned_to</td>
+              <td>VARCHAR(100)</td>
+              <td></td>
+            </tr>
+            <tr>
+              <td>status</td>
+              <td>ENUM</td>
+              <td>DEFAULT 'open'</td>
+            </tr>
+            <tr>
+              <td>created_by</td>
+              <td>VARCHAR(100)</td>
+              <td>(auto)</td>
+            </tr>
+            <tr>
+              <td>created_at</td>
+              <td>TIMESTAMP</td>
+              <td>DEFAULT NOW</td>
+            </tr>
+            <tr>
+              <td>last_sent_at</td>
+              <td>TIMESTAMP</td>
+              <td>NULL</td>
+            </tr>
+            <tr>
+              <td>send_count</td>
+              <td>INT</td>
+              <td>DEFAULT 0</td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="enum-line"><strong>type:</strong> <code>internal</code> <code>external</code></div>
+        <div class="enum-line"><strong>status:</strong> <code>open</code> <code>sent</code> <code>overdue</code>
+          <code>resolved</code>
+        </div>
+        <div class="table-note"><code>delay_days</code> is NOT a stored column — computed at query time as
+          <code>MAX(0, NOW()::date - due_date)</code>.
+        </div>
+      </div>
+
+      <!-- reminder_rule -->
+      <div class="table-card">
+        <h4>reminder_rule</h4>
+        <div class="purpose">Config — pre-seeded rules that the batch process reads to auto-create reminders.</div>
+        <table class="entity-table">
+          <thead>
+            <tr>
+              <th>Column</th>
+              <th>Type</th>
+              <th>Constraint</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>id</td>
+              <td>UUID</td>
+              <td>PK</td>
+            </tr>
+            <tr>
+              <td>name</td>
+              <td>VARCHAR(100)</td>
+              <td>NOT NULL</td>
+            </tr>
+            <tr>
+              <td>description</td>
+              <td>TEXT</td>
+              <td></td>
+            </tr>
+            <tr>
+              <td>scope</td>
+              <td>VARCHAR(100)</td>
+              <td></td>
+            </tr>
+            <tr>
+              <td>is_active</td>
+              <td>BOOLEAN</td>
+              <td>DEFAULT true</td>
+            </tr>
+            <tr>
+              <td>created_at</td>
+              <td>TIMESTAMP</td>
+              <td>DEFAULT NOW</td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="enum-line"><strong>scope examples:</strong> <code>all_rfqs</code> <code>critical_only</code>
+          <code>stage_overdue</code> <code>blocked_stages</code> <code>upcoming_deadline</code>
+        </div>
+
+        <div class="table-note">No FK to reminder — the relationship is behavioral (batch reads rules → creates
+          reminders), not relational.</div>
+      </div>
+
+      <!-- Batch Processing Rules -->
+      <div class="table-card">
+        <h4>Batch Processing Rules</h4>
+        <div class="purpose">Cron job logic for reminder lifecycle management.</div>
+        <ul class="side-effects" style="font-size: 13px; margin: 8px 0 0 16px;">
+          <li>Runs every 15 min (configurable)</li>
+          <li>Checks <code>due_date &lt;= today</code> AND <code>status != resolved</code></li>
+          <li>Updates status to <code>overdue</code> when late</li>
+          <li>Sends notifications based on type (internal / external)</li>
+          <li>Uses <code>last_sent_at</code> to rate-limit (no re-send within X hours)</li>
+          <li>Increments <code>send_count</code> on each send, logs success/failure</li>
+        </ul>
+      </div>
+
+      <!-- Index Strategy -->
+      <h3 style="margin-top: 31px;">Index Strategy</h3>
+      <table class="entity-table" style="margin-top: 10px;">
+        <thead>
+          <tr>
+            <th>Table</th>
+            <th>Index</th>
+            <th>Why</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>rfq</td>
+            <td>(status)</td>
+            <td>Dashboard filter by status</td>
+          </tr>
+          <tr>
+            <td>rfq</td>
+            <td>(client)</td>
+            <td>Analytics by client breakdown</td>
+          </tr>
+          <tr>
+            <td>rfq</td>
+            <td>(deadline)</td>
+            <td>Sort by deadline, critical RFQ detection</td>
+          </tr>
+          <tr>
+            <td>rfq_stage</td>
+            <td>(rfq_id, order)</td>
+            <td>Load all stages for an RFQ in order</td>
+          </tr>
+          <tr>
+            <td>rfq_stage_note</td>
+            <td>(rfq_stage_id, created_at)</td>
+            <td>Load notes chronologically</td>
+          </tr>
+          <tr>
+            <td>rfq_stage_file</td>
+            <td>(rfq_stage_id)</td>
+            <td>Load files for a stage</td>
+          </tr>
+          <tr>
+            <td>subtask</td>
+            <td>(rfq_stage_id, deleted_at)</td>
+            <td>Load active subtasks (soft delete filter)</td>
+          </tr>
+          <tr>
+            <td>reminder</td>
+            <td>(rfq_id)</td>
+            <td>Load reminders for an RFQ</td>
+          </tr>
+          <tr>
+            <td>reminder</td>
+            <td>(due_date, status)</td>
+            <td>Batch: find due/overdue reminders</td>
+          </tr>
+          <tr>
+            <td>reminder</td>
+            <td>(assigned_to, status)</td>
+            <td>"My tasks" query</td>
+          </tr>
+        </tbody>
+      </table>
+
+    </section>
+
+  </div>
+</body>
+
+</html>
