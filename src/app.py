@@ -11,6 +11,8 @@ Creates the FastAPI app instance with:
 Entry point: `create_app()` returns the configured FastAPI instance.
 Run with: `uvicorn src.app:app --reload`
 """
+import logging
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -20,6 +22,9 @@ from fastapi import APIRouter
 
 from src.config.settings import settings
 from src.utils.errors import AppError
+
+
+logger = logging.getLogger(__name__)
 
 
 def create_app() -> FastAPI:
@@ -56,6 +61,24 @@ def create_app() -> FastAPI:
         allow_methods=["*"],       # GET, POST, PATCH, DELETE, etc.
         allow_headers=["*"],       # Authorization, Content-Type, etc.
     )
+
+    # ── V1 Auth Bypass (explicit, config-controlled) ─────────────
+    # V1 runs with open endpoints while rfq_iam_ms integration is pending.
+    # This middleware injects a deterministic demo user context for internal use.
+    @app.middleware("http")
+    async def inject_v1_auth_context(request: Request, call_next):
+        if settings.AUTH_BYPASS_ENABLED:
+            request.state.user = {
+                "id": settings.AUTH_BYPASS_USER_ID,
+                "name": settings.AUTH_BYPASS_USER_NAME,
+                "team": settings.AUTH_BYPASS_TEAM,
+            }
+        return await call_next(request)
+
+    @app.on_event("startup")
+    async def log_v1_auth_mode():
+        if settings.AUTH_BYPASS_ENABLED:
+            logger.warning("V1: auth bypassed, see rfq_iam_ms integration plan.")
 
     # ── Global Exception Handler ──────────────────────
     # Catches any AppError (NotFoundError, BadRequestError, etc.)

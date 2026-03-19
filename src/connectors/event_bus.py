@@ -1,12 +1,10 @@
 """
-Event Bus connector — publishes domain events to external systems.
+Event bus connector placeholder (V1 stub).
 
-Used to notify other microservices about lifecycle changes:
-- rfq.created, rfq.status_changed, rfq.deadline_changed
-- stage.advanced, stage.blocked, stage.completed
-- reminder.created, reminder.sent
-- file.uploaded, file.deleted
+Current V1 behavior:
+- No outbound event publishing is active.
+- This file remains as the integration seam for future event bus wiring.
 
-Methods:
-- publish(event_type, payload)  — POST event to EVENT_BUS_URL
+Planned integration seam:
+- publish(event_type, payload)
 """

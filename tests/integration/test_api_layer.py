@@ -2,6 +2,7 @@ import pytest
 from fastapi.testclient import TestClient
 from src.app import app
 from src.app_context import get_rfq_controller
+from src.utils.errors import BadRequestError
 
 class MockRfqController:
     def __init__(self):
@@ -88,6 +89,22 @@ def test_export_csv_endpoint():
     assert "attachment; filename" in response.headers["content-disposition"]
     assert "rfqs_export.csv" in response.headers["content-disposition"]
     assert "RFQ Code,Name" in response.text
+
+
+def test_invalid_sort_returns_clean_400_error():
+    class BadSortController:
+        def list(self, **_kwargs):
+            raise BadRequestError("Invalid sort field 'workflow_id'. Allowed fields: client, created_at, deadline, name, owner, priority, progress, status.")
+
+    app.dependency_overrides[get_rfq_controller] = lambda: BadSortController()
+    try:
+        response = client.get("/rfq-manager/v1/rfqs?sort=workflow_id")
+        assert response.status_code == 400
+        payload = response.json()
+        assert payload["error"] == "BadRequestError"
+        assert "Invalid sort field" in payload["message"]
+    finally:
+        app.dependency_overrides[get_rfq_controller] = override_get_rfq_controller
 
 # Clean up override
 def teardown_module():

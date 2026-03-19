@@ -7,9 +7,12 @@ from sqlalchemy.orm import Session
 from typing import List
 
 from src.models.rfq import RFQ
+from src.utils.errors import BadRequestError
 
 
 class RfqDatasource:
+
+    SORT_WHITELIST = {"name", "client", "deadline", "created_at", "priority", "status", "progress", "owner"}
 
     def __init__(self, session: Session):
         self.session = session
@@ -73,16 +76,17 @@ class RfqDatasource:
 
         # ── Sort ──────────────────────────────────────
         if sort:
-            if sort.startswith("-"):
-                column_name = sort[1:]
-                descending = True
-            else:
-                column_name = sort
-                descending = False
+            descending = sort.startswith("-")
+            column_name = sort[1:] if descending else sort
 
-            column = getattr(RFQ, column_name, None)
-            if column is not None:
-                query = query.order_by(column.desc() if descending else column.asc())
+            if column_name not in self.SORT_WHITELIST:
+                allowed = ", ".join(sorted(self.SORT_WHITELIST))
+                raise BadRequestError(
+                    f"Invalid sort field '{column_name}'. Allowed fields: {allowed}."
+                )
+
+            column = getattr(RFQ, column_name)
+            query = query.order_by(column.desc() if descending else column.asc())
         else:
             query = query.order_by(RFQ.created_at.desc())
 

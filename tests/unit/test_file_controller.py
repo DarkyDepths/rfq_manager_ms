@@ -38,6 +38,9 @@ def test_list_for_stage_success():
     res = ctrl.list_for_stage(RFQ1, ST1)
     assert len(res["data"]) == 1
     assert res["data"][0].filename == "doc.pdf"
+    payload = res["data"][0].model_dump()
+    assert "file_path" not in payload
+    assert payload["download_url"] == f"/rfq-manager/v1/files/{F1}/download"
 
 def test_list_for_stage_not_found():
     ctrl = FileController(MockFileDatasource(), MockStageDatasource(), MockSession())
