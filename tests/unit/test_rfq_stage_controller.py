@@ -191,6 +191,22 @@ def test_update_rfq_progress_ignores_skipped_stages():
     assert rfq.progress == 100
 
 
+def test_update_rfq_progress_excludes_skipped_from_average():
+    stage_ds = MockStageDatasource()
+    stage_ds.list_by_rfq = lambda _rfq_id: [
+        RFQStage(id=ST1, rfq_id=RFQ1, status="Completed", progress=100, order=1, name="A"),
+        RFQStage(id=ST2, rfq_id=RFQ1, status="In Progress", progress=50, order=2, name="B"),
+        RFQStage(id=str(uuid.uuid4()), rfq_id=RFQ1, status="Skipped", progress=0, order=3, name="C"),
+    ]
+
+    rfq = RFQ(id=RFQ1, current_stage_id=ST2, status="In preparation", progress=0)
+    ctrl = RfqStageController(stage_ds, MockRfqDatasource(), MockSession())
+
+    ctrl._update_rfq_progress(rfq)
+
+    assert rfq.progress == 75
+
+
 def test_stage_detail_file_response_hides_file_path():
     stage_ds = MockStageDatasource()
     file_id = uuid.uuid4()

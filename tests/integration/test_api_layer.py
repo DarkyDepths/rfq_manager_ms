@@ -1,6 +1,4 @@
 import pytest
-from fastapi.testclient import TestClient
-from src.app import app
 from src.app_context import get_rfq_controller
 from src.utils.errors import BadRequestError
 
@@ -29,14 +27,20 @@ mock_ctrl = MockRfqController()
 def override_get_rfq_controller():
     return mock_ctrl
 
-# Set up dependency override
-app.dependency_overrides[get_rfq_controller] = override_get_rfq_controller
-client = TestClient(app)
 
-def test_422_validation_error_format():
+@pytest.fixture
+def api_client(app, client):
+    app.dependency_overrides[get_rfq_controller] = override_get_rfq_controller
+    try:
+        yield client
+    finally:
+        app.dependency_overrides.pop(get_rfq_controller, None)
+
+
+def test_422_validation_error_format(api_client):
     """Verify that FastAPI RequestValidationErrors are formatted matching AppError structure."""
     # Send an invalid priority to trigger 422 (must be 'normal' or 'critical')
-    response = client.get("/rfq-manager/v1/rfqs?priority=invalid_priority")
+    response = api_client.get("/rfq-manager/v1/rfqs?priority=invalid_priority")
     
     assert response.status_code == 422
     data = response.json()
@@ -51,10 +55,10 @@ def test_422_validation_error_format():
     assert "query.priority" in data["message"]
     assert "Input should be" in data["message"]
 
-def test_rich_filters_parsing():
+def test_rich_filters_parsing(api_client):
     """Verify that FastAPI correctly parses multi-value status, dates, and other Phase 2 filters."""
     # Note: Using valid enums for status and priority
-    response = client.get(
+    response = api_client.get(
         "/rfq-manager/v1/rfqs",
         params={
             "status": ["Submitted", "In preparation"],
@@ -79,9 +83,9 @@ def test_rich_filters_parsing():
     assert filters["created_before"] == "2023-12-31"
     assert filters["search"] == "Pump"
 
-def test_export_csv_endpoint():
+def test_export_csv_endpoint(api_client):
     """Verify that the GET /rfqs/export natively returns CSV files and attachment headers"""
-    response = client.get("/rfq-manager/v1/rfqs/export?status=Submitted")
+    response = api_client.get("/rfq-manager/v1/rfqs/export?status=Submitted")
     
     assert response.status_code == 200
     # Allow for optional charset=utf-8 which FastAPI injects
@@ -91,21 +95,17 @@ def test_export_csv_endpoint():
     assert "RFQ Code,Name" in response.text
 
 
-def test_invalid_sort_returns_clean_400_error():
+def test_invalid_sort_returns_clean_400_error(api_client, app):
     class BadSortController:
         def list(self, **_kwargs):
             raise BadRequestError("Invalid sort field 'workflow_id'. Allowed fields: client, created_at, deadline, name, owner, priority, progress, status.")
 
     app.dependency_overrides[get_rfq_controller] = lambda: BadSortController()
     try:
-        response = client.get("/rfq-manager/v1/rfqs?sort=workflow_id")
+        response = api_client.get("/rfq-manager/v1/rfqs?sort=workflow_id")
         assert response.status_code == 400
         payload = response.json()
         assert payload["error"] == "BadRequestError"
         assert "Invalid sort field" in payload["message"]
     finally:
         app.dependency_overrides[get_rfq_controller] = override_get_rfq_controller
-
-# Clean up override
-def teardown_module():
-    app.dependency_overrides.clear()
