@@ -35,6 +35,7 @@ from src.models.rfq_file import RFQFile
 from src.models.rfq_stage_field_value import RFQStageFieldValue
 from src.models.rfq_history import RFQHistory
 from src.models.reminder import Reminder, ReminderRule
+from src.datasources.rfq_datasource import RfqDatasource
 
 GHI_LONG = {
     "code": "GHI-LONG",
@@ -147,6 +148,7 @@ def generate_scenario(session, fake, scenario, base_workflow_long, base_workflow
     rfqs_created = 0
     status_counts = {"Draft": 0, "In preparation": 0, "Submitted": 0, "Awarded": 0, "Lost": 0, "Cancelled": 0}
     blocked_count = 0
+    rfq_ds = RfqDatasource(session)
     
     if scenario == "minimal":
         return 0, status_counts, 0
@@ -170,7 +172,7 @@ def generate_scenario(session, fake, scenario, base_workflow_long, base_workflow
             priority=random.choice(["normal", "critical"]),
             status="Draft" if target_status == "Draft" else target_status,
             workflow_id=wf.id,
-            rfq_code=f"GHI-{fake.unique.random_int(min=1000, max=99999)}"
+            rfq_code=rfq_ds.get_next_code(random.choice(["IF", "IB"]))
         )
         session.add(rfq)
         session.flush()
@@ -180,6 +182,7 @@ def generate_scenario(session, fake, scenario, base_workflow_long, base_workflow
         for t in templates:
             stage = RFQStage(
                 rfq_id=rfq.id, name=t.name, order=t.order, assigned_team=t.default_team,
+                stage_template_id=t.id,
                 mandatory_fields=t.mandatory_fields, status="Not Started", progress=0
             )
             stages.append(stage)
@@ -226,17 +229,20 @@ def generate_scenario(session, fake, scenario, base_workflow_long, base_workflow
             if force_terminal:
                 stages[-1].status = "Completed"
                 stages[-1].progress = 100
-                rfq.current_stage_id = stages[-1].id
                 rfq.status = random.choice(["Awarded", "Lost"])
                 rfq.progress = 100
+                rfq.current_stage_id = None
             
             if is_blocked and not force_terminal:
                 cur_stage = next((s for s in stages if s.status == "In Progress"), None)
                 if cur_stage:
                     cur_stage.blocker_status = "Blocked"
                     cur_stage.blocker_reason_code = "Waiting on Client"
-                    cur_stage.blocker_description = fake.sentence()
                     blocked_count += 1
+
+            if rfq.status in {"Awarded", "Lost", "Cancelled"}:
+                rfq.current_stage_id = None
+                rfq.progress = 100
         
         rfqs_created += 1
         status_counts[rfq.status] += 1
