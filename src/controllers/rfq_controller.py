@@ -105,6 +105,7 @@ class RfqController:
 
             stage_data = {
                 "rfq_id": rfq.id,
+                "stage_template_id": template.id,
                 "name": template.name,
                 "order": new_order,  # re-numbered sequentially
                 "assigned_team": assigned_team,
@@ -363,12 +364,24 @@ class RfqController:
         # Back-calculate from new deadline using actual stage durations
         current_end = new_deadline
         for stage in reversed(stages):
-            # Find the template duration for this stage
+            # Find the template duration by stable template ID (LG-05).
             duration = 5  # default
-            for t in workflow.stages:
-                if t.name == stage.name:
-                    duration = t.planned_duration_days
-                    break
+            template = None
+
+            if getattr(stage, "stage_template_id", None):
+                template = next(
+                    (t for t in workflow.stages if t.id == stage.stage_template_id),
+                    None,
+                )
+            else:
+                # Legacy fallback: old rows may not yet have stage_template_id populated.
+                template = next(
+                    (t for t in workflow.stages if t.name == stage.name),
+                    None,
+                )
+
+            if template:
+                duration = template.planned_duration_days
 
             stage_start = current_end - timedelta(days=duration)
 
