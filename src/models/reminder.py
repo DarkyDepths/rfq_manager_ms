@@ -14,6 +14,7 @@ Columns:
 - status          VARCHAR  — open | sent | overdue | resolved
 - created_by      VARCHAR
 - created_at      TIMESTAMP WITH TZ
+- updated_at      TIMESTAMP WITH TZ
 - last_sent_at    TIMESTAMP WITH TZ (nullable) — used by batch to rate-limit re-sends
 - send_count      INTEGER  — number of times notification was sent, default 0
 
@@ -61,6 +62,7 @@ class Reminder(Base):
 
     # ── Timestamps ────────────────────────────────────
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     # NOTE: delay_days is NOT a column. It's computed at query time:
     #   MAX(0, today - due_date)

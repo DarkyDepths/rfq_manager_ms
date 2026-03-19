@@ -1,7 +1,18 @@
 import pytest
+import time
+import uuid
 from datetime import date, datetime, timedelta
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+
+import src.models.workflow  # noqa: F401
+import src.models.rfq  # noqa: F401
+import src.models.rfq_stage  # noqa: F401
 from src.services.notification_service import NotificationService
 from src.models.reminder import Reminder
+from src.models.workflow import Workflow
+from src.models.rfq import RFQ
+from src.database import Base
 
 class MockSession:
     def __init__(self, items):
@@ -56,3 +67,61 @@ def test_process_due_reminders_rate_limiting_and_exhaustion():
     
     assert r2.send_count == 3
     assert r2.status == "open"
+
+
+def test_reminder_updated_at_populated_and_changes_on_update():
+    engine = create_engine("sqlite:///:memory:")
+    SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False)
+    Base.metadata.create_all(bind=engine)
+    session = SessionLocal()
+
+    try:
+        workflow = Workflow(
+            id=uuid.uuid4(),
+            name="Test Workflow",
+            code="TEST-WF-1",
+            is_active=True,
+            is_default=False,
+        )
+        session.add(workflow)
+        session.flush()
+
+        rfq = RFQ(
+            id=uuid.uuid4(),
+            name="RFQ A",
+            client="Client A",
+            priority="normal",
+            deadline=date.today(),
+            owner="Team A",
+            workflow_id=workflow.id,
+            status="In preparation",
+            progress=0,
+        )
+        session.add(rfq)
+        session.flush()
+
+        reminder = Reminder(
+            id=uuid.uuid4(),
+            rfq_id=rfq.id,
+            type="internal",
+            message="Follow up",
+            due_date=date.today(),
+            status="open",
+            send_count=0,
+        )
+        session.add(reminder)
+        session.commit()
+        session.refresh(reminder)
+
+        first_updated_at = reminder.updated_at
+        assert first_updated_at is not None
+
+        time.sleep(1.05)
+        reminder.status = "overdue"
+        session.commit()
+        session.refresh(reminder)
+
+        assert reminder.updated_at is not None
+        assert reminder.updated_at > first_updated_at
+    finally:
+        session.close()
