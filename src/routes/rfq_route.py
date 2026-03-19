@@ -4,10 +4,11 @@ RFQ routes — FastAPI router for RFQ endpoints.
 Endpoints:
 - POST   /rfqs              — #1 Create RFQ
 - GET    /rfqs              — #2 List RFQs (paginated, with search/filter/sort)
-- GET    /rfqs/stats        — #5 Dashboard KPIs
-- GET    /rfqs/analytics    — #6 Business analytics
-- GET    /rfqs/{rfqId}      — #3 Get RFQ detail
-- PATCH  /rfqs/{rfqId}      — #4 Update RFQ
+- GET    /rfqs/export       — #3 Export RFQs as CSV
+- GET    /rfqs/{rfqId}      — #4 Get RFQ detail
+- PATCH  /rfqs/{rfqId}      — #5 Update RFQ
+- GET    /rfqs/stats        — #6 Dashboard KPIs
+- GET    /rfqs/analytics    — #7 Business analytics
 """
 
 from uuid import UUID
@@ -61,6 +62,7 @@ def list_rfqs(
     return ctrl.list(search=search, status=status, priority=priority, owner=owner, created_after=created_after, created_before=created_before, sort=sort, page=page, size=size)
 
 
+# ── #3 — Export RFQs ─────────────────────────────────
 @router.get("/export", response_class=Response)
 def export_rfqs(
     search: Optional[str] = Query(None, description="Search in name and client"),
@@ -85,7 +87,7 @@ def export_rfqs(
     )
 
 
-# ── #5 — RFQ Stats ───────────────────────────────────
+# ── #6 — RFQ Stats ───────────────────────────────────
 # IMPORTANT: /stats and /analytics must be BEFORE /{rfq_id}
 @router.get("/stats", response_model=RfqStats)
 def rfq_stats(
@@ -95,7 +97,7 @@ def rfq_stats(
     return ctrl.get_stats()
 
 
-# ── #6 — RFQ Analytics ───────────────────────────────
+# ── #7 — RFQ Analytics ───────────────────────────────
 @router.get("/analytics", response_model=RfqAnalytics)
 def rfq_analytics(
     ctrl: RfqController = Depends(get_rfq_controller),
@@ -104,7 +106,7 @@ def rfq_analytics(
     return ctrl.get_analytics()
 
 
-# ── #3 — Get RFQ Detail ──────────────────────────────
+# ── #4 — Get RFQ Detail ──────────────────────────────
 @router.get("/{rfq_id}", response_model=RfqDetail)
 def get_rfq(
     rfq_id: UUID,
@@ -114,7 +116,7 @@ def get_rfq(
     return ctrl.get(rfq_id)
 
 
-# ── #4 — Update RFQ ──────────────────────────────────
+# ── #5 — Update RFQ ──────────────────────────────────
 @router.patch("/{rfq_id}", response_model=RfqDetail)
 def update_rfq(
     rfq_id: UUID,

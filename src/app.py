@@ -118,6 +118,7 @@ def create_app() -> FastAPI:
     # load balancers, and you during development.
     @app.get("/health")
     def health_check():
+        """#31 — Health check."""
         return {"status": "ok"}
 
     # ── Route Registration ────────────────────────────

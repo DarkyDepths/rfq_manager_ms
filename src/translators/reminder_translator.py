@@ -36,6 +36,7 @@ class ReminderResponse(BaseModel):
     delay_days: int = 0          # computed, not from DB
     created_by: Optional[str] = None
     created_at: datetime
+    updated_at: Optional[datetime] = None
     last_sent_at: Optional[datetime] = None
     send_count: int
     class Config:
@@ -80,6 +81,7 @@ def to_response(reminder) -> ReminderResponse:
         delay_days=delay,                # computed here
         created_by=reminder.created_by,
         created_at=reminder.created_at,
+        updated_at=reminder.updated_at,
         last_sent_at=reminder.last_sent_at,
         send_count=reminder.send_count,
     )

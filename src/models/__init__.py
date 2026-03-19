@@ -2,6 +2,16 @@
 Models package — SQLAlchemy table definitions.
 
 Each file defines one table class inheriting from `database.Base`.
-Tables: rfq, workflow, rfq_stage, subtask, reminder,
-        rfq_note, rfq_file, rfq_stage_field_value, rfq_history.
+Tables (11 total):
+- rfq
+- workflow
+- stage_template
+- rfq_stage
+- subtask
+- rfq_note
+- rfq_file
+- reminder
+- reminder_rule
+- rfq_stage_field_value (dormant in V1)
+- rfq_history (dormant in V1)
 """

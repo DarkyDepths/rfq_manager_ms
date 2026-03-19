@@ -844,7 +844,7 @@
   <span class="k">"due_date"</span>: <span class="s">"2024-12-19"</span>, <span class="k">"assigned_to"</span>: <span class="s">"Engineering"</span>
 }</pre>
           <ul class="side-effects">
-            <li>Auto-set: created_by, created_at, status = "open"</li>
+            <li>Auto-set: created_by, created_at, status = "open", send_count = 0</li>
             <li>Batch process picks these up for notification</li>
           </ul>
         </div>
@@ -1607,6 +1607,11 @@
               <td>created_at</td>
               <td>TIMESTAMP</td>
               <td>DEFAULT NOW</td>
+            </tr>
+            <tr>
+              <td>updated_at</td>
+              <td>TIMESTAMP</td>
+              <td>DEFAULT NOW (updated on row updates)</td>
             </tr>
             <tr>
               <td>last_sent_at</td>
