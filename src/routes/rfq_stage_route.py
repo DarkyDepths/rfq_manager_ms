@@ -17,7 +17,7 @@ from fastapi import APIRouter, Depends, UploadFile, File, Form
 
 from src.translators.rfq_stage_translator import (
     RfqStageUpdateRequest, NoteCreateRequest,
-    RfqStageResponse, RfqStageDetailResponse, StageNoteResponse, StageFileResponse,
+    RfqStageDetailResponse, StageNoteResponse, StageFileResponse,
     RfqStageListResponse
 )
 from src.app_context import get_rfq_stage_controller

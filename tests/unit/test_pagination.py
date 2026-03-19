@@ -1,4 +1,3 @@
-import pytest
 from src.utils.pagination import PaginationParams, paginate, paginated_response
 
 def test_pagination_params_defaults():

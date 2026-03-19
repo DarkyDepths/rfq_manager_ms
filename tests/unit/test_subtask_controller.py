@@ -1,5 +1,6 @@
 import pytest
 import uuid
+from datetime import datetime
 from src.controllers.subtask_controller import SubtaskController
 from src.models.subtask import Subtask
 from src.models.rfq_stage import RFQStage
@@ -10,8 +11,6 @@ RFQ1 = str(uuid.uuid4())
 ST1 = str(uuid.uuid4())
 S1_ID = str(uuid.uuid4())
 S2_ID = str(uuid.uuid4())
-
-from datetime import datetime
 
 class MockSubtaskDatasource:
     def __init__(self, subtasks=None):
@@ -28,9 +27,11 @@ class MockSubtaskDatasource:
         
     def get_by_id(self, subtask_id):
         for s in self.subtasks:
-            if s.id == subtask_id: return s
+            if s.id == subtask_id:
+                return s
         for s in self.deleted:
-            if s.id == subtask_id: return s
+            if s.id == subtask_id:
+                return s
         return None
         
     def update(self, subtask, update_data):

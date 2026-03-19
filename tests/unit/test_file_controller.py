@@ -1,5 +1,6 @@
 import pytest
 import uuid
+from datetime import datetime
 from unittest.mock import patch
 from src.controllers.file_controller import FileController
 from src.models.rfq_file import RFQFile
@@ -9,8 +10,6 @@ from src.utils.errors import NotFoundError
 RFQ1 = str(uuid.uuid4())
 ST1 = str(uuid.uuid4())
 F1 = str(uuid.uuid4())
-
-from datetime import datetime
 
 class MockFileDatasource:
     def list_by_stage(self, stage_id):
@@ -68,14 +67,12 @@ def test_get_file_path_not_on_disk(mock_resolve, mock_exists):
 
 def test_resolve_physical_path_legacy():
     from src.controllers.file_controller import _resolve_physical_path
-    from src.config.settings import settings
     # For a legacy path in the DB
     path = _resolve_physical_path("uploads/123/456/file.txt")
     assert path.endswith("123/456/file.txt")
 
 def test_resolve_physical_path_new():
     from src.controllers.file_controller import _resolve_physical_path
-    from src.config.settings import settings
     # For a modern path in the DB
     path = _resolve_physical_path("123/456/file.txt")
     assert path.endswith("123/456/file.txt")
