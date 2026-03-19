@@ -36,6 +36,42 @@ utils/           →  Shared helpers (errors, pagination)
 | File        | 3         | List, download, soft delete                  |
 | Health      | 1         | Liveness check                               |
 
+Base path for all numbered endpoints below: `/rfq-manager/v1`.
+
+| # | Method | Path | Resource |
+|---|--------|------|----------|
+| 1 | POST | /rfqs | RFQ |
+| 2 | GET | /rfqs | RFQ |
+| 3 | GET | /rfqs/export | RFQ |
+| 4 | GET | /rfqs/{rfq_id} | RFQ |
+| 5 | PATCH | /rfqs/{rfq_id} | RFQ |
+| 6 | GET | /rfqs/stats | RFQ |
+| 7 | GET | /rfqs/analytics | RFQ |
+| 8 | GET | /workflows | Workflow |
+| 9 | GET | /workflows/{workflow_id} | Workflow |
+| 10 | PATCH | /workflows/{workflow_id} | Workflow |
+| 11 | GET | /rfqs/{rfq_id}/stages | RFQ Stage |
+| 12 | GET | /rfqs/{rfq_id}/stages/{stage_id} | RFQ Stage |
+| 13 | PATCH | /rfqs/{rfq_id}/stages/{stage_id} | RFQ Stage |
+| 14 | POST | /rfqs/{rfq_id}/stages/{stage_id}/notes | RFQ Stage |
+| 15 | POST | /rfqs/{rfq_id}/stages/{stage_id}/files | RFQ Stage |
+| 16 | POST | /rfqs/{rfq_id}/stages/{stage_id}/advance | RFQ Stage |
+| 17 | POST | /rfqs/{rfq_id}/stages/{stage_id}/subtasks | Subtask |
+| 18 | GET | /rfqs/{rfq_id}/stages/{stage_id}/subtasks | Subtask |
+| 19 | PATCH | /rfqs/{rfq_id}/stages/{stage_id}/subtasks/{subtask_id} | Subtask |
+| 20 | DELETE | /rfqs/{rfq_id}/stages/{stage_id}/subtasks/{subtask_id} | Subtask |
+| 21 | POST | /reminders | Reminder |
+| 22 | GET | /reminders | Reminder |
+| 23 | GET | /reminders/stats | Reminder |
+| 24 | GET | /reminders/rules | Reminder |
+| 25 | PATCH | /reminders/rules/{rule_id} | Reminder |
+| 26 | POST | /reminders/test | Reminder |
+| 27 | POST | /reminders/process | Reminder |
+| 28 | GET | /rfqs/{rfq_id}/stages/{stage_id}/files | File |
+| 29 | GET | /files/{file_id}/download | File |
+| 30 | DELETE | /files/{file_id} | File |
+| 31 | GET | /health | Health |
+
 ## Quick Start
 
 ```bash
@@ -58,6 +94,10 @@ python -m venv .venv
 # 4. Install dependencies
 pip install -r requirements.txt
 # Linux/Mac: pip install -r requirements.txt
+
+# Optional: install test/dev dependencies
+pip install -r requirements-dev.txt
+# Linux/Mac: pip install -r requirements-dev.txt
 
 # 5. Create local environment file
 Copy-Item .env.example .env
@@ -109,6 +149,7 @@ rfq_manager_ms/
 ├── scripts/             # DB init + sample data (seed.py)
 ├── alembic.ini          # Migration config
 ├── requirements.txt     # Python dependencies
+├── requirements-dev.txt # Test/dev dependencies
 ├── .env.example         # Environment template
 └── README.md
 ```

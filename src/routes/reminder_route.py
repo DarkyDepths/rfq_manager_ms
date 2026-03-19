@@ -2,13 +2,13 @@
 Reminder routes — FastAPI router for Reminder endpoints.
 
 Endpoints:
-- POST   /reminders              — #20 Create reminder
-- GET    /reminders              — #21 List reminders (filter by user, status, rfq_id)
-- GET    /reminders/stats        — #22 Reminder KPIs
-- GET    /reminders/rules        — #23 List reminder rules
-- PATCH  /reminders/rules/{ruleId} — #24 Toggle reminder rule
-- POST   /reminders/test         — #25 Test reminder email
-- POST   /reminders/process      — #26 Trigger batch processing of due reminders
+- POST   /reminders              — #21 Create reminder
+- GET    /reminders              — #22 List reminders (filter by user, status, rfq_id)
+- GET    /reminders/stats        — #23 Reminder KPIs
+- GET    /reminders/rules        — #24 List reminder rules
+- PATCH  /reminders/rules/{ruleId} — #25 Toggle reminder rule
+- POST   /reminders/test         — #26 Test reminder email
+- POST   /reminders/process      — #27 Trigger batch processing of due reminders
 """
 
 from uuid import UUID
@@ -27,7 +27,7 @@ router = APIRouter(prefix="/reminders", tags=["Reminder"])
 
 @router.post("", status_code=201, response_model=ReminderResponse)
 def create_reminder(body: ReminderCreateRequest, ctrl: ReminderController = Depends(get_reminder_controller)):
-    """#20 — Create reminder."""
+    """#21 — Create reminder."""
     return ctrl.create(body)
 
 
@@ -38,34 +38,34 @@ def list_reminders(
     rfq_id: Optional[UUID] = Query(None),
     ctrl: ReminderController = Depends(get_reminder_controller),
 ):
-    """#21 — List reminders with filters."""
+    """#22 — List reminders with filters."""
     return ctrl.list(user=user, status=status, rfq_id=rfq_id)
 
 
 @router.get("/stats", response_model=ReminderStatsResponse)
 def reminder_stats(ctrl: ReminderController = Depends(get_reminder_controller)):
-    """#22 — Reminder KPIs."""
+    """#23 — Reminder KPIs."""
     return ctrl.get_stats()
 
 
 @router.get("/rules", response_model=ReminderRuleListResponse)
 def list_rules(ctrl: ReminderController = Depends(get_reminder_controller)):
-    """#23 — List reminder rules."""
+    """#24 — List reminder rules."""
     return ctrl.list_rules()
 
 
 @router.patch("/rules/{rule_id}", response_model=ReminderRuleResponse)
 def update_rule(rule_id: UUID, body: ReminderRuleUpdateRequest, ctrl: ReminderController = Depends(get_reminder_controller)):
-    """#24 — Toggle reminder rule active/inactive."""
+    """#25 — Toggle reminder rule active/inactive."""
     return ctrl.update_rule(rule_id, body)
 
 
 @router.post("/test")
 def test_reminder(ctrl: ReminderController = Depends(get_reminder_controller)):
-    """#25 — Test reminder email (log-only in V1)."""
+    """#26 — Test reminder email (log-only in V1)."""
     return ctrl.test_email()
 
 @router.post("/process")
 def process_reminders(ctrl: ReminderController = Depends(get_reminder_controller)):
-    """#26 — Trigger batch processing of due reminders."""
+    """#27 — Trigger batch processing of due reminders."""
     return ctrl.process_reminders()

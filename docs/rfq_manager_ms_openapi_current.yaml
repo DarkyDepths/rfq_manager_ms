@@ -3,7 +3,7 @@ info:
   title: rfq_manager_ms — RFQ Lifecycle Management API
   description: |
     Current interface contract for the RFQ Manager microservice.
-    Front-to-back design: 9 UI screens → 47 user actions → 6 resources → 31 endpoints → 9 tables.
+    Current repository-tracked V1 scope: 31 endpoints across 7 resources.
   version: "1.0.0"
   contact:
     name: RFQ Manager Team
@@ -93,7 +93,7 @@ paths:
 
   /rfqs/export:
     get:
-      summary: Export RFQs as CSV
+      summary: "#3 — Export RFQs as CSV"
       description: Returns a CSV file of RFQs matching the provided filters. Reuses the exact same filtering parameters as `GET /rfqs` but ignores pagination parameters.
       tags:
         - RFQ
@@ -118,7 +118,7 @@ paths:
   /rfqs/{rfqId}:
     get:
       tags: [RFQ]
-      summary: "#3 — Get RFQ detail"
+      summary: "#4 — Get RFQ detail"
       description: Full RFQ detail — all list fields + industry, priority, description, workflow_id, current_stage_id, timestamps.
       operationId: getRfq
       parameters:
@@ -135,7 +135,7 @@ paths:
 
     patch:
       tags: [RFQ]
-      summary: "#4 — Update RFQ"
+      summary: "#5 — Update RFQ"
       description: |
         Update RFQ metadata or set final outcome (Awarded / Lost / Cancelled).
         Changing deadline triggers recalculation of all rfq_stage planned dates.
@@ -163,7 +163,7 @@ paths:
   /rfqs/stats:
     get:
       tags: [RFQ]
-      summary: "#5 — Dashboard KPIs"
+      summary: "#6 — Dashboard KPIs"
       description: Lightweight stats for index.html KPI cards. Called on every page load.
       operationId: getRfqStats
       responses:
@@ -177,7 +177,7 @@ paths:
   /rfqs/analytics:
     get:
       tags: [RFQ]
-      summary: "#6 — Business analytics"
+      summary: "#7 — Business analytics"
       description: Heavy business data with client breakdown. Used by index.html estimation accuracy table and analytics.html.
       operationId: getRfqAnalytics
       responses:
@@ -192,7 +192,7 @@ paths:
   /workflows:
     get:
       tags: [Workflow]
-      summary: "#7 — List workflows"
+      summary: "#8 — List workflows"
       description: Returns all workflows (active and inactive). Used by create_rfq.html cards and admin.html toggle.
       operationId: listWorkflows
       responses:
@@ -211,7 +211,7 @@ paths:
   /workflows/{workflowId}:
     get:
       tags: [Workflow]
-      summary: "#8 — Get workflow detail"
+      summary: "#9 — Get workflow detail"
       description: Returns workflow + ordered stages[] with id, name, order, default_team, planned_duration_days.
       operationId: getWorkflow
       parameters:
@@ -228,7 +228,7 @@ paths:
 
     patch:
       tags: [Workflow]
-      summary: "#9 — Update workflow"
+      summary: "#10 — Update workflow"
       description: "Updatable: name, description, is_active, is_default."
       operationId: updateWorkflow
       operationId: updateWorkflow
@@ -254,7 +254,7 @@ paths:
   /rfqs/{rfqId}/stages:
     get:
       tags: [RFQ_Stage]
-      summary: "#10 — List stages for RFQ"
+      summary: "#11 — List stages for RFQ"
       description: All stages for an RFQ, ordered by `order`. Used by rfq_overview.html timeline and workspace.html stage tabs.
       operationId: listRfqStages
       parameters:
@@ -275,7 +275,7 @@ paths:
   /rfqs/{rfqId}/stages/{stageId}:
     get:
       tags: [RFQ_Stage]
-      summary: "#11 — Get stage detail"
+      summary: "#12 — Get stage detail"
       description: Same as list item + embedded subtasks[], files[], full captured_data, blocker_status, blocker_reason_code.
       operationId: getRfqStage
       parameters:
@@ -293,7 +293,7 @@ paths:
 
     patch:
       tags: [RFQ_Stage]
-      summary: "#12 — Update stage"
+      summary: "#13 — Update stage"
       description: |
         Update progress, captured_data, blocker_status, blocker_reason_code, assigned_team.
         Set blocker_status = "Blocked" with a reason code to flag a blocker.
@@ -321,7 +321,7 @@ paths:
   /rfqs/{rfqId}/stages/{stageId}/notes:
     post:
       tags: [RFQ_Stage]
-      summary: "#13 — Add note to stage"
+      summary: "#14 — Add note to stage"
       description: |
         Append-only — prevents concurrent overwrite.
         Auto-sets: user_name (hardcoded placeholder 'System' in V1), created_at (server timestamp), id.
@@ -351,7 +351,7 @@ paths:
   /rfqs/{rfqId}/stages/{stageId}/files:
     post:
       tags: [RFQ_Stage]
-      summary: "#14 — Upload file to stage"
+      summary: "#15 — Upload file to stage"
       description: |
         Multipart upload. Type: "Client RFQ", "Design report", "BOQ / BOM", "Estimation Workbook", "Other".
         V2: type = "Estimation Workbook" will trigger intelligence parsing.
@@ -383,7 +383,7 @@ paths:
 
     get:
       tags: [RFQ_Stage]
-      summary: "#26 — List files for stage"
+      summary: "#28 — List files for stage"
       description: Returns list of files for this stage. Also embedded in GET stage detail, but useful for lazy-loading file lists.
       operationId: listStageFiles
       parameters:
@@ -405,7 +405,7 @@ paths:
   /rfqs/{rfqId}/stages/{stageId}/advance:
     post:
       tags: [RFQ_Stage]
-      summary: "#15 — Advance to next stage"
+      summary: "#16 — Advance to next stage"
       description: |
         Sets actual_end on current stage → status = Completed.
         Sets actual_start on next stage → status = In Progress.
@@ -432,7 +432,7 @@ paths:
   /rfqs/{rfqId}/stages/{stageId}/subtasks:
     post:
       tags: [Subtask]
-      summary: "#16 — Create subtask"
+      summary: "#17 — Create subtask"
       description: "Auto-sets: progress = 0, status = Open."
       operationId: createSubtask
       parameters:
@@ -454,7 +454,7 @@ paths:
 
     get:
       tags: [Subtask]
-      summary: "#17 — List subtasks"
+      summary: "#18 — List subtasks"
       description: Returns active subtasks (WHERE deleted_at IS NULL).
       operationId: listSubtasks
       parameters:
@@ -476,7 +476,7 @@ paths:
   /rfqs/{rfqId}/stages/{stageId}/subtasks/{subtaskId}:
     patch:
       tags: [Subtask]
-      summary: "#18 — Update subtask"
+      summary: "#19 — Update subtask"
       description: |
         Updatable: name, assigned_to, due_date, progress, status.
         When all subtasks = 100% → stage progress auto-updates.
@@ -503,7 +503,7 @@ paths:
 
     delete:
       tags: [Subtask]
-      summary: "#19 — Delete subtask"
+      summary: "#20 — Delete subtask"
       description: Soft delete — sets deleted_at = NOW(). Keeps for audit.
       operationId: deleteSubtask
       parameters:
@@ -520,7 +520,7 @@ paths:
   /files/{fileId}/download:
     get:
       tags: [File]
-      summary: "#27 — Download file"
+      summary: "#29 — Download file"
       description: Returns local file stream. (Azure Blob integration is dormant/backlog). Shortcut pattern — fileId is globally unique UUID.
       operationId: downloadFile
       parameters:
@@ -539,7 +539,7 @@ paths:
   /files/{fileId}:
     delete:
       tags: [File]
-      summary: "#28 — Delete file"
+      summary: "#30 — Delete file"
       description: Soft delete — sets deleted_at = NOW(). All GETs filter WHERE deleted_at IS NULL.
       operationId: deleteFile
       parameters:
@@ -554,7 +554,7 @@ paths:
   /reminders:
     post:
       tags: [Reminder]
-      summary: "#20 — Create reminder"
+      summary: "#21 — Create reminder"
       description: |
         Auto-sets: created_by, created_at, status = "open", send_count = 0.
         Batch process picks these up for notification.
@@ -575,7 +575,7 @@ paths:
 
     get:
       tags: [Reminder]
-      summary: "#21 — List reminders"
+      summary: "#22 — List reminders"
       description: Filter by user, status, rfq_id. Main feed for tasks.html.
       operationId: listReminders
       parameters:
@@ -610,7 +610,7 @@ paths:
   /reminders/stats:
     get:
       tags: [Reminder]
-      summary: "#22 — Reminder KPIs"
+      summary: "#23 — Reminder KPIs"
       description: 4 KPI cards for tasks.html.
       operationId: getReminderStats
       responses:
@@ -624,7 +624,7 @@ paths:
   /reminders/rules:
     get:
       tags: [Reminder]
-      summary: "#23 — List reminder rules"
+      summary: "#24 — List reminder rules"
       description: Pre-seeded rules that the batch process reads to auto-create reminders.
       operationId: listReminderRules
       responses:
@@ -643,7 +643,7 @@ paths:
   /reminders/rules/{ruleId}:
     patch:
       tags: [Reminder]
-      summary: "#24 — Toggle reminder rule"
+      summary: "#25 — Toggle reminder rule"
       description: Toggle is_active on/off.
       operationId: updateReminderRule
       parameters:
@@ -670,7 +670,7 @@ paths:
   /reminders/test:
     post:
       tags: [Reminder]
-      summary: "#25 — Test reminder email"
+      summary: "#26 — Test reminder email"
       description: Sends a test email to the current user (log output only in V1).
       operationId: testReminderEmail
       responses:
@@ -679,7 +679,7 @@ paths:
   /reminders/process:
     post:
       tags: [Reminder]
-      summary: "#26 — Batch process due reminders"
+      summary: "#27 — Batch process due reminders"
       description: |
         Admin endpoint to manually trigger the background worker logic.
         Finds all 'open' or 'overdue' reminders where due_date <= today.
@@ -700,7 +700,7 @@ paths:
   /health:
     get:
       tags: [Health]
-      summary: "Health Liveness Check"
+      summary: "#31 — Health Liveness Check"
       description: Returns service liveness status.
       operationId: getHealth
       responses:
@@ -1373,6 +1373,10 @@ components:
         created_at:
           type: string
           format: date-time
+        updated_at:
+          type: string
+          format: date-time
+          nullable: true
         last_sent_at:
           type: string
           format: date-time
