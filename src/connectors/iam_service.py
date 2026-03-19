@@ -1,12 +1,11 @@
 """
-IAM Service connector — calls rfq_iam_ms for authentication and user info.
+IAM connector placeholder (V1 stub).
 
-Used to:
-- Validate JWT tokens
-- Resolve current user name / team from auth context
-- Check team permissions for stage advancement (403 guard)
+Current V1 behavior:
+- Authentication is bypassed in app middleware (config-controlled).
+- No live rfq_iam_ms calls are made from this service yet.
 
-Methods:
-- get_current_user(token)      — decode JWT → user info
-- verify_team_access(token, team) — check if user belongs to team
+Planned integration seam:
+- resolve current user from token
+- verify team access/permissions
 """

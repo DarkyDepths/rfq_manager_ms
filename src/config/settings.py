@@ -25,6 +25,10 @@ class Settings(BaseSettings):
     CORS_ORIGINS: str = "*"
     JWT_SECRET: str = "dev-secret-change-in-production"
     MAX_FILE_SIZE_MB: int = 50  # max upload size in megabytes
+    AUTH_BYPASS_ENABLED: bool = True
+    AUTH_BYPASS_USER_ID: str = "v1-demo-user"
+    AUTH_BYPASS_USER_NAME: str = "System"
+    AUTH_BYPASS_TEAM: str = "workspace"
 
     class Config:
         env_file = ".env"

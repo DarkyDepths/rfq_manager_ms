@@ -1,7 +1,7 @@
 import pytest
 import uuid
 from unittest.mock import patch, MagicMock
-from datetime import date
+from datetime import date, datetime
 from src.controllers.rfq_stage_controller import RfqStageController
 from src.models.rfq_stage import RFQStage
 from src.models.rfq import RFQ
@@ -32,7 +32,7 @@ class MockStageDatasource:
         return MagicMock(id=str(uuid.uuid4()), text=data["text"], user_name=data["user_name"], created_at=date.today())
     def add_file(self, data):
         # Prevent Path mock from confusing pydantic by casting file_path to string explicitly
-        return MagicMock(id=data["id"], filename=data["filename"], file_path=str(data["file_path"]), type=data["type"], uploaded_by=data["uploaded_by"], size_bytes=data["size_bytes"], uploaded_at=date.today())
+        return MagicMock(id=data["id"], filename=data["filename"], file_path=str(data["file_path"]), type=data["type"], uploaded_by=data["uploaded_by"], size_bytes=data["size_bytes"], uploaded_at=datetime.now())
     def get_next_stage(self, rfq_id, order):
         return RFQStage(id=ST2, rfq_id=RFQ1, order=order+1)
 
@@ -110,6 +110,9 @@ def test_upload_file_success(mock_settings, mock_path, mock_open):
     res = ctrl.upload_file(RFQ1, ST1, "test.txt", "text/plain", b"abc")
     assert res.filename == "test.txt"
     assert res.size_bytes == 3
+    payload = res.model_dump()
+    assert "file_path" not in payload
+    assert payload["download_url"] == f"/rfq-manager/v1/files/{res.id}/download"
 
 def test_advance_blocked():
     stage_ds = MockStageDatasource()
@@ -186,3 +189,27 @@ def test_update_rfq_progress_ignores_skipped_stages():
     ctrl._update_rfq_progress(rfq)
 
     assert rfq.progress == 100
+
+
+def test_stage_detail_file_response_hides_file_path():
+    stage_ds = MockStageDatasource()
+    file_id = uuid.uuid4()
+    stage_ds.list_files = lambda _stage_id: [
+        MagicMock(
+            id=file_id,
+            filename="scope.pdf",
+            file_path=f"{RFQ1}/{ST1}/{file_id}_scope.pdf",
+            type="application/pdf",
+            uploaded_by="User A",
+            size_bytes=123,
+            uploaded_at=datetime.now(),
+        )
+    ]
+
+    ctrl = RfqStageController(stage_ds, MockRfqDatasource(), MockSession())
+    res = ctrl.get(RFQ1, ST1)
+
+    assert len(res.files) == 1
+    payload = res.files[0].model_dump()
+    assert "file_path" not in payload
+    assert payload["download_url"] == f"/rfq-manager/v1/files/{file_id}/download"

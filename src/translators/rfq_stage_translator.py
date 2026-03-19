@@ -46,7 +46,7 @@ class StageNoteResponse(BaseModel):
 class StageFileResponse(BaseModel):
     id: UUID
     filename: str
-    file_path: str
+    download_url: str
     type: str
     uploaded_by: str
     size_bytes: Optional[int] = None
@@ -118,6 +118,18 @@ def to_detail(stage, notes=None, files=None, subtasks=None) -> RfqStageDetailRes
         captured_data=stage.captured_data,
         mandatory_fields=stage.mandatory_fields,
         notes=[StageNoteResponse.model_validate(n) for n in (notes or [])],
-        files=[StageFileResponse.model_validate(f) for f in (files or [])],
+        files=[file_to_schema(f) for f in (files or [])],
         subtasks=[SubtaskBrief.model_validate(s) for s in (subtasks or [])],
+    )
+
+
+def file_to_schema(file) -> StageFileResponse:
+    return StageFileResponse(
+        id=file.id,
+        filename=file.filename,
+        download_url=f"/rfq-manager/v1/files/{file.id}/download",
+        type=file.type,
+        uploaded_by=file.uploaded_by,
+        size_bytes=file.size_bytes,
+        uploaded_at=file.uploaded_at,
     )

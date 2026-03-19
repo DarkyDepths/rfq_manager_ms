@@ -131,7 +131,7 @@ class RfqStageController:
             "size_bytes": len(file_content),
         })
         self.session.commit()
-        return rfq_stage_translator.StageFileResponse.model_validate(file_record)
+        return rfq_stage_translator.file_to_schema(file_record)
 
     # ══════════════════════════════════════════════════
     # #15 — ADVANCE TO NEXT STAGE
