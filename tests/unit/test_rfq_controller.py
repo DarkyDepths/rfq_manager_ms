@@ -352,3 +352,136 @@ def test_create_sets_explicit_initial_status_in_preparation():
 
     assert rfq_ds.last_create_data is not None
     assert rfq_ds.last_create_data["status"] == "In preparation"
+
+
+def test_create_persists_stage_template_id_on_generated_stages():
+    workflow_id = uuid.uuid4()
+    template_id = uuid.uuid4()
+    workflow = MockWorkflowForCreate(workflow_id)
+    workflow.stages = [MockTemplate(template_id=template_id, order=1, name="Stage 1")]
+
+    rfq_ds = MockRfqDatasourceForCreate()
+    stage_ds = MockRfqStageDatasourceForCreate()
+    session = MockSession()
+
+    ctrl = RfqController(
+        rfq_datasource=rfq_ds,
+        workflow_datasource=MockWorkflowDatasourceForCreate(workflow),
+        rfq_stage_datasource=stage_ds,
+        session=session,
+    )
+
+    from src.translators.rfq_translator import RfqCreateRequest
+
+    req = RfqCreateRequest(
+        name="RFQ Create",
+        client="Client",
+        deadline=date(2030, 1, 1),
+        owner="Owner",
+        workflow_id=workflow_id,
+        code_prefix="IF",
+    )
+
+    ctrl.create(req)
+
+    assert len(stage_ds.created_stages) == 1
+    assert stage_ds.created_stages[0]["stage_template_id"] == template_id
+
+
+def test_recalculate_stage_dates_uses_template_id_when_names_overlap():
+    workflow_id = uuid.uuid4()
+    template_short = MockTemplate(
+        template_id=uuid.uuid4(),
+        order=1,
+        name="Review",
+        planned_duration_days=3,
+    )
+    template_long = MockTemplate(
+        template_id=uuid.uuid4(),
+        order=2,
+        name="Review",
+        planned_duration_days=10,
+    )
+
+    class _Workflow:
+        def __init__(self):
+            self.id = workflow_id
+            self.name = "Workflow Overlap"
+            self.stages = [template_short, template_long]
+
+    stage_1 = type(
+        "Stage",
+        (),
+        {
+            "id": uuid.uuid4(),
+            "rfq_id": uuid.uuid4(),
+            "stage_template_id": template_short.id,
+            "name": "Review",
+            "order": 1,
+            "status": "In Progress",
+            "planned_start": None,
+            "planned_end": None,
+        },
+    )()
+    stage_2 = type(
+        "Stage",
+        (),
+        {
+            "id": uuid.uuid4(),
+            "rfq_id": stage_1.rfq_id,
+            "stage_template_id": template_long.id,
+            "name": "Review",
+            "order": 2,
+            "status": "Not Started",
+            "planned_start": None,
+            "planned_end": None,
+        },
+    )()
+
+    class _Query:
+        def __init__(self, items):
+            self.items = items
+
+        def filter_by(self, **_kwargs):
+            return self
+
+        def order_by(self, *_args, **_kwargs):
+            return self
+
+        def all(self):
+            return self.items
+
+    class _Session(MockSession):
+        def __init__(self, items):
+            super().__init__()
+            self.items = items
+            self.flushed = False
+
+        def query(self, _model):
+            return _Query(self.items)
+
+        def flush(self):
+            self.flushed = True
+
+    class _WorkflowDatasource:
+        def get_by_id(self, _workflow_id):
+            return _Workflow()
+
+    rfq = type("RFQ", (), {"id": stage_1.rfq_id, "workflow_id": workflow_id})()
+    session = _Session([stage_1, stage_2])
+
+    ctrl = RfqController(
+        rfq_datasource=None,
+        workflow_datasource=_WorkflowDatasource(),
+        rfq_stage_datasource=None,
+        session=session,
+    )
+
+    new_deadline = date(2030, 1, 31)
+    ctrl._recalculate_stage_dates(rfq, new_deadline)
+
+    assert stage_2.planned_end == date(2030, 1, 31)
+    assert stage_2.planned_start == date(2030, 1, 21)
+    assert stage_1.planned_end == date(2030, 1, 21)
+    assert stage_1.planned_start == date(2030, 1, 18)
+    assert session.flushed is True

@@ -7,6 +7,7 @@ the workflow's stage template at RFQ creation time.
 Columns:
 - id                  UUID PK
 - rfq_id              UUID FK → rfq.id
+- stage_template_id   UUID FK → stage_template.id (nullable for legacy rows)
 - name                VARCHAR  — stage name (copied from template)
 - order               INTEGER  — execution order within the RFQ
 - assigned_team       VARCHAR  — team responsible for this stage
@@ -51,6 +52,13 @@ class RFQStage(Base):
         ForeignKey("rfq.id", ondelete="CASCADE"),
         nullable=False,
         index=True,  # every query filters by rfq_id
+    )
+
+    # Optional for legacy compatibility; newly created stages should always set it.
+    stage_template_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("stage_template.id"),
+        nullable=True,
     )
 
     # ── Copied from StageTemplate ─────────────────────
