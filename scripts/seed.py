@@ -29,12 +29,7 @@ from alembic.config import Config
 from src.models.rfq import RFQ
 from src.models.workflow import Workflow, StageTemplate
 from src.models.rfq_stage import RFQStage
-from src.models.subtask import Subtask
-from src.models.rfq_note import RFQNote
-from src.models.rfq_file import RFQFile
-from src.models.rfq_stage_field_value import RFQStageFieldValue
-from src.models.rfq_history import RFQHistory
-from src.models.reminder import Reminder, ReminderRule
+from src.models.reminder import ReminderRule
 from src.datasources.rfq_datasource import RfqDatasource
 
 GHI_LONG = {

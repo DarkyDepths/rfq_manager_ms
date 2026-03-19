@@ -5,7 +5,7 @@ from datetime import date, datetime
 from src.controllers.rfq_stage_controller import RfqStageController
 from src.models.rfq_stage import RFQStage
 from src.models.rfq import RFQ
-from src.utils.errors import NotFoundError, ConflictError, UnprocessableEntityError, BadRequestError
+from src.utils.errors import ConflictError, UnprocessableEntityError, BadRequestError
 from src.translators.rfq_stage_translator import RfqStageUpdateRequest, NoteCreateRequest
 
 RFQ1 = str(uuid.uuid4())
@@ -26,7 +26,8 @@ class MockStageDatasource:
     def get_notes(self, stage_id): return []
     def list_files(self, stage_id): return []
     def update(self, stage, data):
-        for k, v in data.items(): setattr(stage, k, v)
+        for k, v in data.items():
+            setattr(stage, k, v)
         return stage
     def add_note(self, data):
         return MagicMock(id=str(uuid.uuid4()), text=data["text"], user_name=data["user_name"], created_at=date.today())
@@ -143,7 +144,7 @@ def test_advance_success():
     
     ctrl = RfqStageController(stage_ds, rfq_ds, MockSession())
     
-    res = ctrl.advance(RFQ1, ST1)
+    ctrl.advance(RFQ1, ST1)
     assert stage.status == "Completed"
     assert stage.progress == 100
     assert rfq.current_stage_id == ST2

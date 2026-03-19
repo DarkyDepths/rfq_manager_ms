@@ -17,7 +17,7 @@ Columns:
 
 import uuid
 
-from sqlalchemy import Column, String, Integer, DateTime, ForeignKey, BigInteger
+from sqlalchemy import Column, String, DateTime, ForeignKey, BigInteger
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func
 

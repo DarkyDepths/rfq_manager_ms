@@ -74,6 +74,21 @@ Base path for all numbered endpoints below: `/rfq-manager/v1`.
 
 ## Quick Start
 
+### Docker Compose (recommended)
+
+```bash
+# Build and start API + PostgreSQL
+docker compose up --build -d
+
+# Check API health
+# http://localhost:8000/health
+
+# Stop services
+docker compose down
+```
+
+### Local venv
+
 ```bash
 # 1. Start PostgreSQL in Docker
 docker run --name rfq_db -e POSTGRES_USER=rfq_user -e POSTGRES_PASSWORD=changeme -e POSTGRES_DB=rfq_manager_db -p 5432:5432 -d postgres:16
@@ -95,7 +110,7 @@ python -m venv .venv
 pip install -r requirements.txt
 # Linux/Mac: pip install -r requirements.txt
 
-# Optional: install test/dev dependencies
+# Optional but required for local seed/tests/lint
 pip install -r requirements-dev.txt
 # Linux/Mac: pip install -r requirements-dev.txt
 
@@ -150,6 +165,9 @@ rfq_manager_ms/
 ├── alembic.ini          # Migration config
 ├── requirements.txt     # Python dependencies
 ├── requirements-dev.txt # Test/dev dependencies
+├── Dockerfile           # API container image
+├── docker-compose.yml   # Local API + Postgres stack
+├── .github/workflows/ci.yml  # Lint + tests on push/PR
 ├── .env.example         # Environment template
 └── README.md
 ```
