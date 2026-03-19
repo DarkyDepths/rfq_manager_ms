@@ -1,7 +1,10 @@
 """
 SQLAlchemy model for the `rfq_history` table.
 
-Audit log tracking all changes to RFQs, stages, subtasks, and reminders.
+Schema-level audit history table (currently dormant in V1 runtime flow).
+
+This model reflects persisted columns only; there is no active write path
+in the current V1 controllers/services.
 
 Columns:
 - id              UUID PK
@@ -9,8 +12,9 @@ Columns:
 - entity_type     VARCHAR  — rfq | rfq_stage | subtask | reminder | rfq_file | rfq_note
 - entity_id       UUID     — PK of the changed entity
 - action          VARCHAR  — created | updated | deleted | advanced | status_changed
-- changed_by      VARCHAR  — user who made the change
 - changes         JSONB    — diff of old vs new values
+- user_id         VARCHAR  (nullable)
+- user_name       VARCHAR  (nullable)
 - created_at      TIMESTAMP WITH TZ
 """
 
@@ -37,9 +41,9 @@ class RFQHistory(Base):
     )
 
     # ── What happened ─────────────────────────────────
-    entity_type = Column(String(50), nullable=False)     # "rfq", "rfq_stage", "subtask", "file"
+    entity_type = Column(String(50), nullable=False)     # e.g. "rfq", "rfq_stage", "subtask", "reminder"
     entity_id = Column(UUID(as_uuid=True), nullable=False)  # ID of the specific entity
-    action = Column(String(50), nullable=False)          # "CREATED", "UPDATED", "DELETED", "STAGE_ADVANCED"
+    action = Column(String(50), nullable=False)          # free-form action label (application-defined)
 
     # ── What changed ──────────────────────────────────
     changes = Column(JSON, nullable=True)                # {"field": {"old": X, "new": Y}}

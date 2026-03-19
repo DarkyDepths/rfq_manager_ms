@@ -1,16 +1,18 @@
 """
 SQLAlchemy model for the `rfq_stage_field_value` table.
 
-Stores individual captured field values for a stage. Alternative to
-using the `captured_data` JSONB column on rfq_stage — allows
-structured querying across stages.
+Stores per-field stage payload snapshots as JSON values.
+
+In current V1 this table is schema-level/dormant, while active stage input is
+primarily represented via `rfq_stage.captured_data`. This model docstring is
+aligned to the actual persisted columns.
 
 Columns:
 - id              UUID PK
 - rfq_stage_id    UUID FK → rfq_stage.id
 - field_name      VARCHAR  — key name (e.g. "vessel_count", "material_grade")
-- field_value     TEXT     — serialized value
-- created_at      TIMESTAMP WITH TZ
+- value           JSON      — JSON payload for the field
+- updated_by      VARCHAR   (nullable)
 - updated_at      TIMESTAMP WITH TZ
 """
 
