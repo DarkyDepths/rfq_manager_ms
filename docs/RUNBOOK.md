@@ -19,6 +19,20 @@ Start:
 docker compose up --build -d
 ```
 
+Inspect status:
+
+```bash
+docker compose ps
+```
+
+Inspect logs:
+
+```bash
+docker compose logs --tail 200 api
+docker compose logs --tail 200 postgres
+docker compose logs -f api
+```
+
 Stop:
 
 ```bash
@@ -35,12 +49,43 @@ uvicorn src.app:app --reload --port 8000
 
 ## 3) Health and Smoke Checks
 
-Run after startup and after any operational change:
+Run after startup and after any operational change.
 
-1. Health endpoint: `GET /health` returns `200` and `{"status":"ok"}`.
-2. API docs page loads: `/docs`.
-3. RFQ list endpoint responds: `GET /rfq-manager/v1/rfqs`.
-4. Reminder stats endpoint responds: `GET /rfq-manager/v1/reminders/stats`.
+PowerShell:
+
+```powershell
+$env:BASE_URL = "http://localhost:8000"
+
+# 1) Health
+Invoke-RestMethod "$env:BASE_URL/health"
+
+# 2) Docs page reachable (expect 200)
+(Invoke-WebRequest "$env:BASE_URL/docs").StatusCode
+
+# 3) Core RFQ smoke
+Invoke-RestMethod "$env:BASE_URL/rfq-manager/v1/rfqs"
+
+# 4) Reminder smoke
+Invoke-RestMethod "$env:BASE_URL/rfq-manager/v1/reminders/stats"
+```
+
+Bash / zsh:
+
+```bash
+BASE_URL="http://localhost:8000"
+
+# 1) Health
+curl -sS "$BASE_URL/health"
+
+# 2) Docs page reachable (expect 200)
+curl -sS -o /dev/null -w "%{http_code}\n" "$BASE_URL/docs"
+
+# 3) Core RFQ smoke
+curl -sS "$BASE_URL/rfq-manager/v1/rfqs"
+
+# 4) Reminder smoke
+curl -sS "$BASE_URL/rfq-manager/v1/reminders/stats"
+```
 
 ## 4) Database and Seed Operations
 
@@ -99,6 +144,14 @@ Actions:
 2. Confirm DB host/port/credentials in `DATABASE_URL`.
 3. Run `alembic upgrade head` to ensure schema is current.
 4. Re-run smoke checks.
+
+Useful log commands:
+
+```bash
+docker compose ps
+docker compose logs --tail 200 api
+docker compose logs --tail 200 postgres
+```
 
 ### Incident: reminder processing returns zero processed
 

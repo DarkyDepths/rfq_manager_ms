@@ -17,10 +17,10 @@ utils/           →  Shared helpers (errors, pagination)
 
 ## Operational Docs
 
-- `docs/DEPLOYMENT_APPROACH.md`
-- `docs/RUNBOOK.md`
-- `docs/ARCHITECTURE_ONE_PAGER.md`
-- `docs/KNOWN_LIMITATIONS.md`
+- [Deployment approach](docs/DEPLOYMENT_APPROACH.md)
+- [Operations runbook](docs/RUNBOOK.md)
+- [Architecture one-pager](docs/ARCHITECTURE_ONE_PAGER.md)
+- [Known limitations](docs/KNOWN_LIMITATIONS.md)
 
 ## Tech Stack
 
@@ -184,7 +184,7 @@ rfq_manager_ms/
 │   └── database.py      # Engine + session
 ├── migrations/          # Alembic migrations
 ├── tests/               # Unit + integration tests
-├── scripts/             # DB init + sample data (seed.py)
+├── scripts/             # DB init + sample data (`seed.py`)
 ├── alembic.ini          # Migration config
 ├── requirements.txt     # Python dependencies
 ├── requirements-dev.txt # Test/dev dependencies
