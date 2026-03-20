@@ -15,6 +15,13 @@ config/          →  Settings from environment variables
 utils/           →  Shared helpers (errors, pagination)
 ```
 
+## Operational Docs
+
+- `docs/DEPLOYMENT_APPROACH.md`
+- `docs/RUNBOOK.md`
+- `docs/ARCHITECTURE_ONE_PAGER.md`
+- `docs/KNOWN_LIMITATIONS.md`
+
 ## Tech Stack
 
 - **Framework:** FastAPI
