@@ -60,4 +60,4 @@
 
 - Local integrated deployment via `docker-compose.yml`.
 - Container build via `Dockerfile`.
-- CI baseline in `.github/workflows/ci.yml` (ruff + pytest).
+- CI baseline in `.github/workflows/ci.yml` runs `python scripts/verify.py` (ruff + pytest + startup/import sanity).

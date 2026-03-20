@@ -45,7 +45,9 @@ If it fails:
 
 ## 4) Authoritative Smoke/Demo Sequence
 
-Use PowerShell commands below exactly.
+Use one of the two equivalent paths below.
+
+### PowerShell
 
 ```powershell
 $env:BASE_URL = "http://localhost:8000"
@@ -75,6 +77,34 @@ Invoke-RestMethod "$env:BASE_URL/rfq-manager/v1/reminders/stats"
 
 # Step 7: confirm service remains stable
 Invoke-RestMethod "$env:BASE_URL/health"
+```
+
+### Bash / zsh
+
+```bash
+BASE_URL="http://localhost:8000"
+
+# Step 1: /health
+curl -fsS "$BASE_URL/health"
+
+# Step 2: /docs reachable (expect 200)
+curl -sS -o /dev/null -w "%{http_code}\n" "$BASE_URL/docs"
+
+# Step 3: list RFQs (copy one `id` value from output)
+curl -fsS "$BASE_URL/rfq-manager/v1/rfqs"
+
+# Step 4: inspect one RFQ
+RFQ_ID="<paste-rfq-id-from-step-3>"
+curl -fsS "$BASE_URL/rfq-manager/v1/rfqs/$RFQ_ID"
+
+# Step 5: verify stage/workflow-related behavior (stages listed for RFQ)
+curl -fsS "$BASE_URL/rfq-manager/v1/rfqs/$RFQ_ID/stages"
+
+# Step 6: verify one secondary capability (reminder stats)
+curl -fsS "$BASE_URL/rfq-manager/v1/reminders/stats"
+
+# Step 7: confirm service remains stable
+curl -fsS "$BASE_URL/health"
 ```
 
 Expected outcomes:

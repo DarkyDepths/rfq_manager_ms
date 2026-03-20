@@ -58,11 +58,12 @@ Current build artifact:
 Current CI gate (GitHub Actions):
 
 - Trigger: push/PR to `main`.
-- Steps: install `requirements-dev.txt`, run `ruff check src tests scripts`, run `pytest -q`.
+- Steps: install `requirements-dev.txt`, then run `python scripts/verify.py`.
+- Verifier includes: `ruff check src tests scripts`, `pytest -q`, and startup/import sanity (`create_app()`).
 
 Promotion recommendation for current V1 baseline:
 
-1. Keep `main` green (lint + tests).
+1. Keep `main` green (`python scripts/verify.py`).
 2. Build image from tagged commit.
 3. Run Alembic migrations (`alembic upgrade head`) in target environment.
 4. Start API with required env vars.
