@@ -22,6 +22,23 @@ utils/           →  Shared helpers (errors, pagination)
 - [Architecture one-pager](docs/ARCHITECTURE_ONE_PAGER.md)
 - [Known limitations](docs/KNOWN_LIMITATIONS.md)
 
+## Quality Verification (Authoritative)
+
+Run this before opening a PR:
+
+```bash
+pip install -r requirements-dev.txt
+python scripts/verify.py
+```
+
+What `scripts/verify.py` executes (in order):
+
+1. `ruff check src tests scripts`
+2. `pytest -q`
+3. startup/import sanity (`create_app()`)
+
+CI runs the same verifier script.
+
 ## Tech Stack
 
 - **Framework:** FastAPI

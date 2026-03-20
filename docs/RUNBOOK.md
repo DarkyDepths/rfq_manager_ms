@@ -175,9 +175,16 @@ Actions:
 
 ## 7) CI Baseline
 
-Current CI workflow on `main` executes:
+Current CI workflow on `main` executes one authoritative command:
+
+```bash
+python scripts/verify.py
+```
+
+Verifier checks included:
 
 - `ruff check src tests scripts`
 - `pytest -q`
+- startup/import sanity (`create_app()`)
 
-Use the same commands locally before promotion.
+Use the same verifier command locally before promotion.
