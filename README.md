@@ -142,6 +142,22 @@ uvicorn src.app:app --reload --port 8000
 # http://localhost:8000/docs
 ```
 
+## Configuration
+
+| Variable | Required | Default | What it controls | Local/dev notes |
+|---|---|---|---|---|
+| DATABASE_URL | Yes | None | SQLAlchemy/Alembic database connection URL. | App now fails fast at startup when missing/invalid. Example: `postgresql+psycopg2://rfq_user:changeme@localhost:5432/rfq_manager_db`. |
+| AUTH_BYPASS_ENABLED | No | `true` | Enables V1 auth bypass middleware and demo user injection. | Keep `true` for local/demo; set `false` when real IAM integration is active. |
+| FILE_STORAGE_PATH | No | `./uploads` | Base directory used for uploaded stage files. | In Docker Compose it is bind-mounted to `/app/uploads`. |
+| MAX_FILE_SIZE_MB | No | `50` | Maximum allowed uploaded file size in MB. | Enforced by stage file upload controller. |
+| CORS_ORIGINS | No | `*` | Comma-separated CORS allowlist consumed by FastAPI CORS middleware. | Use explicit origins outside local development. |
+| JWT_SECRET | No | `dev-secret-change-in-production` | Placeholder secret for future JWT/IAM flow. | Reserved integration seam in V1; not enforcing auth yet. |
+| APP_ENV | No | `development` | Environment label for runtime context. | Informational in current V1 runtime behavior. |
+| APP_DEBUG | No | `false` | Enables SQLAlchemy SQL echo logging when true. | Useful for local debugging only. |
+| APP_PORT | No | `8000` | Intended service port setting. | Current startup commands pass port explicitly (`8000`); value is informational for now. |
+| IAM_SERVICE_URL | No | empty string | Endpoint placeholder for `rfq_iam_ms` integration. | Reserved integration seam in V1. |
+| EVENT_BUS_URL | No | empty string | Endpoint placeholder for event bus integration. | Reserved integration seam in V1. |
+
 ## Project Structure
 
 ```
