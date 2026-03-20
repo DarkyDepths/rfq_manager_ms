@@ -20,7 +20,6 @@ import random
 import argparse
 from pathlib import Path
 from datetime import date, timedelta
-from faker import Faker
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from alembic import command
@@ -94,6 +93,53 @@ REMINDER_RULES = [
         "is_active": False,
     },
 ]
+
+
+class _FallbackDataFactory:
+    """Minimal in-repo data factory used when Faker is unavailable."""
+
+    _ADJECTIVES = ["Rapid", "Global", "Prime", "Dynamic", "Trusted", "Advanced"]
+    _NOUNS = ["Solutions", "Engineering", "Systems", "Industries", "Services", "Works"]
+    _FIRST_NAMES = ["Youssef", "Sara", "Omar", "Maya", "Karim", "Nour"]
+    _LAST_NAMES = ["Haddad", "Benali", "Rahman", "Khaled", "Fares", "Nasser"]
+
+    @staticmethod
+    def _parse_day_offset(offset: str, default: int) -> int:
+        text = (offset or "").strip().lower()
+        if not text.endswith("d"):
+            return default
+        try:
+            return int(text[:-1])
+        except ValueError:
+            return default
+
+    def catch_phrase(self) -> str:
+        return f"{random.choice(self._ADJECTIVES)} {random.choice(self._NOUNS)} Offer"
+
+    def company(self) -> str:
+        return f"{random.choice(self._ADJECTIVES)} {random.choice(self._NOUNS)} Co."
+
+    def name(self) -> str:
+        return f"{random.choice(self._FIRST_NAMES)} {random.choice(self._LAST_NAMES)}"
+
+    def date_between(self, start_date: str = "-10d", end_date: str = "+60d") -> date:
+        start_offset = self._parse_day_offset(start_date, -10)
+        end_offset = self._parse_day_offset(end_date, 60)
+        if start_offset > end_offset:
+            start_offset, end_offset = end_offset, start_offset
+        return date.today() + timedelta(days=random.randint(start_offset, end_offset))
+
+
+def _build_data_factory(seed_value: int | None):
+    try:
+        from faker import Faker
+
+        if seed_value is not None:
+            Faker.seed(seed_value)
+        return Faker()
+    except ImportError:
+        print("[WARN] Faker is not installed; using built-in fallback data generator.")
+        return _FallbackDataFactory()
 
 def _make_engine_and_session():
     db_url = os.environ.get("DATABASE_URL")
@@ -276,10 +322,9 @@ def main():
     # Apply Random Seed
     if args.seed is not None:
         random.seed(args.seed)
-        fake = Faker()
-        Faker.seed(args.seed)
+        fake = _build_data_factory(args.seed)
     else:
-        fake = Faker()
+        fake = _build_data_factory(None)
         args.seed = "random"
 
     _run_migrations(reset=args.reset)

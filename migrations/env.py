@@ -14,7 +14,14 @@ load_dotenv()
 config = context.config
 
 # Override sqlalchemy.url from DATABASE_URL environment variable
-config.set_main_option("sqlalchemy.url", os.environ["DATABASE_URL"])
+database_url = (os.environ.get("DATABASE_URL") or "").strip()
+if not database_url:
+    raise RuntimeError(
+        "DATABASE_URL is required for Alembic migrations. "
+        "Set DATABASE_URL to a valid SQLAlchemy URL, for example: "
+        "postgresql+psycopg2://rfq_user:changeme@localhost:5432/rfq_manager_db"
+    )
+config.set_main_option("sqlalchemy.url", database_url)
 
 # Interpret the config file for Python logging.
 if config.config_file_name is not None:
@@ -50,13 +57,20 @@ def run_migrations_online() -> None:
         poolclass=pool.NullPool,
     )
 
-    with connectable.connect() as connection:
-        context.configure(
-            connection=connection, target_metadata=target_metadata
-        )
+    try:
+        with connectable.connect() as connection:
+            context.configure(
+                connection=connection, target_metadata=target_metadata
+            )
 
-        with context.begin_transaction():
-            context.run_migrations()
+            with context.begin_transaction():
+                context.run_migrations()
+    except Exception as exc:
+        raise RuntimeError(
+            "Alembic could not connect using DATABASE_URL. "
+            "Verify host/user/password/database and SQLAlchemy driver format, for example: "
+            "postgresql+psycopg2://rfq_user:changeme@localhost:5432/rfq_manager_db"
+        ) from exc
 
 
 if context.is_offline_mode():
