@@ -3,11 +3,13 @@ Application settings loaded from environment variables.
 
 Uses pydantic-settings `BaseSettings` to:
 - Read from .env file (via python-dotenv)
-- Validate required values (DATABASE_URL, JWT_SECRET, etc.)
+- Validate required values (DATABASE_URL)
 - Provide typed access throughout the app: `settings.DATABASE_URL`
 """
 
+from pydantic import ValidationError
 from pydantic_settings import BaseSettings
+from sqlalchemy.engine import make_url
 
 
 class Settings(BaseSettings):
@@ -34,5 +36,35 @@ class Settings(BaseSettings):
         env_file = ".env"
 
 
+def build_settings(env_file: str | None = ".env") -> Settings:
+    """Load app settings and fail fast with clear DB configuration errors."""
+    try:
+        cfg = Settings(_env_file=env_file)
+    except ValidationError as exc:
+        raise RuntimeError(
+            "Configuration error: DATABASE_URL is required. "
+            "Set DATABASE_URL to a valid SQLAlchemy URL, for example: "
+            "postgresql+psycopg2://rfq_user:changeme@localhost:5432/rfq_manager_db"
+        ) from exc
+
+    database_url = (cfg.DATABASE_URL or "").strip()
+    if not database_url:
+        raise RuntimeError(
+            "Configuration error: DATABASE_URL is required and cannot be empty. "
+            "Set DATABASE_URL to a valid SQLAlchemy URL, for example: "
+            "postgresql+psycopg2://rfq_user:changeme@localhost:5432/rfq_manager_db"
+        )
+
+    try:
+        make_url(database_url)
+    except Exception as exc:  # pragma: no cover - SQLAlchemy controls exception type/details
+        raise RuntimeError(
+            f"Configuration error: DATABASE_URL is not a valid SQLAlchemy URL: '{database_url}'. "
+            "Example: postgresql+psycopg2://rfq_user:changeme@localhost:5432/rfq_manager_db"
+        ) from exc
+
+    return cfg
+
+
 # ── Module-level instance ─────────────────────────────
-settings = Settings()
+settings = build_settings()
