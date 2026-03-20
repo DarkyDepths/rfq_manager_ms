@@ -7,7 +7,7 @@ This runbook is for day-to-day operation of the current `rfq_manager_ms` V1 serv
 - Python 3.11+ (for local venv mode)
 - Docker + Docker Compose (for integrated local stack)
 - PostgreSQL connectivity
-- Required env var: `DATABASE_URL`
+- Required env var: `DATABASE_URL` (for local venv / non-compose mode)
 
 ## 2) Start / Stop
 
@@ -18,6 +18,11 @@ Start:
 ```bash
 docker compose up --build -d
 ```
+
+Bootstrap note:
+
+- The API container runs Alembic migrations before starting Uvicorn.
+- If migrations fail, API container startup fails fast and logs the error.
 
 Inspect status:
 
@@ -95,7 +100,19 @@ Apply latest migrations:
 alembic upgrade head
 ```
 
-Seed scenarios:
+Seed (Docker Compose authoritative path):
+
+```bash
+docker compose exec api python scripts/seed.py --scenario=demo --seed=42
+```
+
+Reset and reseed (Compose):
+
+```bash
+docker compose exec api python scripts/seed.py --scenario=demo --reset --seed=42
+```
+
+Seed scenarios (local venv / non-compose):
 
 ```bash
 python scripts/seed.py --scenario=minimal

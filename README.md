@@ -101,11 +101,23 @@ Base path for all numbered endpoints below: `/rfq-manager/v1`.
 ### Docker Compose (recommended)
 
 ```bash
+# Prerequisite: Docker Desktop / Docker Engine must be running
+
 # Build and start API + PostgreSQL
 docker compose up --build -d
 
-# Check API health
+# Confirm both services are up
+docker compose ps
+
+# Check API health and docs
 # http://localhost:8000/health
+# http://localhost:8000/docs
+
+# Seed demo data inside the API container
+docker compose exec api python scripts/seed.py --scenario=demo --seed=42
+
+# Inspect bootstrap/runtime logs
+docker compose logs --tail 200 api
 
 # Stop services
 docker compose down
@@ -134,7 +146,8 @@ python -m venv .venv
 pip install -r requirements.txt
 # Linux/Mac: pip install -r requirements.txt
 
-# Optional but required for local seed/tests/lint
+# Optional but required for local tests/lint
+# (seed works with runtime deps; dev deps provide richer Faker-generated data)
 pip install -r requirements-dev.txt
 # Linux/Mac: pip install -r requirements-dev.txt
 
