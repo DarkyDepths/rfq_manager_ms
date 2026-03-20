@@ -2,7 +2,7 @@
 SQLAlchemy engine, session factory, and declarative Base.
 
 Reads DATABASE_URL from settings, creates:
-- `engine`         — SQLAlchemy async/sync engine
+- `engine`         — SQLAlchemy sync engine
 - `SessionLocal`   — scoped session factory
 - `Base`           — declarative base class for all models
 - `get_db()`       — FastAPI dependency that yields a session per request
