@@ -21,6 +21,7 @@ utils/           →  Shared helpers (errors, pagination)
 - [Operations runbook](docs/RUNBOOK.md)
 - [Architecture one-pager](docs/ARCHITECTURE_ONE_PAGER.md)
 - [Known limitations](docs/KNOWN_LIMITATIONS.md)
+- [Smoke demo (authoritative)](docs/SMOKE_DEMO.md)
 
 ## Quality Verification (Authoritative)
 
@@ -115,6 +116,9 @@ docker compose ps
 
 # Seed demo data inside the API container
 docker compose exec api python scripts/seed.py --scenario=demo --seed=42
+
+# Run the leadership/reviewer smoke path
+# docs/SMOKE_DEMO.md
 
 # Inspect bootstrap/runtime logs
 docker compose logs --tail 200 api
