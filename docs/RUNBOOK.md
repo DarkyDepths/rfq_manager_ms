@@ -56,6 +56,8 @@ uvicorn src.app:app --reload --port 8000
 
 Run after startup and after any operational change.
 
+For the leadership/reviewer proof sequence (single authoritative demo path), use `docs/SMOKE_DEMO.md`.
+
 PowerShell:
 
 ```powershell
