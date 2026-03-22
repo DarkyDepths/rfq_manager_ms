@@ -165,6 +165,13 @@ python scripts/seed.py --scenario=demo --reset --seed=42
   - publish failures are logged and do not roll back completed business writes
 - Tune publication timeout with `EVENT_BUS_REQUEST_TIMEOUT_SECONDS`.
 
+## 5.3) Dormant Model Decisions (H5)
+
+- `rfq_history` remains intentionally dormant in V1 (no persisted audit-table writes in live controller flows).
+- `rfq_stage_field_value` remains intentionally dormant in V1.
+- V1 stage-form source of truth is `rfq_stage.captured_data`.
+- For incident traceability in V1, use DB state + request-correlated logs + lifecycle events.
+
 ## 6) Common Incidents and Actions
 
 ### Incident: app fails at startup with configuration error

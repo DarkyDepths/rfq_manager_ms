@@ -28,7 +28,7 @@
 - `models/`: SQLAlchemy schema models.
 - `translators/`: Pydantic request/response schemas and model mapping.
 - `services/`: batch/background-friendly domain logic (e.g., reminders processing).
-- `connectors/`: external integration seams (IAM auth resolution active when bypass is disabled; event bus placeholder remains in V1).
+- `connectors/`: external integration seams (IAM auth resolution active when bypass is disabled; event bus lifecycle publication active in H4 baseline).
 - `config/`: environment-driven settings with fail-fast DB validation.
 
 ## API Surface (Current)
@@ -47,7 +47,9 @@
 ## Data Model Snapshot
 
 - Active operational tables include RFQ, workflow/stage template, RFQ stage, subtask, note, file, reminder, and reminder rule.
-- Two schema-present but dormant tables in V1: `rfq_stage_field_value`, `rfq_history`.
+- Two schema-present and intentionally dormant tables in V1: `rfq_stage_field_value`, `rfq_history`.
+- Stage-form source of truth in V1 is `rfq_stage.captured_data`.
+- Persistent audit-table writes (`rfq_history`) are deferred in V1.
 
 ## Cross-Cutting Behavior
 

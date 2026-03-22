@@ -28,7 +28,7 @@ Relationships:
 - subtasks → one-to-many with subtask table
 - notes    → one-to-many with rfq_note table
 - files    → one-to-many with rfq_file table
-- field_values → one-to-many with rfq_stage_field_value table
+- field_values → one-to-many with rfq_stage_field_value table (schema-present, intentionally dormant in V1)
 """
 
 import uuid
@@ -90,7 +90,9 @@ class RFQStage(Base):
     blocker_reason_code = Column(String(100), nullable=True)  # supplier_delay, missing_client_docs, etc.
 
     # ── Stage-specific data ───────────────────────────
-    # Free-form JSON for fields specific to this stage type.
+    # V1 source of truth for stage-form data is this JSON field.
+    # `rfq_stage_field_value` remains intentionally dormant in V1 to avoid
+    # duplicate persistence models for the same payload.
     # Example for "Commercial Review": {"margin": 18.5, "discount": 2.0}
     captured_data = Column(JSON, nullable=True, default=dict)
 
