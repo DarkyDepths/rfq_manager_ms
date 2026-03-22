@@ -4,6 +4,7 @@ info:
   description: |
     Current interface contract for the RFQ Manager microservice.
     Current repository-tracked V1 scope: 31 endpoints across 7 resources.
+    Public liveness endpoint is intentionally served separately at /health.
   version: "1.0.0"
   contact:
     name: RFQ Manager Team
@@ -696,17 +697,6 @@ paths:
                   message:
                     type: string
                     example: "Test email sent to user@company.com"
-
-  /health:
-    get:
-      tags: [Health]
-      summary: "#31 — Health Liveness Check"
-      description: Returns service liveness status.
-      operationId: getHealth
-      security: []
-      responses:
-        '200':
-          description: OK
 
 # ═══════════════════════════════════════════════════
 # COMPONENTS

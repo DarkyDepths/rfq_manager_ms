@@ -105,7 +105,7 @@ def create_app() -> FastAPI:
     # The simplest possible endpoint. If this responds,
     # the server is alive. Used by monitoring tools,
     # load balancers, and you during development.
-    @app.get("/health")
+    @app.get("/health", include_in_schema=False)
     def health_check():
         """#31 — Health check."""
         return {"status": "ok"}

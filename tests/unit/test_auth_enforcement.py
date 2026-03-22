@@ -421,11 +421,10 @@ def test_health_endpoint_remains_public_without_bearer_auth():
         settings.IAM_SERVICE_URL = original_iam_url
 
 
-def test_current_openapi_contract_exposes_bearer_auth_and_health_exemption():
+def test_current_openapi_contract_exposes_bearer_auth_without_v1_health_path():
     openapi_text = Path("docs/rfq_manager_ms_openapi_current.yaml").read_text(encoding="utf-8")
 
     assert "security:\n  - bearerAuth: []" in openapi_text
     assert "securitySchemes:\n    bearerAuth:" in openapi_text
-    assert "/health:" in openapi_text
-    assert "operationId: getHealth" in openapi_text
-    assert "security: []" in openapi_text
+    assert "/health:" not in openapi_text
+    assert "/rfq-manager/v1/health" not in openapi_text
