@@ -66,6 +66,9 @@ $env:BASE_URL = "http://localhost:8000"
 # 1) Health
 Invoke-RestMethod "$env:BASE_URL/health"
 
+# 1b) Metrics (Prometheus text format)
+(Invoke-WebRequest "$env:BASE_URL/metrics").StatusCode
+
 # 2) Docs page reachable (expect 200)
 (Invoke-WebRequest "$env:BASE_URL/docs").StatusCode
 
@@ -83,6 +86,9 @@ BASE_URL="http://localhost:8000"
 
 # 1) Health
 curl -sS "$BASE_URL/health"
+
+# 1b) Metrics (Prometheus text format)
+curl -sS -o /dev/null -w "%{http_code}\n" "$BASE_URL/metrics"
 
 # 2) Docs page reachable (expect 200)
 curl -sS -o /dev/null -w "%{http_code}\n" "$BASE_URL/docs"
@@ -136,6 +142,14 @@ python scripts/seed.py --scenario=demo --reset --seed=42
 - Test email endpoint is log-only in V1:
   - `POST /rfq-manager/v1/reminders/test`
 - No real outbound email provider is active in current implementation.
+
+## 5.1) Request Correlation ID Baseline
+
+- Every response includes `X-Request-ID`.
+- Inbound `X-Request-ID` is preserved when valid.
+- Inbound `X-Correlation-ID` is accepted as an alias.
+- If missing/invalid, API generates a UUID request ID.
+- Use `X-Request-ID` from responses to correlate logs during incident triage.
 
 ## 6) Common Incidents and Actions
 
