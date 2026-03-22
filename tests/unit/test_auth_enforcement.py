@@ -1,7 +1,9 @@
 from fastapi.testclient import TestClient
+from datetime import date
+from uuid import uuid4
 
 from src.app import create_app
-from src.app_context import get_iam_service_connector, get_rfq_controller
+from src.app_context import get_iam_service_connector, get_reminder_controller, get_rfq_controller
 from src.config.settings import settings
 from src.connectors.iam_service import IAMPrincipal
 from src.utils.errors import ServiceUnavailableError
@@ -21,6 +23,26 @@ class _MockRfqController:
             "open_rfqs": 0,
             "critical_rfqs": 0,
             "avg_cycle_days": 0,
+        }
+
+
+class _MockReminderController:
+    def create(self, body, created_by: str):
+        return {
+            "id": str(uuid4()),
+            "rfq_id": str(body.rfq_id),
+            "rfq_stage_id": None,
+            "type": body.type,
+            "message": body.message,
+            "due_date": body.due_date,
+            "assigned_to": body.assigned_to,
+            "status": "open",
+            "delay_days": 0,
+            "created_by": created_by,
+            "created_at": "2026-01-01T00:00:00Z",
+            "updated_at": "2026-01-01T00:00:00Z",
+            "last_sent_at": None,
+            "send_count": 0,
         }
 
 
@@ -66,6 +88,20 @@ def _make_client(*, bypass_enabled: bool, connector_override=None) -> TestClient
 
     app = create_app()
     app.dependency_overrides[get_rfq_controller] = lambda: _MockRfqController()
+
+    if connector_override is not None:
+        app.dependency_overrides[get_iam_service_connector] = lambda: connector_override
+
+    return TestClient(app)
+
+
+def _make_client_with_reminder_write(*, bypass_enabled: bool, connector_override=None) -> TestClient:
+    settings.AUTH_BYPASS_ENABLED = bypass_enabled
+    if not bypass_enabled:
+        settings.IAM_SERVICE_URL = "http://iam.local/iam/v1"
+
+    app = create_app()
+    app.dependency_overrides[get_reminder_controller] = lambda: _MockReminderController()
 
     if connector_override is not None:
         app.dependency_overrides[get_iam_service_connector] = lambda: connector_override
@@ -190,6 +226,54 @@ def test_iam_failure_returns_controlled_503_response():
         payload = response.json()
         assert payload["error"] == "ServiceUnavailableError"
         assert "IAM service timeout" in payload["message"]
+    finally:
+        settings.AUTH_BYPASS_ENABLED = original_bypass
+        settings.IAM_SERVICE_URL = original_iam_url
+
+
+def test_write_request_is_401_without_token_when_bypass_disabled():
+    original_bypass = settings.AUTH_BYPASS_ENABLED
+    original_iam_url = settings.IAM_SERVICE_URL
+
+    try:
+        with _make_client_with_reminder_write(bypass_enabled=False, connector_override=_AllowReadConnector()) as client:
+            response = client.post(
+                "/rfq-manager/v1/reminders",
+                json={
+                    "rfq_id": str(uuid4()),
+                    "type": "internal",
+                    "message": "follow up",
+                    "due_date": date.today().isoformat(),
+                },
+            )
+
+        assert response.status_code == 401
+    finally:
+        settings.AUTH_BYPASS_ENABLED = original_bypass
+        settings.IAM_SERVICE_URL = original_iam_url
+
+
+def test_write_request_is_403_without_required_permission():
+    original_bypass = settings.AUTH_BYPASS_ENABLED
+    original_iam_url = settings.IAM_SERVICE_URL
+
+    try:
+        with _make_client_with_reminder_write(bypass_enabled=False, connector_override=_AllowReadConnector()) as client:
+            response = client.post(
+                "/rfq-manager/v1/reminders",
+                headers={"Authorization": "Bearer test-token"},
+                json={
+                    "rfq_id": str(uuid4()),
+                    "type": "internal",
+                    "message": "follow up",
+                    "due_date": date.today().isoformat(),
+                },
+            )
+
+        assert response.status_code == 403
+        payload = response.json()
+        assert payload["error"] == "ForbiddenError"
+        assert "reminder:create" in payload["message"]
     finally:
         settings.AUTH_BYPASS_ENABLED = original_bypass
         settings.IAM_SERVICE_URL = original_iam_url

@@ -81,7 +81,7 @@ class RfqStageController:
     # ══════════════════════════════════════════════════
     # #13 — ADD NOTE (append-only)
     # ══════════════════════════════════════════════════
-    def add_note(self, rfq_id, stage_id, request: rfq_stage_translator.NoteCreateRequest, user_name: str = "System"):
+    def add_note(self, rfq_id, stage_id, request: rfq_stage_translator.NoteCreateRequest, user_name: str):
         self._get_stage_or_404(rfq_id, stage_id)
 
         note = self.stage_ds.add_note({
@@ -95,7 +95,7 @@ class RfqStageController:
     # ══════════════════════════════════════════════════
     # #14 — UPLOAD FILE
     # ══════════════════════════════════════════════════
-    def upload_file(self, rfq_id, stage_id, filename: str, file_type: str, file_content: bytes, uploaded_by: str = "System"):
+    def upload_file(self, rfq_id, stage_id, filename: str, file_type: str, file_content: bytes, uploaded_by: str):
         self._get_stage_or_404(rfq_id, stage_id)
 
         # Size limit check

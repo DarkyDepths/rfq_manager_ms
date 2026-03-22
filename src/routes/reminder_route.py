@@ -21,7 +21,7 @@ from src.translators.reminder_translator import (
 )
 from src.app_context import get_reminder_controller
 from src.controllers.reminder_controller import ReminderController
-from src.utils.auth import Permissions, require_permission
+from src.utils.auth import AuthContext, Permissions, require_permission
 
 router = APIRouter(prefix="/reminders", tags=["Reminder"])
 
@@ -29,11 +29,11 @@ router = APIRouter(prefix="/reminders", tags=["Reminder"])
 @router.post("", status_code=201, response_model=ReminderResponse)
 def create_reminder(
     body: ReminderCreateRequest,
-    _auth=Depends(require_permission(Permissions.REMINDER_CREATE)),
+    auth: AuthContext = Depends(require_permission(Permissions.REMINDER_CREATE)),
     ctrl: ReminderController = Depends(get_reminder_controller),
 ):
     """#21 — Create reminder."""
-    return ctrl.create(body)
+    return ctrl.create(body, created_by=auth.user_name)
 
 
 @router.get("", response_model=ReminderListResponse)

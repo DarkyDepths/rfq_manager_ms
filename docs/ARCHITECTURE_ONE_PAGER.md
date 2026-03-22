@@ -28,7 +28,7 @@
 - `models/`: SQLAlchemy schema models.
 - `translators/`: Pydantic request/response schemas and model mapping.
 - `services/`: batch/background-friendly domain logic (e.g., reminders processing).
-- `connectors/`: external integration seams (IAM/event bus placeholders in V1).
+- `connectors/`: external integration seams (IAM auth resolution active when bypass is disabled; event bus placeholder remains in V1).
 - `config/`: environment-driven settings with fail-fast DB validation.
 
 ## API Surface (Current)

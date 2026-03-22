@@ -10,7 +10,7 @@ controllers/     →  Business logic & transaction management
 datasources/     →  Database queries (SQLAlchemy ORM)
 translators/     →  Pydantic schemas & model ↔ schema conversion
 models/          →  SQLAlchemy table definitions (9 active, 2 dormant)
-connectors/      →  External service clients (IAM, event bus — dormant in V1)
+connectors/      →  External service clients (IAM active for auth resolution; event bus dormant in V1)
 config/          →  Settings from environment variables
 utils/           →  Shared helpers (errors, pagination)
 ```
@@ -209,7 +209,7 @@ uvicorn src.app:app --reload --port 8000
 rfq_manager_ms/
 ├── src/
 │   ├── config/          # Settings (env vars)
-│   ├── connectors/      # External service definitions (stubs/dormant in V1)
+│   ├── connectors/      # External service definitions (IAM active, event bus stub)
 │   ├── controllers/     # Business logic
 │   ├── datasources/     # Database queries
 │   ├── models/          # SQLAlchemy models (9 active, 2 dormant)

@@ -324,7 +324,7 @@ paths:
       summary: "#14 — Add note to stage"
       description: |
         Append-only — prevents concurrent overwrite.
-        Auto-sets: user_name (hardcoded placeholder 'System' in V1), created_at (server timestamp), id.
+        Auto-sets: user_name from authenticated actor context, created_at (server timestamp), id.
       operationId: addStageNote
       parameters:
         - $ref: '#/components/parameters/RfqIdParam'

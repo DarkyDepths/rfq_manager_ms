@@ -20,7 +20,7 @@ from typing import Any
 
 import httpx
 
-from src.utils.errors import ServiceUnavailableError, UnauthorizedError
+from src.utils.errors import ForbiddenError, ServiceUnavailableError, UnauthorizedError
 
 
 @dataclass
@@ -54,13 +54,20 @@ class IAMServiceConnector:
 		if response.status_code == 401:
 			raise UnauthorizedError("Invalid or expired bearer token")
 
+		if response.status_code == 403:
+			raise ForbiddenError("Access forbidden by IAM")
+
 		if response.status_code >= 500:
 			raise ServiceUnavailableError("IAM service returned a server error")
 
 		if response.status_code != 200:
 			raise UnauthorizedError("Authentication rejected by IAM")
 
-		payload = response.json() if response.content else {}
+		try:
+			payload = response.json() if response.content else {}
+		except ValueError as exc:
+			raise ServiceUnavailableError("IAM service returned a non-JSON auth response") from exc
+
 		return self._parse_principal_payload(payload)
 
 	@staticmethod
@@ -75,7 +82,7 @@ class IAMServiceConnector:
 		permissions = [str(item) for item in raw_permissions] if isinstance(raw_permissions, list) else []
 
 		if not user_id:
-			raise UnauthorizedError("IAM response is missing user identity")
+			raise ServiceUnavailableError("IAM response is missing required user identity")
 
 		return IAMPrincipal(
 			user_id=user_id,

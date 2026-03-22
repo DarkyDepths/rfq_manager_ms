@@ -98,7 +98,7 @@ def test_upload_file_size_limit(mock_settings):
     ctrl = RfqStageController(MockStageDatasource(), MockRfqDatasource(), MockSession())
     
     with pytest.raises(BadRequestError):
-        ctrl.upload_file(RFQ1, ST1, "big.pdf", "application/pdf", b"0" * (2 * 1024 * 1024))
+        ctrl.upload_file(RFQ1, ST1, "big.pdf", "application/pdf", b"0" * (2 * 1024 * 1024), uploaded_by="User A")
 
 @patch("src.controllers.rfq_stage_controller.open")
 @patch("src.controllers.rfq_stage_controller.Path")
@@ -108,9 +108,10 @@ def test_upload_file_success(mock_settings, mock_path, mock_open):
     mock_settings.FILE_STORAGE_PATH = "/tmp"
     ctrl = RfqStageController(MockStageDatasource(), MockRfqDatasource(), MockSession())
     
-    res = ctrl.upload_file(RFQ1, ST1, "test.txt", "text/plain", b"abc")
+    res = ctrl.upload_file(RFQ1, ST1, "test.txt", "text/plain", b"abc", uploaded_by="User A")
     assert res.filename == "test.txt"
     assert res.size_bytes == 3
+    assert res.uploaded_by == "User A"
     payload = res.model_dump()
     assert "file_path" not in payload
     assert payload["download_url"] == f"/rfq-manager/v1/files/{res.id}/download"

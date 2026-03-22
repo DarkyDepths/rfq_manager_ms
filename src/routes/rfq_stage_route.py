@@ -22,7 +22,7 @@ from src.translators.rfq_stage_translator import (
 )
 from src.app_context import get_rfq_stage_controller
 from src.controllers.rfq_stage_controller import RfqStageController
-from src.utils.auth import Permissions, require_permission
+from src.utils.auth import AuthContext, Permissions, require_permission
 
 router = APIRouter(prefix="/rfqs/{rfq_id}/stages", tags=["RFQ_Stage"])
 
@@ -65,11 +65,11 @@ def add_note(
     rfq_id: UUID,
     stage_id: UUID,
     body: NoteCreateRequest,
-    _auth=Depends(require_permission(Permissions.RFQ_STAGE_ADD_NOTE)),
+    auth: AuthContext = Depends(require_permission(Permissions.RFQ_STAGE_ADD_NOTE)),
     ctrl: RfqStageController = Depends(get_rfq_stage_controller),
 ):
     """#14 — Add note to stage (append-only)."""
-    return ctrl.add_note(rfq_id, stage_id, body)
+    return ctrl.add_note(rfq_id, stage_id, body, user_name=auth.user_name)
 
 
 @router.post("/{stage_id}/files", status_code=201, response_model=StageFileResponse)
@@ -78,12 +78,19 @@ async def upload_file(
     stage_id: UUID,
     file: UploadFile = File(...),
     type: str = Form(...),
-    _auth=Depends(require_permission(Permissions.RFQ_STAGE_ADD_FILE)),
+    auth: AuthContext = Depends(require_permission(Permissions.RFQ_STAGE_ADD_FILE)),
     ctrl: RfqStageController = Depends(get_rfq_stage_controller),
 ):
     """#15 — Upload file to stage (multipart/form-data)."""
     content = await file.read()
-    return ctrl.upload_file(rfq_id, stage_id, file.filename, type, content)
+    return ctrl.upload_file(
+        rfq_id,
+        stage_id,
+        file.filename,
+        type,
+        content,
+        uploaded_by=auth.user_name,
+    )
 
 
 @router.post("/{stage_id}/advance", response_model=RfqStageDetailResponse)

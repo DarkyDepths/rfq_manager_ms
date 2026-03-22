@@ -26,8 +26,9 @@ class ReminderController:
         self.ds = datasource
         self.session = session
 
-    def create(self, request: reminder_translator.ReminderCreateRequest):
+    def create(self, request: reminder_translator.ReminderCreateRequest, created_by: str):
         data = request.model_dump()
+        data["created_by"] = created_by
         reminder = self.ds.create(data)
         self.session.commit()
         return reminder_translator.to_response(reminder)
