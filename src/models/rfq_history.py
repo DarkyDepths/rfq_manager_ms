@@ -1,10 +1,10 @@
 """
 SQLAlchemy model for the `rfq_history` table.
 
-Schema-level audit history table (currently dormant in V1 runtime flow).
+Schema-level audit history table (intentionally dormant in V1 runtime flow).
 
 This model reflects persisted columns only; there is no active write path
-in the current V1 controllers/services.
+in current V1 controllers/services by H5 decision.
 
 Columns:
 - id              UUID PK

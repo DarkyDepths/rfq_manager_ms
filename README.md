@@ -72,6 +72,16 @@ CI runs the same verifier script.
 	- `stage.advanced`
 - Publish failures are logged and observable, but do not roll back successful business writes.
 
+## Dormant Model Decisions (H5)
+
+- `rfq_history` is intentionally dormant in V1.
+	- V1 traceability comes from database state, request-correlated logs, and lifecycle events.
+	- Dedicated persisted audit-table writes are deferred by design.
+- `rfq_stage_field_value` is intentionally dormant in V1.
+	- V1 source of truth for stage form data is `rfq_stage.captured_data`.
+	- Normalized per-field rows are deferred to a future phase if query/reporting needs require them.
+- Decision record: `docs/ADR_H5_DORMANT_MODELS.md`.
+
 ## API Endpoints (31 business endpoints + operational endpoints)
 
 | Resource    | Endpoints | Description                                  |
@@ -270,8 +280,8 @@ rfq_manager_ms/
 | `subtask`               | Tasks within stages (soft delete)    |
 | `rfq_note`              | Append-only notes per stage          |
 | `rfq_file`              | File attachments (soft delete)       |
-| `rfq_stage_field_value` | Key-value captured data (Schema-only / Dormant in V1)|
-| `rfq_history`           | Audit trail (Schema-only / Dormant in V1) |
+| `rfq_stage_field_value` | Normalized stage field rows (Schema-present / intentionally dormant in V1; source of truth is `rfq_stage.captured_data`) |
+| `rfq_history`           | Persisted audit trail table (Schema-present / intentionally dormant in V1) |
 | `reminder`              | Scheduled notifications              |
 | `reminder_rule`         | Automation rules for reminders       |
 

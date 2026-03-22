@@ -3,9 +3,9 @@ SQLAlchemy model for the `rfq_stage_field_value` table.
 
 Stores per-field stage payload snapshots as JSON values.
 
-In current V1 this table is schema-level/dormant, while active stage input is
-primarily represented via `rfq_stage.captured_data`. This model docstring is
-aligned to the actual persisted columns.
+In current V1 this table is intentionally dormant by H5 decision, while active
+stage input is represented via `rfq_stage.captured_data`.
+This model docstring is aligned to the actual persisted columns.
 
 Columns:
 - id              UUID PK

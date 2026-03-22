@@ -12,8 +12,8 @@ This document is the honest limitation view for the current release baseline.
 ## 2) Known V1 Limitations
 
 - Event publication baseline is intentionally minimal (HTTP best-effort, post-commit) and is not yet a durable outbox/retry architecture.
-- `rfq_history` is schema-present but dormant in current business flows.
-- `rfq_stage_field_value` is schema-present, while effective stage form payloads rely on `rfq_stage.captured_data` in V1.
+- `rfq_history` is intentionally dormant in V1; persistent audit-table writes are deferred.
+- `rfq_stage_field_value` is intentionally dormant in V1; stage form source of truth is `rfq_stage.captured_data`.
 - Observability baseline is intentionally minimal: request correlation IDs + HTTP-level Prometheus metrics only.
 - No full tracing/export stack is included (no OpenTelemetry collector/exporter or external tracing vendor integration in this repo).
 - Deployment baseline is Dockerfile + Docker Compose; no production orchestrator manifests are provided.
