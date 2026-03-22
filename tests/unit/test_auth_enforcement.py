@@ -1,9 +1,11 @@
+from pathlib import Path
+
 from fastapi.testclient import TestClient
 from datetime import date
 from uuid import uuid4
 
 from src.app import create_app
-from src.app_context import get_iam_service_connector, get_reminder_controller, get_rfq_controller
+from src.app_context import get_iam_service_connector, get_reminder_controller, get_rfq_controller, get_rfq_stage_controller
 from src.config.settings import settings
 from src.connectors.iam_service import IAMPrincipal
 from src.utils.errors import ServiceUnavailableError
@@ -46,6 +48,37 @@ class _MockReminderController:
         }
 
 
+class _MockStageAdvanceController:
+    def __init__(self, required_team: str = "engineering"):
+        self.required_team = required_team
+
+    def advance(self, rfq_id, stage_id, actor_team: str):
+        if (actor_team or "").strip().lower() != self.required_team:
+            from src.utils.errors import ForbiddenError
+
+            raise ForbiddenError("Stage advance denied: actor team mismatch")
+
+        return {
+            "id": str(stage_id),
+            "name": "Stage 1",
+            "order": 1,
+            "assigned_team": "Engineering",
+            "status": "Completed",
+            "progress": 100,
+            "planned_start": None,
+            "planned_end": None,
+            "actual_start": None,
+            "actual_end": None,
+            "blocker_status": None,
+            "blocker_reason_code": None,
+            "captured_data": {},
+            "mandatory_fields": None,
+            "notes": [],
+            "files": [],
+            "subtasks": [],
+        }
+
+
 class _AllowReadConnector:
     def resolve_principal(self, _authorization_header: str) -> IAMPrincipal:
         return IAMPrincipal(
@@ -63,6 +96,26 @@ class _AllowStatsConnector:
             user_name="Stats",
             team="workspace",
             permissions=["rfq:stats"],
+        )
+
+
+class _AllowAdvanceWrongTeamConnector:
+    def resolve_principal(self, _authorization_header: str) -> IAMPrincipal:
+        return IAMPrincipal(
+            user_id="u-4",
+            user_name="Advancer",
+            team="sales",
+            permissions=["rfq_stage:advance"],
+        )
+
+
+class _AllowAdvanceRightTeamConnector:
+    def resolve_principal(self, _authorization_header: str) -> IAMPrincipal:
+        return IAMPrincipal(
+            user_id="u-5",
+            user_name="Advancer",
+            team="engineering",
+            permissions=["rfq_stage:advance"],
         )
 
 
@@ -102,6 +155,20 @@ def _make_client_with_reminder_write(*, bypass_enabled: bool, connector_override
 
     app = create_app()
     app.dependency_overrides[get_reminder_controller] = lambda: _MockReminderController()
+
+    if connector_override is not None:
+        app.dependency_overrides[get_iam_service_connector] = lambda: connector_override
+
+    return TestClient(app)
+
+
+def _make_client_with_stage_advance(*, bypass_enabled: bool, connector_override=None) -> TestClient:
+    settings.AUTH_BYPASS_ENABLED = bypass_enabled
+    if not bypass_enabled:
+        settings.IAM_SERVICE_URL = "http://iam.local/iam/v1"
+
+    app = create_app()
+    app.dependency_overrides[get_rfq_stage_controller] = lambda: _MockStageAdvanceController()
 
     if connector_override is not None:
         app.dependency_overrides[get_iam_service_connector] = lambda: connector_override
@@ -277,3 +344,88 @@ def test_write_request_is_403_without_required_permission():
     finally:
         settings.AUTH_BYPASS_ENABLED = original_bypass
         settings.IAM_SERVICE_URL = original_iam_url
+
+
+def test_advance_request_is_403_when_permission_exists_but_team_mismatch():
+    original_bypass = settings.AUTH_BYPASS_ENABLED
+    original_iam_url = settings.IAM_SERVICE_URL
+
+    try:
+        with _make_client_with_stage_advance(bypass_enabled=False, connector_override=_AllowAdvanceWrongTeamConnector()) as client:
+            response = client.post(
+                f"/rfq-manager/v1/rfqs/{uuid4()}/stages/{uuid4()}/advance",
+                headers={"Authorization": "Bearer test-token"},
+            )
+
+        assert response.status_code == 403
+        assert response.json()["error"] == "ForbiddenError"
+    finally:
+        settings.AUTH_BYPASS_ENABLED = original_bypass
+        settings.IAM_SERVICE_URL = original_iam_url
+
+
+def test_advance_request_succeeds_when_permission_and_team_match():
+    original_bypass = settings.AUTH_BYPASS_ENABLED
+    original_iam_url = settings.IAM_SERVICE_URL
+
+    try:
+        with _make_client_with_stage_advance(bypass_enabled=False, connector_override=_AllowAdvanceRightTeamConnector()) as client:
+            response = client.post(
+                f"/rfq-manager/v1/rfqs/{uuid4()}/stages/{uuid4()}/advance",
+                headers={"Authorization": "Bearer test-token"},
+            )
+
+        assert response.status_code == 200
+        assert response.json()["status"] == "Completed"
+    finally:
+        settings.AUTH_BYPASS_ENABLED = original_bypass
+        settings.IAM_SERVICE_URL = original_iam_url
+
+
+def test_advance_permission_denial_remains_independent_of_team_logic():
+    original_bypass = settings.AUTH_BYPASS_ENABLED
+    original_iam_url = settings.IAM_SERVICE_URL
+
+    try:
+        with _make_client_with_stage_advance(bypass_enabled=False, connector_override=_AllowReadConnector()) as client:
+            response = client.post(
+                f"/rfq-manager/v1/rfqs/{uuid4()}/stages/{uuid4()}/advance",
+                headers={"Authorization": "Bearer test-token"},
+            )
+
+        assert response.status_code == 403
+        payload = response.json()
+        assert payload["error"] == "ForbiddenError"
+        assert "rfq_stage:advance" in payload["message"]
+    finally:
+        settings.AUTH_BYPASS_ENABLED = original_bypass
+        settings.IAM_SERVICE_URL = original_iam_url
+
+
+def test_health_endpoint_remains_public_without_bearer_auth():
+    original_bypass = settings.AUTH_BYPASS_ENABLED
+    original_iam_url = settings.IAM_SERVICE_URL
+
+    try:
+        settings.AUTH_BYPASS_ENABLED = False
+        settings.IAM_SERVICE_URL = "http://iam.local/iam/v1"
+        app = create_app()
+
+        with TestClient(app) as client:
+            response = client.get("/health")
+
+        assert response.status_code == 200
+        assert response.json() == {"status": "ok"}
+    finally:
+        settings.AUTH_BYPASS_ENABLED = original_bypass
+        settings.IAM_SERVICE_URL = original_iam_url
+
+
+def test_current_openapi_contract_exposes_bearer_auth_and_health_exemption():
+    openapi_text = Path("docs/rfq_manager_ms_openapi_current.yaml").read_text(encoding="utf-8")
+
+    assert "security:\n  - bearerAuth: []" in openapi_text
+    assert "securitySchemes:\n    bearerAuth:" in openapi_text
+    assert "/health:" in openapi_text
+    assert "operationId: getHealth" in openapi_text
+    assert "security: []" in openapi_text

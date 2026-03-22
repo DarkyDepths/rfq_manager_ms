@@ -28,8 +28,8 @@ tags:
   - name: Reminder
     description: Manual and auto-created reminders, rules, batch processing
 
-# security:
-#   - bearerAuth: []
+security:
+  - bearerAuth: []
 
 # ═══════════════════════════════════════════════════
 # PATHS
@@ -703,6 +703,7 @@ paths:
       summary: "#31 — Health Liveness Check"
       description: Returns service liveness status.
       operationId: getHealth
+      security: []
       responses:
         '200':
           description: OK
@@ -712,12 +713,12 @@ paths:
 # ═══════════════════════════════════════════════════
 components:
 
-  # securitySchemes:
-  #   bearerAuth:
-  #     type: http
-  #     scheme: bearer
-  #     bearerFormat: JWT
-  #     description: JWT token from rfq_iam_ms
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token from rfq_iam_ms
 
   # ──── PARAMETERS ─────────────────────────────────
   parameters:

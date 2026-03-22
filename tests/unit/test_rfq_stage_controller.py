@@ -20,7 +20,7 @@ class MockStageDatasource:
         
     def get_by_id(self, stage_id):
         if str(stage_id) == ST1:
-            return RFQStage(id=ST1, rfq_id=RFQ1, name="Stage 1", progress=50, blocker_status="None", status="In preparation", order=1)
+            return RFQStage(id=ST1, rfq_id=RFQ1, name="Stage 1", progress=50, blocker_status="None", status="In preparation", order=1, assigned_team="Team A")
         return None
         
     def get_notes(self, stage_id): return []
@@ -119,24 +119,24 @@ def test_upload_file_success(mock_settings, mock_path, mock_open):
 def test_advance_blocked():
     stage_ds = MockStageDatasource()
     # Override get_by_id to return blocked stage
-    stage_ds.get_by_id = lambda id: RFQStage(id=ST1, rfq_id=RFQ1, status="In preparation", blocker_status="Blocked", blocker_reason_code="WAITING_CLIENT")
+    stage_ds.get_by_id = lambda id: RFQStage(id=ST1, rfq_id=RFQ1, status="In preparation", blocker_status="Blocked", blocker_reason_code="WAITING_CLIENT", assigned_team="Team A")
     ctrl = RfqStageController(stage_ds, MockRfqDatasource(), MockSession())
     
     with pytest.raises(ConflictError):
-        ctrl.advance(RFQ1, ST1)
+        ctrl.advance(RFQ1, ST1, actor_team="Team A")
 
 def test_advance_missing_mandatory():
     stage_ds = MockStageDatasource()
-    stage = RFQStage(id=ST1, rfq_id=RFQ1, status="In preparation", blocker_status="None", mandatory_fields="po_number, value", captured_data={"po_number": "123"}, order=1, name="Stage 1")
+    stage = RFQStage(id=ST1, rfq_id=RFQ1, status="In preparation", blocker_status="None", mandatory_fields="po_number, value", captured_data={"po_number": "123"}, order=1, name="Stage 1", assigned_team="Team A")
     stage_ds.get_by_id = lambda id: stage
     ctrl = RfqStageController(stage_ds, MockRfqDatasource(), MockSession())
     
     with pytest.raises(UnprocessableEntityError):
-        ctrl.advance(RFQ1, ST1)
+        ctrl.advance(RFQ1, ST1, actor_team="Team A")
 
 def test_advance_success():
     stage_ds = MockStageDatasource()
-    stage = RFQStage(id=ST1, rfq_id=RFQ1, status="In preparation", blocker_status="None", mandatory_fields="po_number", captured_data={"po_number": "123"}, order=1, name="Stage 1")
+    stage = RFQStage(id=ST1, rfq_id=RFQ1, status="In preparation", blocker_status="None", mandatory_fields="po_number", captured_data={"po_number": "123"}, order=1, name="Stage 1", assigned_team="Team A")
     stage_ds.get_by_id = lambda id: stage
     
     rfq_ds = MockRfqDatasource()
@@ -145,7 +145,7 @@ def test_advance_success():
     
     ctrl = RfqStageController(stage_ds, rfq_ds, MockSession())
     
-    ctrl.advance(RFQ1, ST1)
+    ctrl.advance(RFQ1, ST1, actor_team="Team A")
     assert stage.status == "Completed"
     assert stage.progress == 100
     assert rfq.current_stage_id == ST2
@@ -162,6 +162,7 @@ def test_advance_last_stage_does_not_force_submitted_status():
         captured_data={"po_number": "123"},
         order=1,
         name="Final Stage",
+        assigned_team="Team A",
     )
     stage_ds.get_by_id = lambda _id: stage
     stage_ds.get_next_stage = lambda _rfq_id, _order: None
@@ -171,11 +172,40 @@ def test_advance_last_stage_does_not_force_submitted_status():
     rfq_ds.get_by_id = lambda _id: rfq
 
     ctrl = RfqStageController(stage_ds, rfq_ds, MockSession())
-    ctrl.advance(RFQ1, ST1)
+    ctrl.advance(RFQ1, ST1, actor_team="Team A")
 
     assert stage.status == "Completed"
     assert rfq.status == "In preparation"
     assert rfq.progress == 100
+
+
+def test_advance_rejects_wrong_team_with_forbidden_error():
+    stage_ds = MockStageDatasource()
+    stage = RFQStage(
+        id=ST1,
+        rfq_id=RFQ1,
+        status="In preparation",
+        blocker_status="None",
+        mandatory_fields="po_number",
+        captured_data={"po_number": "123"},
+        order=1,
+        name="Stage 1",
+        assigned_team="Engineering",
+    )
+    stage_ds.get_by_id = lambda _id: stage
+
+    rfq_ds = MockRfqDatasource()
+    rfq = RFQ(id=RFQ1, current_stage_id=ST1, status="In preparation")
+    rfq_ds.get_by_id = lambda _id: rfq
+
+    ctrl = RfqStageController(stage_ds, rfq_ds, MockSession())
+
+    from src.utils.errors import ForbiddenError
+
+    with pytest.raises(ForbiddenError) as exc:
+        ctrl.advance(RFQ1, ST1, actor_team="Sales")
+
+    assert "does not match assigned team" in str(exc.value)
 
 
 def test_update_rfq_progress_ignores_skipped_stages():

@@ -97,8 +97,8 @@ async def upload_file(
 def advance_stage(
     rfq_id: UUID,
     stage_id: UUID,
-    _auth=Depends(require_permission(Permissions.RFQ_STAGE_ADVANCE)),
+    auth: AuthContext = Depends(require_permission(Permissions.RFQ_STAGE_ADVANCE)),
     ctrl: RfqStageController = Depends(get_rfq_stage_controller),
 ):
     """#16 — Advance to next stage. Validates blockers and mandatory fields."""
-    return ctrl.advance(rfq_id, stage_id)
+    return ctrl.advance(rfq_id, stage_id, actor_team=auth.team)
