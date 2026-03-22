@@ -7,10 +7,10 @@ This document is the honest limitation view for the current release baseline.
 - Service is demo-operable through Docker Compose with migration bootstrap and seed scenarios.
 - API health endpoint exists (`/health`) and docs endpoint is available (`/docs`).
 - Quality-gate verification exists via `python scripts/verify.py`.
+- RFQ code allocation is atomic via database-backed per-prefix counters (`IF` / `IB`).
 
 ## 2) Known V1 Limitations
 
-- RFQ code generation remains non-atomic (`get_next_code` reads max then increments); rare race conditions can still surface under concurrent create load (`LG-06`).
 - Auth bypass is still the active V1 mode (`AUTH_BYPASS_ENABLED=true` by default); no real IAM authorization enforcement is active.
 - Event bus publishing is not active; connector remains a V1 stub.
 - `rfq_history` is schema-present but dormant in current business flows.

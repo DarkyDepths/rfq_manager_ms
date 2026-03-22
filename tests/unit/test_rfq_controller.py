@@ -351,6 +351,7 @@ def test_create_sets_explicit_initial_status_in_preparation():
     ctrl.create(req)
 
     assert rfq_ds.last_create_data is not None
+    assert rfq_ds.last_create_data["rfq_code"] == "IF-1002"
     assert rfq_ds.last_create_data["status"] == "In preparation"
 
 
