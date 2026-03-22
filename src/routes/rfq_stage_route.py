@@ -101,4 +101,10 @@ def advance_stage(
     ctrl: RfqStageController = Depends(get_rfq_stage_controller),
 ):
     """#16 — Advance to next stage. Validates blockers and mandatory fields."""
-    return ctrl.advance(rfq_id, stage_id, actor_team=auth.team)
+    return ctrl.advance(
+        rfq_id,
+        stage_id,
+        actor_team=auth.team,
+        actor_user_id=auth.user_id,
+        actor_name=auth.user_name,
+    )

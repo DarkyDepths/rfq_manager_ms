@@ -10,7 +10,7 @@ controllers/     →  Business logic & transaction management
 datasources/     →  Database queries (SQLAlchemy ORM)
 translators/     →  Pydantic schemas & model ↔ schema conversion
 models/          →  SQLAlchemy table definitions (9 active, 2 dormant)
-connectors/      →  External service clients (IAM active for auth resolution; event bus dormant in V1)
+connectors/      →  External service clients (IAM auth resolution + HTTP event bus publication seam)
 config/          →  Settings from environment variables
 utils/           →  Shared helpers (errors, pagination)
 ```
@@ -61,6 +61,17 @@ CI runs the same verifier script.
 	- `rfq_manager_http_request_duration_seconds` (method, route template)
 - This baseline is intentionally minimal and does not include full tracing/export pipelines (no OTel vendor integration in this repo).
 
+## Event Publication Baseline (H4)
+
+- Event seam is active via `EVENT_BUS_URL` (HTTP JSON envelope publishing).
+- Event publication is best-effort and post-commit (business DB commit remains source of truth).
+- H4 event types:
+	- `rfq.created`
+	- `rfq.status_changed` (only when status actually changes)
+	- `rfq.deadline_changed` (only when deadline actually changes)
+	- `stage.advanced`
+- Publish failures are logged and observable, but do not roll back successful business writes.
+
 ## API Endpoints (31 business endpoints + operational endpoints)
 
 | Resource    | Endpoints | Description                                  |
@@ -72,6 +83,7 @@ CI runs the same verifier script.
 | Reminder    | 7         | CRUD + rules + stats + test email + process  |
 | File        | 3         | List, download, soft delete                  |
 | Health      | 1         | Liveness check (operational endpoint)        |
+| Metrics     | 1         | Prometheus-style metrics (operational endpoint) |
 
 Base path for business endpoints: `/rfq-manager/v1`.
 Operational endpoints outside v1: `/health`, `/metrics`.
@@ -214,7 +226,8 @@ uvicorn src.app:app --reload --port 8000
 | APP_DEBUG | No | `false` | Enables SQLAlchemy SQL echo logging when true. | Useful for local debugging only. |
 | APP_PORT | No | `8000` | Intended service port setting. | Current startup commands pass port explicitly (`8000`); value is informational for now. |
 | IAM_SERVICE_URL | No | empty string | Base URL for IAM auth resolution (`/auth/resolve`). | Required when `AUTH_BYPASS_ENABLED=false`. |
-| EVENT_BUS_URL | No | empty string | Endpoint placeholder for event bus integration. | Reserved integration seam in V1. |
+| EVENT_BUS_URL | No | empty string | HTTP endpoint receiving published event envelopes. | H4 baseline is best-effort publish after successful commits. |
+| EVENT_BUS_REQUEST_TIMEOUT_SECONDS | No | `3.0` | Timeout for outbound event publication HTTP calls. | Keep low and bounded to avoid request-path stalls. |
 
 ## Project Structure
 
@@ -222,7 +235,7 @@ uvicorn src.app:app --reload --port 8000
 rfq_manager_ms/
 ├── src/
 │   ├── config/          # Settings (env vars)
-│   ├── connectors/      # External service definitions (IAM active, event bus stub)
+│   ├── connectors/      # External service definitions (IAM + event bus)
 │   ├── controllers/     # Business logic
 │   ├── datasources/     # Database queries
 │   ├── models/          # SQLAlchemy models (9 active, 2 dormant)

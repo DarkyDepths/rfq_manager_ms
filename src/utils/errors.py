@@ -86,3 +86,10 @@ class ServiceUnavailableError(AppError):
     message = "Service unavailable"
 
 
+class EventBusPublishError(AppError):
+    """503 — Event publication failed at the integration seam."""
+
+    status_code = 503
+    message = "Event bus publish failed"
+
+

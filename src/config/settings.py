@@ -32,6 +32,7 @@ class Settings(BaseSettings):
     AUTH_BYPASS_USER_NAME: str = "System"
     AUTH_BYPASS_TEAM: str = "workspace"
     IAM_REQUEST_TIMEOUT_SECONDS: float = 3.0
+    EVENT_BUS_REQUEST_TIMEOUT_SECONDS: float = 3.0
 
     class Config:
         env_file = ".env"

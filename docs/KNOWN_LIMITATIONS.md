@@ -11,7 +11,7 @@ This document is the honest limitation view for the current release baseline.
 
 ## 2) Known V1 Limitations
 
-- Event bus publishing is not active; connector remains a V1 stub.
+- Event publication baseline is intentionally minimal (HTTP best-effort, post-commit) and is not yet a durable outbox/retry architecture.
 - `rfq_history` is schema-present but dormant in current business flows.
 - `rfq_stage_field_value` is schema-present, while effective stage form payloads rely on `rfq_stage.captured_data` in V1.
 - Observability baseline is intentionally minimal: request correlation IDs + HTTP-level Prometheus metrics only.
@@ -21,5 +21,5 @@ This document is the honest limitation view for the current release baseline.
 ## 3) Integration Seams (Planned but Not Active)
 
 - IAM seam is active for bearer-token auth resolution when bypass mode is disabled.
-- Event seam: `EVENT_BUS_URL` and connector placeholders exist for future event publication.
+- Event seam is active via `EVENT_BUS_URL` for H4 lifecycle publication (`rfq.created`, `rfq.status_changed`, `rfq.deadline_changed`, `stage.advanced`).
 - `JWT_SECRET` remains reserved for future expanded IAM/JWT workflows.

@@ -52,7 +52,7 @@ class _MockStageAdvanceController:
     def __init__(self, required_team: str = "engineering"):
         self.required_team = required_team
 
-    def advance(self, rfq_id, stage_id, actor_team: str):
+    def advance(self, rfq_id, stage_id, actor_team: str, actor_user_id: str | None = None, actor_name: str | None = None):
         if (actor_team or "").strip().lower() != self.required_team:
             from src.utils.errors import ForbiddenError
 

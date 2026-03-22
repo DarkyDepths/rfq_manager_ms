@@ -29,7 +29,7 @@ from src.translators.rfq_translator import (
 
 from src.app_context import get_rfq_controller
 from src.controllers.rfq_controller import RfqController
-from src.utils.auth import Permissions, require_permission
+from src.utils.auth import AuthContext, Permissions, require_permission
 
 
 router = APIRouter(prefix="/rfqs", tags=["RFQ"])
@@ -39,11 +39,16 @@ router = APIRouter(prefix="/rfqs", tags=["RFQ"])
 @router.post("", status_code=201, response_model=RfqDetail)
 def create_rfq(
     body: RfqCreateRequest,
-    _auth=Depends(require_permission(Permissions.RFQ_CREATE)),
+    auth: AuthContext = Depends(require_permission(Permissions.RFQ_CREATE)),
     ctrl: RfqController = Depends(get_rfq_controller),
 ):
     """Create a new RFQ with auto-generated stages."""
-    return ctrl.create(body)
+    return ctrl.create(
+        body,
+        actor_user_id=auth.user_id,
+        actor_name=auth.user_name,
+        actor_team=auth.team,
+    )
 
 
 # ── #2 — List RFQs ───────────────────────────────────
@@ -128,8 +133,14 @@ def get_rfq(
 def update_rfq(
     rfq_id: UUID,
     body: RfqUpdateRequest,
-    _auth=Depends(require_permission(Permissions.RFQ_UPDATE)),
+    auth: AuthContext = Depends(require_permission(Permissions.RFQ_UPDATE)),
     ctrl: RfqController = Depends(get_rfq_controller),
 ):
     """Partial update — only send fields you want to change."""
-    return ctrl.update(rfq_id, body)
+    return ctrl.update(
+        rfq_id,
+        body,
+        actor_user_id=auth.user_id,
+        actor_name=auth.user_name,
+        actor_team=auth.team,
+    )
