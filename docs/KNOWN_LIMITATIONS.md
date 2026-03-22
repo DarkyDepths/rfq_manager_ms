@@ -14,8 +14,8 @@ This document is the honest limitation view for the current release baseline.
 - Event bus publishing is not active; connector remains a V1 stub.
 - `rfq_history` is schema-present but dormant in current business flows.
 - `rfq_stage_field_value` is schema-present, while effective stage form payloads rely on `rfq_stage.captured_data` in V1.
-- No request correlation ID middleware is implemented yet.
-- No built-in metrics/monitoring stack is included (no Prometheus/OTel pipeline in this repo).
+- Observability baseline is intentionally minimal: request correlation IDs + HTTP-level Prometheus metrics only.
+- No full tracing/export stack is included (no OpenTelemetry collector/exporter or external tracing vendor integration in this repo).
 - Deployment baseline is Dockerfile + Docker Compose; no production orchestrator manifests are provided.
 
 ## 3) Integration Seams (Planned but Not Active)

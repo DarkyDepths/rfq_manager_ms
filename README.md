@@ -49,7 +49,19 @@ CI runs the same verifier script.
 - **Validation:** Pydantic v2
 - **Python:** 3.11+
 
-## API Endpoints (31 total)
+## Observability Baseline (H3)
+
+- Request correlation IDs are now enforced at the app boundary.
+	- Incoming `X-Request-ID` is preserved when valid.
+	- Incoming `X-Correlation-ID` is accepted as an alias.
+	- If missing/invalid, the service generates a UUID request ID.
+	- Effective ID is returned in response header `X-Request-ID`.
+- Minimal Prometheus-style metrics are exposed at `GET /metrics` (outside `/rfq-manager/v1`).
+	- `rfq_manager_http_requests_total` (method, route template, status class)
+	- `rfq_manager_http_request_duration_seconds` (method, route template)
+- This baseline is intentionally minimal and does not include full tracing/export pipelines (no OTel vendor integration in this repo).
+
+## API Endpoints (31 business endpoints + operational endpoints)
 
 | Resource    | Endpoints | Description                                  |
 |-------------|-----------|----------------------------------------------|
@@ -59,9 +71,10 @@ CI runs the same verifier script.
 | Subtask     | 4         | CRUD with soft delete + progress rollup      |
 | Reminder    | 7         | CRUD + rules + stats + test email + process  |
 | File        | 3         | List, download, soft delete                  |
-| Health      | 1         | Liveness check                               |
+| Health      | 1         | Liveness check (operational endpoint)        |
 
-Base path for all numbered endpoints below: `/rfq-manager/v1`.
+Base path for business endpoints: `/rfq-manager/v1`.
+Operational endpoints outside v1: `/health`, `/metrics`.
 
 | # | Method | Path | Resource |
 |---|--------|------|----------|
