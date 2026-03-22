@@ -11,7 +11,6 @@ This document is the honest limitation view for the current release baseline.
 
 ## 2) Known V1 Limitations
 
-- Auth bypass is still the active V1 mode (`AUTH_BYPASS_ENABLED=true` by default); no real IAM authorization enforcement is active.
 - Event bus publishing is not active; connector remains a V1 stub.
 - `rfq_history` is schema-present but dormant in current business flows.
 - `rfq_stage_field_value` is schema-present, while effective stage form payloads rely on `rfq_stage.captured_data` in V1.
@@ -21,6 +20,6 @@ This document is the honest limitation view for the current release baseline.
 
 ## 3) Integration Seams (Planned but Not Active)
 
-- IAM seam: `IAM_SERVICE_URL` and connector placeholders exist for future `rfq_iam_ms` integration.
+- IAM seam is active for bearer-token auth resolution when bypass mode is disabled.
 - Event seam: `EVENT_BUS_URL` and connector placeholders exist for future event publication.
-- JWT secret is reserved for future IAM/JWT enforcement and not used as a full V1 auth control.
+- `JWT_SECRET` remains reserved for future expanded IAM/JWT workflows.

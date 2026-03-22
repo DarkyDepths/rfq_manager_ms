@@ -14,13 +14,19 @@ from fastapi.responses import FileResponse
 from src.app_context import get_file_controller
 from src.controllers.file_controller import FileController
 from src.translators.file_translator import StageFileListResponse
+from src.utils.auth import Permissions, require_permission
 
 # ── Nested router for #28 (list files by stage) ──────
 stage_files_router = APIRouter(prefix="/rfqs/{rfq_id}/stages/{stage_id}/files", tags=["RFQ_Stage"])
 
 
 @stage_files_router.get("", response_model=StageFileListResponse)
-def list_stage_files(rfq_id: UUID, stage_id: UUID, ctrl: FileController = Depends(get_file_controller)):
+def list_stage_files(
+    rfq_id: UUID,
+    stage_id: UUID,
+    _auth=Depends(require_permission(Permissions.FILE_LIST)),
+    ctrl: FileController = Depends(get_file_controller),
+):
     """#28 — List files for a stage."""
     return ctrl.list_for_stage(rfq_id, stage_id)
 
@@ -38,14 +44,22 @@ file_router = APIRouter(prefix="/files", tags=["File"])
         }
     }
 )
-def download_file(file_id: UUID, ctrl: FileController = Depends(get_file_controller)):
+def download_file(
+    file_id: UUID,
+    _auth=Depends(require_permission(Permissions.FILE_DOWNLOAD)),
+    ctrl: FileController = Depends(get_file_controller),
+):
     """#29 — Download file by ID. Returns file stream."""
     path, filename = ctrl.get_file_path(file_id)
     return FileResponse(path, filename=filename)
 
 
 @file_router.delete("/{file_id}", status_code=204)
-def delete_file(file_id: UUID, ctrl: FileController = Depends(get_file_controller)):
+def delete_file(
+    file_id: UUID,
+    _auth=Depends(require_permission(Permissions.FILE_DELETE)),
+    ctrl: FileController = Depends(get_file_controller),
+):
     """#30 — Soft delete file."""
     ctrl.delete(file_id)
     return Response(status_code=204)

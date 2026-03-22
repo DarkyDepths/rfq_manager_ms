@@ -52,7 +52,7 @@
 ## Cross-Cutting Behavior
 
 - CORS middleware configured from `CORS_ORIGINS`.
-- V1 auth bypass middleware can inject demo user context when enabled.
+- Auth is enforced via bearer token + IAM resolution, with explicit local bypass mode when enabled.
 - Global error handling normalizes `AppError` and request validation failures.
 - Health endpoint at `/health` supports liveness checks.
 

@@ -1,10 +1,11 @@
 import logging
 
-from fastapi import Request
+from fastapi import Depends, Request
 from fastapi.testclient import TestClient
 
 from src.app import create_app
 from src.config.settings import settings
+from src.utils.auth import get_auth_context
 
 
 def test_auth_bypass_injects_demo_user_context():
@@ -24,7 +25,10 @@ def test_auth_bypass_injects_demo_user_context():
         app = create_app()
 
         @app.get("/_test/auth-context")
-        def auth_context(request: Request):
+        def auth_context(
+            request: Request,
+            _auth=Depends(get_auth_context),
+        ):
             return getattr(request.state, "user", {})
 
         with TestClient(app) as client:
@@ -35,6 +39,7 @@ def test_auth_bypass_injects_demo_user_context():
             "id": "demo-user",
             "name": "Demo User",
             "team": "workspace",
+            "permissions": ["*"],
         }
     finally:
         (
@@ -58,7 +63,7 @@ def test_auth_bypass_startup_logs_warning(caplog):
 
         assert response.status_code == 200
         assert any(
-            "V1: auth bypassed, see rfq_iam_ms integration plan." in record.message
+            "Auth bypass enabled for local/dev mode only." in record.message
             for record in caplog.records
         )
     finally:
