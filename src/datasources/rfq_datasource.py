@@ -2,7 +2,7 @@
 RFQ datasource — database queries for the `rfq` table.
 """
 
-from sqlalchemy import or_, func
+from sqlalchemy import or_, func, text
 from sqlalchemy.orm import Session
 from typing import List
 
@@ -103,21 +103,81 @@ class RfqDatasource:
         return rfq
 
     def get_next_code(self, prefix: str) -> str:
-        """Generate the next sequential RFQ code for the given prefix (e.g. IF-0001)."""
-        import re
-        # Find the max existing code with this prefix
-        latest = (
-            self.session.query(RFQ.rfq_code)
-            .filter(RFQ.rfq_code.like(f"{prefix}-%"))
-            .order_by(RFQ.rfq_code.desc())
-            .first()
+        """Generate the next RFQ code atomically for the given prefix (e.g. IF-0001)."""
+        normalized_prefix = (prefix or "").strip().upper()
+        if not normalized_prefix:
+            raise BadRequestError("RFQ code prefix is required")
+
+        self._ensure_counter_row_exists(normalized_prefix)
+
+        next_value = self.session.execute(
+            text(
+                """
+                UPDATE rfq_code_counter
+                SET last_value = last_value + 1
+                WHERE prefix = :prefix
+                RETURNING last_value
+                """
+            ),
+            {"prefix": normalized_prefix},
+        ).scalar_one_or_none()
+
+        if next_value is None:
+            raise BadRequestError(f"Failed to allocate RFQ code for prefix '{normalized_prefix}'")
+
+        return f"{normalized_prefix}-{next_value:04d}"
+
+    def _ensure_counter_row_exists(self, prefix: str) -> None:
+        """Create counter row lazily if absent, seeded from existing RFQ data."""
+        dialect = self.session.bind.dialect.name if self.session.bind else None
+
+        if dialect == "postgresql":
+            self.session.execute(
+                text(
+                    """
+                    INSERT INTO rfq_code_counter (prefix, last_value)
+                    SELECT
+                        :prefix,
+                        COALESCE(MAX(CAST(split_part(rfq_code, '-', 2) AS INTEGER)), 0)
+                    FROM rfq
+                    WHERE split_part(rfq_code, '-', 1) = :prefix
+                      AND rfq_code ~ :pattern
+                    ON CONFLICT (prefix) DO NOTHING
+                    """
+                ),
+                {
+                    "prefix": prefix,
+                    "pattern": rf"^{prefix}-[0-9]+$",
+                },
+            )
+            return
+
+        # SQLite-compatible fallback used by tests and local quality gate DB.
+        self.session.execute(
+            text(
+                """
+                INSERT INTO rfq_code_counter (prefix, last_value)
+                SELECT
+                    :prefix,
+                    COALESCE(
+                        MAX(
+                            CAST(
+                                SUBSTR(rfq_code, INSTR(rfq_code, '-') + 1)
+                                AS INTEGER
+                            )
+                        ),
+                        0
+                    )
+                FROM rfq
+                WHERE rfq_code GLOB :glob_pattern
+                ON CONFLICT(prefix) DO NOTHING
+                """
+            ),
+            {
+                "prefix": prefix,
+                "glob_pattern": f"{prefix}-[0-9]*",
+            },
         )
-        if latest and latest[0]:
-            match = re.search(r'-(\d+)$', latest[0])
-            next_num = int(match.group(1)) + 1 if match else 1
-        else:
-            next_num = 1
-        return f"{prefix}-{next_num:04d}"
 
     def get_stats(self) -> dict:
         """Dashboard KPIs (#5): total_rfqs_12m, open_rfqs, critical_rfqs, avg_cycle_days."""

@@ -2,8 +2,9 @@
 Models package — SQLAlchemy table definitions.
 
 Each file defines one table class inheriting from `database.Base`.
-Tables (11 total):
+Tables (12 total):
 - rfq
+- rfq_code_counter
 - workflow
 - stage_template
 - rfq_stage

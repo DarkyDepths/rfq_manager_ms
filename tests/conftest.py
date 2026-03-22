@@ -25,6 +25,7 @@ import src.models.rfq_file  # noqa: F401
 import src.models.rfq_stage_field_value  # noqa: F401
 import src.models.rfq_history  # noqa: F401
 import src.models.reminder  # noqa: F401
+import src.models.rfq_code_counter  # noqa: F401
 
 
 @pytest.fixture
