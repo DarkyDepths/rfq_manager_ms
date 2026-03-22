@@ -151,6 +151,20 @@ python scripts/seed.py --scenario=demo --reset --seed=42
 - If missing/invalid, API generates a UUID request ID.
 - Use `X-Request-ID` from responses to correlate logs during incident triage.
 
+## 5.2) Event Publication Baseline (H4)
+
+- Event seam is active through `EVENT_BUS_URL`.
+- Current published lifecycle events:
+  - `rfq.created`
+  - `rfq.status_changed`
+  - `rfq.deadline_changed`
+  - `stage.advanced`
+- Publication is best-effort and post-commit:
+  - business DB commit is source of truth
+  - publish is attempted after successful commit
+  - publish failures are logged and do not roll back completed business writes
+- Tune publication timeout with `EVENT_BUS_REQUEST_TIMEOUT_SECONDS`.
+
 ## 6) Common Incidents and Actions
 
 ### Incident: app fails at startup with configuration error
@@ -205,6 +219,19 @@ Actions:
 
 1. Verify `FILE_STORAGE_PATH` exists and is writable by API process.
 2. In Compose mode, verify host `./uploads` bind mount and permissions.
+
+### Incident: event publication warnings in API logs
+
+Symptoms:
+
+- warning lines include `event_publish_failed` with `event_type` and request id.
+
+Actions:
+
+1. Verify `EVENT_BUS_URL` is configured and reachable from API runtime.
+2. Validate downstream event service status and response codes.
+3. Check timeout pressure and tune `EVENT_BUS_REQUEST_TIMEOUT_SECONDS` if needed.
+4. Use request id from logs to correlate the business write and downstream publish attempt.
 
 ## 7) CI Baseline
 

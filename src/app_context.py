@@ -27,6 +27,7 @@ from src.datasources.reminder_datasource import ReminderDatasource
 
 # ── Connectors ───────────────────────────────────────
 from src.connectors.iam_service import IAMServiceConnector
+from src.connectors.event_bus import EventBusConnector
 
 # ── Controllers ───────────────────────────────────────
 from src.controllers.rfq_controller import RfqController
@@ -67,6 +68,13 @@ def get_iam_service_connector() -> IAMServiceConnector:
     )
 
 
+def get_event_bus_connector() -> EventBusConnector:
+    return EventBusConnector(
+        base_url=settings.EVENT_BUS_URL,
+        timeout_seconds=settings.EVENT_BUS_REQUEST_TIMEOUT_SECONDS,
+    )
+
+
 # ═══════════════════════════════════════════════════════
 # CONTROLLER PROVIDERS
 # ═══════════════════════════════════════════════════════
@@ -75,9 +83,16 @@ def get_rfq_controller(
     rfq_ds: RfqDatasource = Depends(get_rfq_datasource),
     workflow_ds: WorkflowDatasource = Depends(get_workflow_datasource),
     stage_ds: RfqStageDatasource = Depends(get_rfq_stage_datasource),
+    event_bus: EventBusConnector = Depends(get_event_bus_connector),
     db: Session = Depends(get_db),
 ) -> RfqController:
-    return RfqController(rfq_datasource=rfq_ds, workflow_datasource=workflow_ds, rfq_stage_datasource=stage_ds, session=db)
+    return RfqController(
+        rfq_datasource=rfq_ds,
+        workflow_datasource=workflow_ds,
+        rfq_stage_datasource=stage_ds,
+        event_bus_connector=event_bus,
+        session=db,
+    )
 
 def get_workflow_controller(
     ds: WorkflowDatasource = Depends(get_workflow_datasource),
@@ -88,9 +103,15 @@ def get_workflow_controller(
 def get_rfq_stage_controller(
     stage_ds: RfqStageDatasource = Depends(get_rfq_stage_datasource),
     rfq_ds: RfqDatasource = Depends(get_rfq_datasource),
+    event_bus: EventBusConnector = Depends(get_event_bus_connector),
     db: Session = Depends(get_db),
 ) -> RfqStageController:
-    return RfqStageController(stage_datasource=stage_ds, rfq_datasource=rfq_ds, session=db)
+    return RfqStageController(
+        stage_datasource=stage_ds,
+        rfq_datasource=rfq_ds,
+        event_bus_connector=event_bus,
+        session=db,
+    )
 
 def get_subtask_controller(
     ds: SubtaskDatasource = Depends(get_subtask_datasource),

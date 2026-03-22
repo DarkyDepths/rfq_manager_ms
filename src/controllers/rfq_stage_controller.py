@@ -13,17 +13,24 @@ Dependencies: RfqStageDatasource, RfqDatasource
 
 from pathlib import Path
 import uuid
-from datetime import date
+from datetime import date, datetime, timezone
+import logging
+from typing import Any
 
 from sqlalchemy.orm import Session
 
 from src.datasources.rfq_stage_datasource import RfqStageDatasource
 from src.datasources.rfq_datasource import RfqDatasource
+from src.connectors.event_bus import EventBusConnector
 from src.translators import rfq_stage_translator
 from src.models.rfq_stage import RFQStage
 from src.models.subtask import Subtask
 from src.utils.errors import NotFoundError, ConflictError, UnprocessableEntityError, BadRequestError, ForbiddenError
 from src.config.settings import settings
+from src.utils.observability import get_request_id
+
+
+logger = logging.getLogger(__name__)
 
 
 class RfqStageController:
@@ -33,10 +40,12 @@ class RfqStageController:
         stage_datasource: RfqStageDatasource,
         rfq_datasource: RfqDatasource,
         session: Session,
+        event_bus_connector: EventBusConnector | None = None,
     ):
         self.stage_ds = stage_datasource
         self.rfq_ds = rfq_datasource
         self.session = session
+        self.event_bus = event_bus_connector
 
     # ══════════════════════════════════════════════════
     # #10 — LIST STAGES
@@ -135,7 +144,14 @@ class RfqStageController:
     # ══════════════════════════════════════════════════
     # #15 — ADVANCE TO NEXT STAGE
     # ══════════════════════════════════════════════════
-    def advance(self, rfq_id, stage_id, actor_team: str):
+    def advance(
+        self,
+        rfq_id,
+        stage_id,
+        actor_team: str,
+        actor_user_id: str | None = None,
+        actor_name: str | None = None,
+    ):
         """
         The core workflow engine:
         1. Validate stage exists and belongs to this RFQ
@@ -148,6 +164,8 @@ class RfqStageController:
         """
         stage = self._get_stage_or_404(rfq_id, stage_id)
         rfq = self.rfq_ds.get_by_id(rfq_id)
+        previous_stage_status = stage.status
+        previous_rfq_status = rfq.status
 
         self._validate_stage_team_access(stage, actor_team)
 
@@ -186,6 +204,31 @@ class RfqStageController:
         # Step 7 — Commit
         self.session.commit()
         self.session.refresh(stage)
+
+        payload: dict[str, Any] = {
+            "rfq_id": str(rfq.id),
+            "stage_id": str(stage.id),
+            "stage_name": stage.name,
+            "previous_stage_status": previous_stage_status,
+            "new_stage_status": stage.status,
+            "advanced_at": self._utc_now_iso(),
+            "assigned_team": stage.assigned_team,
+        }
+        if getattr(rfq, "rfq_code", None):
+            payload["rfq_code"] = rfq.rfq_code
+        if previous_rfq_status != rfq.status:
+            payload["previous_rfq_status"] = previous_rfq_status
+            payload["new_rfq_status"] = rfq.status
+
+        self._publish_event_best_effort(
+            "stage.advanced",
+            payload=payload,
+            metadata=self._build_event_metadata(
+                actor_user_id=actor_user_id,
+                actor_name=actor_name,
+                actor_team=actor_team,
+            ),
+        )
 
         return self._load_detail(stage)
 
@@ -264,3 +307,44 @@ class RfqStageController:
             rfq.progress = total_progress // len(non_skipped)
 
         self.session.flush()
+
+    @staticmethod
+    def _utc_now_iso() -> str:
+        return datetime.now(timezone.utc).isoformat()
+
+    def _build_event_metadata(
+        self,
+        actor_user_id: str | None,
+        actor_name: str | None,
+        actor_team: str | None,
+    ) -> dict[str, Any]:
+        request_id = get_request_id()
+        metadata: dict[str, Any] = {
+            "service_version": "v1",
+        }
+
+        if request_id and request_id != "-":
+            metadata["request_id"] = request_id
+        if actor_user_id:
+            metadata["actor_user_id"] = actor_user_id
+        if actor_name:
+            metadata["actor_name"] = actor_name
+        if actor_team:
+            metadata["actor_team"] = actor_team
+
+        return metadata
+
+    def _publish_event_best_effort(self, event_type: str, payload: dict[str, Any], metadata: dict[str, Any]) -> None:
+        if not self.event_bus:
+            return
+
+        try:
+            self.event_bus.publish(event_type=event_type, payload=payload, metadata=metadata)
+        except Exception as exc:
+            logger.warning(
+                "event_publish_failed event_type=%s request_id=%s entity_ids=%s error=%s",
+                event_type,
+                metadata.get("request_id", "-"),
+                {k: v for k, v in payload.items() if k.endswith("_id")},
+                str(exc),
+            )

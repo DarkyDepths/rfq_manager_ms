@@ -1,10 +1,12 @@
 import pytest
 import uuid
 from datetime import date
+from datetime import datetime
 
 from src.controllers.rfq_controller import RfqController
 from src.translators.rfq_translator import RfqUpdateRequest
 from src.utils.errors import ConflictError
+from src.utils.observability import request_id_context
 
 class MockRFQ:
     def __init__(self, rfq_code, name, client, priority, status, progress, deadline, owner, created_at):
@@ -169,8 +171,8 @@ class MockRfqDatasourceForCreate:
             owner = data["owner"]
             description = data.get("description")
             outcome_reason = None
-            created_at = date(2026, 1, 1)
-            updated_at = date(2026, 1, 1)
+            created_at = datetime(2026, 1, 1)
+            updated_at = datetime(2026, 1, 1)
 
         return _RFQ()
 
@@ -486,3 +488,123 @@ def test_recalculate_stage_dates_uses_template_id_when_names_overlap():
     assert stage_1.planned_end == date(2030, 1, 21)
     assert stage_1.planned_start == date(2030, 1, 18)
     assert session.flushed is True
+
+
+class MockEventBusConnector:
+    def __init__(self, on_publish=None):
+        self.calls = []
+        self.on_publish = on_publish
+
+    def publish(self, event_type, payload, metadata):
+        if self.on_publish:
+            self.on_publish(event_type, payload, metadata)
+        self.calls.append({"event_type": event_type, "payload": payload, "metadata": metadata})
+
+
+def test_create_publishes_rfq_created_once_after_commit():
+    workflow_id = uuid.uuid4()
+    workflow = MockWorkflowForCreate(workflow_id)
+    rfq_ds = MockRfqDatasourceForCreate()
+    stage_ds = MockRfqStageDatasourceForCreate()
+    session = MockSession()
+
+    def _assert_commit_happened(_event_type, _payload, _metadata):
+        assert session.committed is True
+
+    bus = MockEventBusConnector(on_publish=_assert_commit_happened)
+    ctrl = RfqController(
+        rfq_datasource=rfq_ds,
+        workflow_datasource=MockWorkflowDatasourceForCreate(workflow),
+        rfq_stage_datasource=stage_ds,
+        session=session,
+        event_bus_connector=bus,
+    )
+
+    from src.translators.rfq_translator import RfqCreateRequest
+
+    req = RfqCreateRequest(
+        name="RFQ Create",
+        client="Client",
+        deadline=date(2030, 1, 1),
+        owner="Owner",
+        workflow_id=workflow_id,
+        code_prefix="IF",
+    )
+
+    token = request_id_context.set("req-h4-12345678")
+    try:
+        ctrl.create(req, actor_user_id="u-1", actor_name="Alice", actor_team="Engineering")
+    finally:
+        request_id_context.reset(token)
+
+    assert len(bus.calls) == 1
+    call = bus.calls[0]
+    assert call["event_type"] == "rfq.created"
+    assert call["payload"]["rfq_code"] == "IF-1002"
+    assert call["metadata"]["request_id"] == "req-h4-12345678"
+    assert call["metadata"]["actor_user_id"] == "u-1"
+
+
+def test_update_publishes_status_changed_only_when_value_actually_changes():
+    rfq = MockRfqForUpdate(status="In preparation")
+    session = MockSession()
+    bus = MockEventBusConnector()
+    ctrl = RfqController(
+        MockRfqDatasourceForUpdate(rfq),
+        MockWorkflowDatasource(),
+        None,
+        session,
+        event_bus_connector=bus,
+    )
+
+    ctrl.update(rfq.id, RfqUpdateRequest(status="Submitted"))
+    assert any(call["event_type"] == "rfq.status_changed" for call in bus.calls)
+
+    bus.calls.clear()
+    rfq.status = "Submitted"
+    ctrl.update(rfq.id, RfqUpdateRequest(status="Submitted"))
+    assert all(call["event_type"] != "rfq.status_changed" for call in bus.calls)
+
+
+def test_update_publishes_deadline_changed_only_when_value_actually_changes():
+    rfq = MockRfqForUpdate(status="In preparation")
+    session = MockSession()
+    bus = MockEventBusConnector()
+    ctrl = RfqController(
+        MockRfqDatasourceForUpdate(rfq),
+        MockWorkflowDatasource(),
+        None,
+        session,
+        event_bus_connector=bus,
+    )
+
+    ctrl.update(rfq.id, RfqUpdateRequest(deadline=date(2031, 1, 1)))
+    assert any(call["event_type"] == "rfq.deadline_changed" for call in bus.calls)
+
+    bus.calls.clear()
+    rfq.deadline = date(2031, 1, 1)
+    ctrl.update(rfq.id, RfqUpdateRequest(deadline=date(2031, 1, 1)))
+    assert all(call["event_type"] != "rfq.deadline_changed" for call in bus.calls)
+
+
+def test_event_publish_failure_does_not_fail_successful_update_and_is_logged(caplog):
+    rfq = MockRfqForUpdate(status="In preparation")
+    session = MockSession()
+
+    class _FailingBus:
+        def publish(self, _event_type, _payload, _metadata):
+            raise RuntimeError("event bus down")
+
+    ctrl = RfqController(
+        MockRfqDatasourceForUpdate(rfq),
+        MockWorkflowDatasource(),
+        None,
+        session,
+        event_bus_connector=_FailingBus(),
+    )
+
+    result = ctrl.update(rfq.id, RfqUpdateRequest(status="Submitted"))
+
+    assert result.status == "Submitted"
+    assert session.committed is True
+    assert any("event_publish_failed" in record.message for record in caplog.records)

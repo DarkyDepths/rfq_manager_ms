@@ -7,6 +7,7 @@ from src.models.rfq_stage import RFQStage
 from src.models.rfq import RFQ
 from src.utils.errors import ConflictError, UnprocessableEntityError, BadRequestError
 from src.translators.rfq_stage_translator import RfqStageUpdateRequest, NoteCreateRequest
+from src.utils.observability import request_id_context
 
 RFQ1 = str(uuid.uuid4())
 ST1 = str(uuid.uuid4())
@@ -261,3 +262,104 @@ def test_stage_detail_file_response_hides_file_path():
     payload = res.files[0].model_dump()
     assert "file_path" not in payload
     assert payload["download_url"] == f"/rfq-manager/v1/files/{file_id}/download"
+
+
+class _TrackingSession(MockSession):
+    def __init__(self):
+        super().__init__()
+        self.committed = False
+
+    def commit(self):
+        self.committed = True
+
+
+class _TrackingEventBus:
+    def __init__(self, on_publish=None):
+        self.calls = []
+        self.on_publish = on_publish
+
+    def publish(self, event_type, payload, metadata):
+        if self.on_publish:
+            self.on_publish(event_type, payload, metadata)
+        self.calls.append({"event_type": event_type, "payload": payload, "metadata": metadata})
+
+
+def test_advance_publishes_stage_advanced_after_commit_with_metadata():
+    stage_ds = MockStageDatasource()
+    stage = RFQStage(
+        id=ST1,
+        rfq_id=RFQ1,
+        status="In preparation",
+        blocker_status="None",
+        mandatory_fields="po_number",
+        captured_data={"po_number": "123"},
+        order=1,
+        name="Stage 1",
+        assigned_team="Team A",
+    )
+    stage_ds.get_by_id = lambda _id: stage
+
+    rfq_ds = MockRfqDatasource()
+    rfq = RFQ(id=RFQ1, current_stage_id=ST1, status="In preparation", rfq_code="IF-1001")
+    rfq_ds.get_by_id = lambda _id: rfq
+
+    session = _TrackingSession()
+
+    def _assert_commit_happened(_event_type, _payload, _metadata):
+        assert session.committed is True
+
+    bus = _TrackingEventBus(on_publish=_assert_commit_happened)
+    ctrl = RfqStageController(stage_ds, rfq_ds, session, event_bus_connector=bus)
+
+    token = request_id_context.set("req-h4-stage-12345678")
+    try:
+        ctrl.advance(
+            RFQ1,
+            ST1,
+            actor_team="Team A",
+            actor_user_id="u-adv-1",
+            actor_name="Advancer",
+        )
+    finally:
+        request_id_context.reset(token)
+
+    assert len(bus.calls) == 1
+    call = bus.calls[0]
+    assert call["event_type"] == "stage.advanced"
+    assert call["payload"]["stage_id"] == ST1
+    assert call["payload"]["new_stage_status"] == "Completed"
+    assert call["metadata"]["request_id"] == "req-h4-stage-12345678"
+    assert call["metadata"]["actor_user_id"] == "u-adv-1"
+
+
+def test_advance_event_publish_failure_is_non_blocking_and_logged(caplog):
+    stage_ds = MockStageDatasource()
+    stage = RFQStage(
+        id=ST1,
+        rfq_id=RFQ1,
+        status="In preparation",
+        blocker_status="None",
+        mandatory_fields="po_number",
+        captured_data={"po_number": "123"},
+        order=1,
+        name="Stage 1",
+        assigned_team="Team A",
+    )
+    stage_ds.get_by_id = lambda _id: stage
+
+    rfq_ds = MockRfqDatasource()
+    rfq = RFQ(id=RFQ1, current_stage_id=ST1, status="In preparation")
+    rfq_ds.get_by_id = lambda _id: rfq
+
+    class _FailingEventBus:
+        def publish(self, _event_type, _payload, _metadata):
+            raise RuntimeError("event bus unavailable")
+
+    session = _TrackingSession()
+    ctrl = RfqStageController(stage_ds, rfq_ds, session, event_bus_connector=_FailingEventBus())
+
+    result = ctrl.advance(RFQ1, ST1, actor_team="Team A")
+
+    assert result.status == "Completed"
+    assert session.committed is True
+    assert any("event_publish_failed" in record.message for record in caplog.records)

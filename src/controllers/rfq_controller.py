@@ -12,13 +12,16 @@ Orchestrates:
 Dependencies: RfqDatasource, RfqStageDatasource, WorkflowDatasource
 """
 
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
+import logging
+from typing import Any
 
 from sqlalchemy.orm import Session
 
 from src.datasources.rfq_datasource import RfqDatasource
 from src.datasources.workflow_datasource import WorkflowDatasource
 from src.datasources.rfq_stage_datasource import RfqStageDatasource
+from src.connectors.event_bus import EventBusConnector
 from src.models.rfq_stage import RFQStage
 from src.translators import rfq_translator
 from src.utils.errors import NotFoundError, BadRequestError, ConflictError
@@ -26,6 +29,10 @@ import csv
 import io
 from typing import List
 from src.utils.pagination import PaginationParams, paginate, paginated_response
+from src.utils.observability import get_request_id
+
+
+logger = logging.getLogger(__name__)
 
 
 class RfqController:
@@ -47,16 +54,24 @@ class RfqController:
         workflow_datasource: WorkflowDatasource,
         rfq_stage_datasource: RfqStageDatasource,
         session: Session,
+        event_bus_connector: EventBusConnector | None = None,
     ):
         self.rfq_ds = rfq_datasource
         self.workflow_ds = workflow_datasource
         self.stage_ds = rfq_stage_datasource
+        self.event_bus = event_bus_connector
         self.session = session
 
     # ══════════════════════════════════════════════════
     # CREATE — the most complex method
     # ══════════════════════════════════════════════════
-    def create(self, request: rfq_translator.RfqCreateRequest) -> rfq_translator.RfqDetail:
+    def create(
+        self,
+        request: rfq_translator.RfqCreateRequest,
+        actor_user_id: str | None = None,
+        actor_name: str | None = None,
+        actor_team: str | None = None,
+    ) -> rfq_translator.RfqDetail:
         """Create an RFQ with auto-generated stages."""
 
         # ── 1. Validate workflow exists ───────────────
@@ -133,6 +148,27 @@ class RfqController:
         # ── 8. Commit — everything or nothing ─────────
         self.session.commit()
         self.session.refresh(rfq)
+
+        self._publish_event_best_effort(
+            "rfq.created",
+            payload={
+                "rfq_id": str(rfq.id),
+                "rfq_code": rfq.rfq_code,
+                "name": rfq.name,
+                "client": rfq.client,
+                "status": rfq.status,
+                "priority": rfq.priority,
+                "workflow_id": str(rfq.workflow_id),
+                "deadline": rfq.deadline.isoformat() if rfq.deadline else None,
+                "owner": rfq.owner,
+                "created_at": (
+                    rfq.created_at.isoformat()
+                    if isinstance(rfq.created_at, datetime)
+                    else None
+                ),
+            },
+            metadata=self._build_event_metadata(actor_user_id, actor_name, actor_team),
+        )
 
         return rfq_translator.to_detail(
             rfq,
@@ -238,13 +274,22 @@ class RfqController:
     # ══════════════════════════════════════════════════
     # UPDATE
     # ══════════════════════════════════════════════════
-    def update(self, rfq_id, request: rfq_translator.RfqUpdateRequest) -> rfq_translator.RfqDetail:
+    def update(
+        self,
+        rfq_id,
+        request: rfq_translator.RfqUpdateRequest,
+        actor_user_id: str | None = None,
+        actor_name: str | None = None,
+        actor_team: str | None = None,
+    ) -> rfq_translator.RfqDetail:
         """Partial update. Deadline change triggers stage date recalculation."""
         rfq = self.rfq_ds.get_by_id(rfq_id)
         if not rfq:
             raise NotFoundError(f"RFQ '{rfq_id}' not found")
 
         update_data = request.model_dump(exclude_unset=True)
+        previous_status = rfq.status
+        previous_deadline = rfq.deadline
         new_status = update_data.get("status")
 
         # ── LG-01: Enforce RFQ lifecycle FSM transitions ─────────────
@@ -287,6 +332,34 @@ class RfqController:
         rfq = self.rfq_ds.update(rfq, update_data)
         self.session.commit()
         self.session.refresh(rfq)
+
+        metadata = self._build_event_metadata(actor_user_id, actor_name, actor_team)
+
+        if previous_status != rfq.status:
+            self._publish_event_best_effort(
+                "rfq.status_changed",
+                payload={
+                    "rfq_id": str(rfq.id),
+                    "rfq_code": rfq.rfq_code,
+                    "previous_status": previous_status,
+                    "new_status": rfq.status,
+                    "changed_at": self._utc_now_iso(),
+                },
+                metadata=metadata,
+            )
+
+        if previous_deadline != rfq.deadline:
+            self._publish_event_best_effort(
+                "rfq.deadline_changed",
+                payload={
+                    "rfq_id": str(rfq.id),
+                    "rfq_code": rfq.rfq_code,
+                    "previous_deadline": previous_deadline.isoformat() if previous_deadline else None,
+                    "new_deadline": rfq.deadline.isoformat() if rfq.deadline else None,
+                    "changed_at": self._utc_now_iso(),
+                },
+                metadata=metadata,
+            )
 
         current_stage_name = self._get_current_stage_name(rfq)
         workflow_name = self._get_workflow_name(rfq.workflow_id)
@@ -418,6 +491,47 @@ class RfqController:
         if new_status not in allowed_next:
             raise ConflictError(
                 f"Invalid RFQ status transition from '{current_status}' to '{new_status}'."
+            )
+
+    @staticmethod
+    def _utc_now_iso() -> str:
+        return datetime.now(timezone.utc).isoformat()
+
+    def _build_event_metadata(
+        self,
+        actor_user_id: str | None,
+        actor_name: str | None,
+        actor_team: str | None,
+    ) -> dict[str, Any]:
+        request_id = get_request_id()
+        metadata: dict[str, Any] = {
+            "service_version": "v1",
+        }
+
+        if request_id and request_id != "-":
+            metadata["request_id"] = request_id
+        if actor_user_id:
+            metadata["actor_user_id"] = actor_user_id
+        if actor_name:
+            metadata["actor_name"] = actor_name
+        if actor_team:
+            metadata["actor_team"] = actor_team
+
+        return metadata
+
+    def _publish_event_best_effort(self, event_type: str, payload: dict[str, Any], metadata: dict[str, Any]) -> None:
+        if not self.event_bus:
+            return
+
+        try:
+            self.event_bus.publish(event_type=event_type, payload=payload, metadata=metadata)
+        except Exception as exc:
+            logger.warning(
+                "event_publish_failed event_type=%s request_id=%s entity_ids=%s error=%s",
+                event_type,
+                metadata.get("request_id", "-"),
+                {k: v for k, v in payload.items() if k.endswith("_id")},
+                str(exc),
             )
 
     def _calculate_progress_excluding_skipped(self, stages) -> int:
