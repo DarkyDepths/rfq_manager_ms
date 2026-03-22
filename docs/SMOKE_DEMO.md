@@ -30,7 +30,7 @@ docker compose logs --tail 200 api
 ## 3) Authoritative Seed Command
 
 ```bash
-docker compose exec api python scripts/seed.py --scenario=demo --reset --seed=42
+docker compose exec -e PYTHONPATH=/app api python scripts/seed.py --scenario=demo --reset --seed=42
 ```
 
 Expected outcome:
@@ -121,7 +121,7 @@ If a step fails:
 
 1. Re-check container status: `docker compose ps`
 2. Re-check logs: `docker compose logs --tail 200 api`
-3. Re-run seed command once: `docker compose exec api python scripts/seed.py --scenario=demo --reset --seed=42`
+3. Re-run seed command once: `docker compose exec -e PYTHONPATH=/app api python scripts/seed.py --scenario=demo --reset --seed=42`
 4. Retry only the failed smoke step.
 
 ## 5) Stop / Reset After Demo
@@ -137,5 +137,5 @@ Full reset (containers + DB volume):
 ```bash
 docker compose down -v
 docker compose up --build -d
-docker compose exec api python scripts/seed.py --scenario=demo --reset --seed=42
+docker compose exec -e PYTHONPATH=/app api python scripts/seed.py --scenario=demo --reset --seed=42
 ```

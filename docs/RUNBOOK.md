@@ -111,13 +111,13 @@ alembic upgrade head
 Seed (Docker Compose authoritative path):
 
 ```bash
-docker compose exec api python scripts/seed.py --scenario=demo --seed=42
+docker compose exec -e PYTHONPATH=/app api python scripts/seed.py --scenario=demo --seed=42
 ```
 
 Reset and reseed (Compose):
 
 ```bash
-docker compose exec api python scripts/seed.py --scenario=demo --reset --seed=42
+docker compose exec -e PYTHONPATH=/app api python scripts/seed.py --scenario=demo --reset --seed=42
 ```
 
 Seed scenarios (local venv / non-compose):

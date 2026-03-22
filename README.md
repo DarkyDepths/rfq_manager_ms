@@ -150,7 +150,7 @@ docker compose ps
 # http://localhost:8000/docs
 
 # Seed demo data inside the API container
-docker compose exec api python scripts/seed.py --scenario=demo --seed=42
+docker compose exec -e PYTHONPATH=/app api python scripts/seed.py --scenario=demo --seed=42
 
 # Run the leadership/reviewer smoke path
 # docs/SMOKE_DEMO.md
