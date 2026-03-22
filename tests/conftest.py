@@ -13,6 +13,7 @@ from sqlalchemy.orm import sessionmaker
 
 from src.app import create_app
 from src.app_context import get_db
+from src.config.settings import settings
 from src.database import Base
 
 # Ensure all model metadata is registered for Base.metadata.create_all().
@@ -50,6 +51,8 @@ def db_session(db_engine):
 
 @pytest.fixture
 def app(db_session):
+	original_auth_bypass = settings.AUTH_BYPASS_ENABLED
+	settings.AUTH_BYPASS_ENABLED = True
 	application = create_app()
 
 	def _override_get_db():
@@ -60,6 +63,7 @@ def app(db_session):
 		yield application
 	finally:
 		application.dependency_overrides.clear()
+		settings.AUTH_BYPASS_ENABLED = original_auth_bypass
 
 
 @pytest.fixture

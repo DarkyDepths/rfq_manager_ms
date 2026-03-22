@@ -82,7 +82,9 @@ def fs01_env(tmp_path):
             db.close()
 
     original_storage = settings.FILE_STORAGE_PATH
+    original_bypass = settings.AUTH_BYPASS_ENABLED
     settings.FILE_STORAGE_PATH = str(storage_root)
+    settings.AUTH_BYPASS_ENABLED = True
     app.dependency_overrides[get_db] = override_get_db
 
     with TestClient(app) as client:
@@ -96,6 +98,7 @@ def fs01_env(tmp_path):
 
     app.dependency_overrides.pop(get_db, None)
     settings.FILE_STORAGE_PATH = original_storage
+    settings.AUTH_BYPASS_ENABLED = original_bypass
     engine.dispose()
 
 

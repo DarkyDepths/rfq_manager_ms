@@ -22,7 +22,7 @@ from src.datasources.rfq_datasource import RfqDatasource
 from src.translators import rfq_stage_translator
 from src.models.rfq_stage import RFQStage
 from src.models.subtask import Subtask
-from src.utils.errors import NotFoundError, ConflictError, UnprocessableEntityError, BadRequestError
+from src.utils.errors import NotFoundError, ConflictError, UnprocessableEntityError, BadRequestError, ForbiddenError
 from src.config.settings import settings
 
 
@@ -81,7 +81,7 @@ class RfqStageController:
     # ══════════════════════════════════════════════════
     # #13 — ADD NOTE (append-only)
     # ══════════════════════════════════════════════════
-    def add_note(self, rfq_id, stage_id, request: rfq_stage_translator.NoteCreateRequest, user_name: str = "System"):
+    def add_note(self, rfq_id, stage_id, request: rfq_stage_translator.NoteCreateRequest, user_name: str):
         self._get_stage_or_404(rfq_id, stage_id)
 
         note = self.stage_ds.add_note({
@@ -95,7 +95,7 @@ class RfqStageController:
     # ══════════════════════════════════════════════════
     # #14 — UPLOAD FILE
     # ══════════════════════════════════════════════════
-    def upload_file(self, rfq_id, stage_id, filename: str, file_type: str, file_content: bytes, uploaded_by: str = "System"):
+    def upload_file(self, rfq_id, stage_id, filename: str, file_type: str, file_content: bytes, uploaded_by: str):
         self._get_stage_or_404(rfq_id, stage_id)
 
         # Size limit check
@@ -135,7 +135,7 @@ class RfqStageController:
     # ══════════════════════════════════════════════════
     # #15 — ADVANCE TO NEXT STAGE
     # ══════════════════════════════════════════════════
-    def advance(self, rfq_id, stage_id):
+    def advance(self, rfq_id, stage_id, actor_team: str):
         """
         The core workflow engine:
         1. Validate stage exists and belongs to this RFQ
@@ -148,6 +148,8 @@ class RfqStageController:
         """
         stage = self._get_stage_or_404(rfq_id, stage_id)
         rfq = self.rfq_ds.get_by_id(rfq_id)
+
+        self._validate_stage_team_access(stage, actor_team)
 
         # Step 1.5 — Validate stage is the current active stage
         if str(stage.id) != str(rfq.current_stage_id):
@@ -186,6 +188,18 @@ class RfqStageController:
         self.session.refresh(stage)
 
         return self._load_detail(stage)
+
+    def _validate_stage_team_access(self, stage: RFQStage, actor_team: str):
+        stage_team = (stage.assigned_team or "").strip().lower()
+        user_team = (actor_team or "").strip().lower()
+
+        if not stage_team:
+            raise ForbiddenError("Stage advance denied: stage has no assigned team")
+
+        if not user_team or user_team != stage_team:
+            raise ForbiddenError(
+                f"Stage advance denied: actor team '{actor_team or 'unknown'}' does not match assigned team '{stage.assigned_team}'"
+            )
 
     # ══════════════════════════════════════════════════
     # PRIVATE HELPERS

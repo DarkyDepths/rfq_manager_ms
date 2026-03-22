@@ -8,9 +8,11 @@ Classes:
 - AppError(status_code, error, message) — base class
 - NotFoundError(resource, id)           — 404
 - BadRequestError(message)              — 400
+- UnauthorizedError(message)            — 401
 - UnprocessableEntityError(message)     — 422
 - ConflictError(message)               — 409
 - ForbiddenError(message)              — 403
+- ServiceUnavailableError(message)      — 503
 """
 
 class AppError(Exception):
@@ -45,6 +47,13 @@ class BadRequestError(AppError):
     message = "Bad request"
 
 
+class UnauthorizedError(AppError):
+    """401 — Missing/invalid authentication credentials."""
+
+    status_code = 401
+    message = "Unauthorized"
+
+
 class UnprocessableEntityError(AppError):
     """422 — Data is valid JSON but violates business rules.
     Example: advancing a stage with missing mandatory fields."""
@@ -67,5 +76,13 @@ class ForbiddenError(AppError):
 
     status_code = 403
     message = "Forbidden"
+
+
+class ServiceUnavailableError(AppError):
+    """503 — Upstream dependency unavailable.
+    Example: IAM service timeout/unreachable."""
+
+    status_code = 503
+    message = "Service unavailable"
 
 

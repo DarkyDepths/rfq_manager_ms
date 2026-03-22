@@ -29,6 +29,7 @@ from src.translators.rfq_translator import (
 
 from src.app_context import get_rfq_controller
 from src.controllers.rfq_controller import RfqController
+from src.utils.auth import Permissions, require_permission
 
 
 router = APIRouter(prefix="/rfqs", tags=["RFQ"])
@@ -38,6 +39,7 @@ router = APIRouter(prefix="/rfqs", tags=["RFQ"])
 @router.post("", status_code=201, response_model=RfqDetail)
 def create_rfq(
     body: RfqCreateRequest,
+    _auth=Depends(require_permission(Permissions.RFQ_CREATE)),
     ctrl: RfqController = Depends(get_rfq_controller),
 ):
     """Create a new RFQ with auto-generated stages."""
@@ -56,6 +58,7 @@ def list_rfqs(
     sort: Optional[str] = Query(None, description="Sort field, prefix - for desc"),
     page: int = Query(1, ge=1, description="Page number"),
     size: int = Query(20, ge=1, le=100, description="Items per page"),
+    _auth=Depends(require_permission(Permissions.RFQ_READ)),
     ctrl: RfqController = Depends(get_rfq_controller),
 ):
     """Paginated list with search, filters, and sort."""
@@ -72,6 +75,7 @@ def export_rfqs(
     created_after: Optional[date] = Query(None, description="Filter RFQs created on or after this date"),
     created_before: Optional[date] = Query(None, description="Filter RFQs created on or before this date"),
     sort: Optional[str] = Query(None, description="Sort field, prefix - for desc"),
+    _auth=Depends(require_permission(Permissions.RFQ_EXPORT)),
     ctrl: RfqController = Depends(get_rfq_controller),
 ):
     """Export filtered RFQs as a CSV file."""
@@ -91,6 +95,7 @@ def export_rfqs(
 # IMPORTANT: /stats and /analytics must be BEFORE /{rfq_id}
 @router.get("/stats", response_model=RfqStats)
 def rfq_stats(
+    _auth=Depends(require_permission(Permissions.RFQ_STATS)),
     ctrl: RfqController = Depends(get_rfq_controller),
 ):
     """Dashboard KPIs: total, open, critical, avg cycle."""
@@ -100,6 +105,7 @@ def rfq_stats(
 # ── #7 — RFQ Analytics ───────────────────────────────
 @router.get("/analytics", response_model=RfqAnalytics)
 def rfq_analytics(
+    _auth=Depends(require_permission(Permissions.RFQ_ANALYTICS)),
     ctrl: RfqController = Depends(get_rfq_controller),
 ):
     """Business analytics: win rate, margins, by-client breakdown."""
@@ -110,6 +116,7 @@ def rfq_analytics(
 @router.get("/{rfq_id}", response_model=RfqDetail)
 def get_rfq(
     rfq_id: UUID,
+    _auth=Depends(require_permission(Permissions.RFQ_READ)),
     ctrl: RfqController = Depends(get_rfq_controller),
 ):
     """Full RFQ detail by ID."""
@@ -121,6 +128,7 @@ def get_rfq(
 def update_rfq(
     rfq_id: UUID,
     body: RfqUpdateRequest,
+    _auth=Depends(require_permission(Permissions.RFQ_UPDATE)),
     ctrl: RfqController = Depends(get_rfq_controller),
 ):
     """Partial update — only send fields you want to change."""

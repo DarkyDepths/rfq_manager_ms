@@ -4,6 +4,7 @@ info:
   description: |
     Current interface contract for the RFQ Manager microservice.
     Current repository-tracked V1 scope: 31 endpoints across 7 resources.
+    Public liveness endpoint is intentionally served separately at /health.
   version: "1.0.0"
   contact:
     name: RFQ Manager Team
@@ -28,8 +29,8 @@ tags:
   - name: Reminder
     description: Manual and auto-created reminders, rules, batch processing
 
-# security:
-#   - bearerAuth: []
+security:
+  - bearerAuth: []
 
 # ═══════════════════════════════════════════════════
 # PATHS
@@ -324,7 +325,7 @@ paths:
       summary: "#14 — Add note to stage"
       description: |
         Append-only — prevents concurrent overwrite.
-        Auto-sets: user_name (hardcoded placeholder 'System' in V1), created_at (server timestamp), id.
+        Auto-sets: user_name from authenticated actor context, created_at (server timestamp), id.
       operationId: addStageNote
       parameters:
         - $ref: '#/components/parameters/RfqIdParam'
@@ -697,27 +698,17 @@ paths:
                     type: string
                     example: "Test email sent to user@company.com"
 
-  /health:
-    get:
-      tags: [Health]
-      summary: "#31 — Health Liveness Check"
-      description: Returns service liveness status.
-      operationId: getHealth
-      responses:
-        '200':
-          description: OK
-
 # ═══════════════════════════════════════════════════
 # COMPONENTS
 # ═══════════════════════════════════════════════════
 components:
 
-  # securitySchemes:
-  #   bearerAuth:
-  #     type: http
-  #     scheme: bearer
-  #     bearerFormat: JWT
-  #     description: JWT token from rfq_iam_ms
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token from rfq_iam_ms
 
   # ──── PARAMETERS ─────────────────────────────────
   parameters:

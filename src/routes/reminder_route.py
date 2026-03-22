@@ -21,14 +21,19 @@ from src.translators.reminder_translator import (
 )
 from src.app_context import get_reminder_controller
 from src.controllers.reminder_controller import ReminderController
+from src.utils.auth import AuthContext, Permissions, require_permission
 
 router = APIRouter(prefix="/reminders", tags=["Reminder"])
 
 
 @router.post("", status_code=201, response_model=ReminderResponse)
-def create_reminder(body: ReminderCreateRequest, ctrl: ReminderController = Depends(get_reminder_controller)):
+def create_reminder(
+    body: ReminderCreateRequest,
+    auth: AuthContext = Depends(require_permission(Permissions.REMINDER_CREATE)),
+    ctrl: ReminderController = Depends(get_reminder_controller),
+):
     """#21 — Create reminder."""
-    return ctrl.create(body)
+    return ctrl.create(body, created_by=auth.user_name)
 
 
 @router.get("", response_model=ReminderListResponse)
@@ -36,6 +41,7 @@ def list_reminders(
     user: Optional[str] = Query(None),
     status: Optional[str] = Query(None),
     rfq_id: Optional[UUID] = Query(None),
+    _auth=Depends(require_permission(Permissions.REMINDER_READ)),
     ctrl: ReminderController = Depends(get_reminder_controller),
 ):
     """#22 — List reminders with filters."""
@@ -43,29 +49,46 @@ def list_reminders(
 
 
 @router.get("/stats", response_model=ReminderStatsResponse)
-def reminder_stats(ctrl: ReminderController = Depends(get_reminder_controller)):
+def reminder_stats(
+    _auth=Depends(require_permission(Permissions.REMINDER_READ)),
+    ctrl: ReminderController = Depends(get_reminder_controller),
+):
     """#23 — Reminder KPIs."""
     return ctrl.get_stats()
 
 
 @router.get("/rules", response_model=ReminderRuleListResponse)
-def list_rules(ctrl: ReminderController = Depends(get_reminder_controller)):
+def list_rules(
+    _auth=Depends(require_permission(Permissions.REMINDER_READ)),
+    ctrl: ReminderController = Depends(get_reminder_controller),
+):
     """#24 — List reminder rules."""
     return ctrl.list_rules()
 
 
 @router.patch("/rules/{rule_id}", response_model=ReminderRuleResponse)
-def update_rule(rule_id: UUID, body: ReminderRuleUpdateRequest, ctrl: ReminderController = Depends(get_reminder_controller)):
+def update_rule(
+    rule_id: UUID,
+    body: ReminderRuleUpdateRequest,
+    _auth=Depends(require_permission(Permissions.REMINDER_UPDATE_RULES)),
+    ctrl: ReminderController = Depends(get_reminder_controller),
+):
     """#25 — Toggle reminder rule active/inactive."""
     return ctrl.update_rule(rule_id, body)
 
 
 @router.post("/test")
-def test_reminder(ctrl: ReminderController = Depends(get_reminder_controller)):
+def test_reminder(
+    _auth=Depends(require_permission(Permissions.REMINDER_TEST)),
+    ctrl: ReminderController = Depends(get_reminder_controller),
+):
     """#26 — Test reminder email (log-only in V1)."""
     return ctrl.test_email()
 
 @router.post("/process")
-def process_reminders(ctrl: ReminderController = Depends(get_reminder_controller)):
+def process_reminders(
+    _auth=Depends(require_permission(Permissions.REMINDER_PROCESS)),
+    ctrl: ReminderController = Depends(get_reminder_controller),
+):
     """#27 — Trigger batch processing of due reminders."""
     return ctrl.process_reminders()

@@ -15,6 +15,7 @@ from fastapi import Depends
 from sqlalchemy.orm import Session
 
 from src.database import get_db
+from src.config.settings import settings
 
 # ── Datasources ───────────────────────────────────────
 from src.datasources.rfq_datasource import RfqDatasource
@@ -23,6 +24,9 @@ from src.datasources.rfq_stage_datasource import RfqStageDatasource
 from src.datasources.subtask_datasource import SubtaskDatasource
 from src.datasources.file_datasource import FileDatasource
 from src.datasources.reminder_datasource import ReminderDatasource
+
+# ── Connectors ───────────────────────────────────────
+from src.connectors.iam_service import IAMServiceConnector
 
 # ── Controllers ───────────────────────────────────────
 from src.controllers.rfq_controller import RfqController
@@ -54,6 +58,13 @@ def get_file_datasource(db: Session = Depends(get_db)) -> FileDatasource:
 
 def get_reminder_datasource(db: Session = Depends(get_db)) -> ReminderDatasource:
     return ReminderDatasource(db)
+
+
+def get_iam_service_connector() -> IAMServiceConnector:
+    return IAMServiceConnector(
+        base_url=settings.IAM_SERVICE_URL,
+        timeout_seconds=settings.IAM_REQUEST_TIMEOUT_SECONDS,
+    )
 
 
 # ═══════════════════════════════════════════════════════
