@@ -27,6 +27,8 @@ services:
       APP_PORT: 8000
       APP_DEBUG: "false"
       AUTH_BYPASS_ENABLED: "true"
+      AUTH_BYPASS_TEAM: Estimation
+      AUTH_BYPASS_USER_NAME: Mohamed Guidara
       FILE_STORAGE_PATH: /app/uploads
     ports:
       - "8000:8000"
