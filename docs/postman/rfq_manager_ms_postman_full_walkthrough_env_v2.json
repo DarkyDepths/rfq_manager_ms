@@ -1,0 +1,531 @@
+{
+  "id": "rfq-manager-full-postman-demo-env-v2",
+  "name": "rfq_manager_ms_full_demo_env_v2",
+  "values": [
+    {
+      "key": "base_origin",
+      "value": "http://localhost:8000",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "base_url",
+      "value": "http://localhost:8000/rfq-manager/v1",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "health_url",
+      "value": "http://localhost:8000/health",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "demo_upload_file_path",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "demo_suffix",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "demo_deadline_short",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "demo_deadline_long",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "demo_reminder_due",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "demo_rfq_name",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "demo_client_name",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "long_demo_rfq_name",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "long_demo_client_name",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "skip_demo_rfq_name",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "override_demo_rfq_name",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "override_assigned_team",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "workflow_long_id",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "workflow_short_id",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "tpl_long_s1",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "tpl_long_s2",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "tpl_long_s3",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "tpl_long_s4",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "tpl_long_s5",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "tpl_long_s6",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "tpl_long_s7",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "tpl_long_s8",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "tpl_long_s9",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "tpl_long_s10",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "tpl_long_s11",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "tpl_short_s1",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "tpl_short_s2",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "tpl_short_s3",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "tpl_short_s4",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "tpl_short_s5",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "seeded_rfq_id",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "seeded_rfq_code",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "seeded_current_stage_name",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "seeded_current_stage_id",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "seeded_rfq_detail_json",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "seeded_stage_statuses",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "seeded_diagnostic_issues",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "external_followup_rule_id",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "internal_due_soon_rule_id",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "demo_rfq_id",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "demo_rfq_code",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "demo_current_stage_id",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "demo_note_id",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "demo_subtask_id",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "demo_file_id",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "demo_reminder_id",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "long_rfq_id",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "long_rfq_code",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "skip_rfq_id",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "skip_rfq_code",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "override_rfq_id",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "override_rfq_code",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "demo_s1_id",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "demo_s1_name",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "demo_s2_id",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "demo_s2_name",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "demo_s3_id",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "demo_s3_name",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "demo_s4_id",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "demo_s4_name",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "demo_s5_id",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "demo_s5_name",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "long_s1_id",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "long_s1_name",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "long_s2_id",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "long_s2_name",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "long_s3_id",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "long_s3_name",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "long_s4_id",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "long_s4_name",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "long_s5_id",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "long_s5_name",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "long_s6_id",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "long_s6_name",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "long_s7_id",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "long_s7_name",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "long_s8_id",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "long_s8_name",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "long_s9_id",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "long_s9_name",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "long_s10_id",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "long_s10_name",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "long_s11_id",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "long_s11_name",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    }
+  ],
+  "_postman_variable_scope": "environment",
+  "_postman_exported_at": "2026-03-16T15:55:21.246611Z",
+  "_postman_exported_using": "OpenAI ChatGPT"
+}
