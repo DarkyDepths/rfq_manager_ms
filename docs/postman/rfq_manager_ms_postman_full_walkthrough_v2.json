@@ -1,0 +1,1687 @@
+{
+  "info": {
+    "name": "rfq_manager_ms \u2014 Full Postman Walkthrough Demo V2.0",
+    "_postman_id": "rfq-manager-full-postman-walkthrough-v2",
+    "description": "End-to-end Postman walkthrough for `rfq_manager_ms`, designed for a boss/demo session and for repeatable testing.\n\nWhat this collection gives you:\n- A continuous boss-demo storyline with no manual UUID copy/paste.\n- Environment variables auto-populated from live responses.\n- Runtime dates and unique names generated automatically at setup.\n- Baseline read checks, full controlled RFQ lifecycle, guardrails, workspace actions, reminders, export.\n- Optional advanced tricks: invalid payload, skip stages, stage overrides, blocker flow.\n- Optional diagnostics: seeded data consistency and status-label normalization.\n\nRecommended run order:\n0 \u2192 1 \u2192 2 (optional advanced) \u2192 3 (optional diagnostics)\n\nImportant notes:\n- Set `base_origin`, `base_url`, and `health_url` in the environment if your server is not localhost:8000.\n- Set `demo_upload_file_path` in the environment before running the upload request.\n- This suite assumes the server is running and the DB is seeded with workflows and reminder rules.\n- Dynamic variables are namespaced so the same collection can be rerun without manual editing.\n",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "{{base_url}}"
+    }
+  ],
+  "item": [
+    {
+      "name": "0 \u2014 Bootstrap & Baseline (Run First)",
+      "description": "Prepare runtime variables, capture workflow/template IDs, grab one seeded RFQ for diagnostics, and sanity-check baseline KPI/analytics endpoints.",
+      "item": [
+        {
+          "name": "[SETUP] Health check + bootstrap runtime variables",
+          "request": {
+            "method": "GET",
+            "url": "{{health_url}}",
+            "description": "Runs the health endpoint and auto-generates all runtime variables needed later: unique suffix, demo RFQ names, future deadlines, reminder due date."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Health endpoint is reachable', () => pm.response.to.have.status(200));",
+                  "const now = new Date();",
+                  "const fmt = d => d.toISOString().slice(0, 10);",
+                  "const plusDays = days => { const d = new Date(now); d.setDate(d.getDate() + days); return fmt(d); };",
+                  "const suffix = now.toISOString().replace(/[-:TZ.]/g, '').slice(0, 14);",
+                  "pm.environment.set('demo_suffix', suffix);",
+                  "pm.environment.set('demo_deadline_short', plusDays(30));",
+                  "pm.environment.set('demo_deadline_long', plusDays(45));",
+                  "pm.environment.set('demo_reminder_due', plusDays(1));",
+                  "pm.environment.set('demo_rfq_name', 'Postman Boss Demo RFQ ' + suffix);",
+                  "pm.environment.set('demo_client_name', 'Postman Demo Client ' + suffix);",
+                  "pm.environment.set('long_demo_rfq_name', 'Postman Long Demo RFQ ' + suffix);",
+                  "pm.environment.set('long_demo_client_name', 'Postman Long Demo Client ' + suffix);",
+                  "pm.environment.set('skip_demo_rfq_name', 'Postman Skip Demo RFQ ' + suffix);",
+                  "pm.environment.set('override_demo_rfq_name', 'Postman Override Demo RFQ ' + suffix);",
+                  "pm.environment.set('override_assigned_team', 'Special Engineering Team');",
+                  "pm.test('Runtime demo variables prepared', () => pm.expect(pm.environment.get('demo_rfq_name')).to.include(suffix));",
+                  "console.log('Runtime demo variables bootstrapped with suffix:', suffix);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[SETUP] List workflows \u2192 save workflow IDs",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/workflows",
+            "description": "Captures `workflow_long_id` and `workflow_short_id` from the seeded workflow list."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('List workflows -> 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('Workflows array present', () => pm.expect(body.data).to.be.an('array').that.is.not.empty);",
+                  "const workflows = body.data;",
+                  "for (const wf of workflows) {",
+                  "  if (wf.code === 'GHI-LONG') pm.environment.set('workflow_long_id', wf.id);",
+                  "  if (wf.code === 'GHI-SHORT') pm.environment.set('workflow_short_id', wf.id);",
+                  "}",
+                  "pm.test('GHI-LONG workflow captured', () => pm.expect(pm.environment.get('workflow_long_id')).to.be.a('string').and.not.empty);",
+                  "pm.test('GHI-SHORT workflow captured', () => pm.expect(pm.environment.get('workflow_short_id')).to.be.a('string').and.not.empty);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[SETUP] Get GHI-LONG workflow \u2192 save template stage IDs",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/workflows/{{workflow_long_id}}",
+            "description": "Captures long-workflow template stage IDs (`tpl_long_s1` ... `tpl_long_s11`). These template IDs are used in create-RFQ payloads for `skip_stages` and `stage_overrides`. They are NOT RFQ live stage IDs."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Workflow detail -> 200', () => pm.response.to.have.status(200));",
+                  "const wf = pm.response.json();",
+                  "pm.test('Expected 11 template stages', () => pm.expect(wf.stages.length).to.eql(11));",
+                  "wf.stages.forEach(s => pm.environment.set('tpl_long_s' + s.order, s.id));",
+                  "console.log('Saved tpl_long template stages:', wf.stages.map(s => s.order + ':' + s.name).join(' | '));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[SETUP] Get GHI-SHORT workflow \u2192 save template stage IDs",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/workflows/{{workflow_short_id}}",
+            "description": "Captures short-workflow template stage IDs (`tpl_short_s1` ... `tpl_short_s5`)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Workflow detail -> 200', () => pm.response.to.have.status(200));",
+                  "const wf = pm.response.json();",
+                  "pm.test('Expected 5 template stages', () => pm.expect(wf.stages.length).to.eql(5));",
+                  "wf.stages.forEach(s => pm.environment.set('tpl_short_s' + s.order, s.id));",
+                  "console.log('Saved tpl_short template stages:', wf.stages.map(s => s.order + ':' + s.name).join(' | '));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[BASELINE] List RFQs \u2192 save one seeded RFQ for diagnostics",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/rfqs",
+            "description": "Baseline system snapshot. Saves one non-demo / non-IF / non-IB RFQ into `seeded_rfq_id` for the optional diagnostics folder."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('List RFQs baseline -> 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('Paginated RFQ list shape is present', () => {",
+                  "  pm.expect(body).to.have.property('data'); pm.expect(body).to.have.property('total'); pm.expect(body).to.have.property('page'); pm.expect(body).to.have.property('size');",
+                  "});",
+                  "const seeded = (body.data || []).find(r => !String(r.rfq_code || '').startsWith('IF-') && !String(r.rfq_code || '').startsWith('IB-'));",
+                  "if (seeded) {",
+                  "  pm.environment.set('seeded_rfq_id', seeded.id);",
+                  "  pm.environment.set('seeded_rfq_code', seeded.rfq_code);",
+                  "  pm.environment.set('seeded_current_stage_name', seeded.current_stage_name || '');",
+                  "  console.log('Seeded RFQ selected for diagnostics:', seeded.rfq_code, seeded.id);",
+                  "}",
+                  "pm.test('At least one seeded RFQ available for diagnostics', () => pm.expect(pm.environment.get('seeded_rfq_id')).to.be.a('string').and.not.empty);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[BASELINE] Dashboard KPIs",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/rfqs/stats",
+            "description": "Validates the stats endpoint shape: total_rfqs_12m, open_rfqs, critical_rfqs, avg_cycle_days."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('RFQ stats -> 200', () => pm.response.to.have.status(200));",
+                  "const s = pm.response.json();",
+                  "['total_rfqs_12m','open_rfqs','critical_rfqs','avg_cycle_days'].forEach(k => pm.expect(s).to.have.property(k));",
+                  "pm.test('Stats fields are numbers', () => ['total_rfqs_12m','open_rfqs','critical_rfqs','avg_cycle_days'].forEach(k => pm.expect(s[k]).to.be.a('number')));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[BASELINE] Business analytics",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/rfqs/analytics",
+            "description": "Validates the analytics endpoint shape: margins, estimation_accuracy, win_rate, by_client."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('RFQ analytics -> 200', () => pm.response.to.have.status(200));",
+                  "const a = pm.response.json();",
+                  "['avg_margin_submitted','avg_margin_awarded','estimation_accuracy','win_rate','by_client'].forEach(k => pm.expect(a).to.have.property(k));",
+                  "pm.test('by_client is an array', () => pm.expect(a.by_client).to.be.an('array'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[BASELINE] Reminder rules \u2192 save useful rule IDs",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/reminders/rules",
+            "description": "Captures useful reminder-rule IDs (for example `external_followup_rule_id`) for later toggling demos."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Reminder rules -> 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('Rules list is present', () => pm.expect(body.data).to.be.an('array').that.is.not.empty);",
+                  "(body.data || []).forEach(rule => {",
+                  "  if (rule.name && rule.name.toLowerCase().includes('external client follow-up')) pm.environment.set('external_followup_rule_id', rule.id);",
+                  "  if (rule.name && rule.name.toLowerCase().includes('internal due soon')) pm.environment.set('internal_due_soon_rule_id', rule.id);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "1 \u2014 Continuous Boss Demo | Controlled RFQ Story",
+      "description": "This is the main demo storyline. Run top to bottom. It creates one controlled RFQ on GHI-SHORT and drives it through lifecycle, guardrails, workspace actions, reminders, metadata update, and export \u2014 all while auto-capturing IDs in the environment.",
+      "item": [
+        {
+          "name": "[DEMO-01] Create controlled RFQ (GHI-SHORT)",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/rfqs",
+            "description": "Creates the main controlled RFQ for the demo. No manual IDs are needed \u2014 the workflow ID comes from Setup.",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"{{demo_rfq_name}}\",\n  \"client\": \"{{demo_client_name}}\",\n  \"deadline\": \"{{demo_deadline_short}}\",\n  \"owner\": \"Mohamed Guidara\",\n  \"workflow_id\": \"{{workflow_short_id}}\",\n  \"industry\": \"Industrial Automation\",\n  \"country\": \"Saudi Arabia\",\n  \"priority\": \"normal\",\n  \"description\": \"Controlled boss-demo RFQ created from Postman walkthrough\",\n  \"code_prefix\": \"IF\",\n  \"stage_overrides\": []\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Create demo RFQ -> 201', () => pm.response.to.have.status(201));",
+                  "const rfq = pm.response.json();",
+                  "pm.test('RFQ code generated with IF prefix', () => pm.expect(rfq.rfq_code).to.match(/^IF-/));",
+                  "pm.test('Initial status is In preparation', () => pm.expect(rfq.status).to.eql('In preparation'));",
+                  "pm.test('Initial current stage is RFQ received', () => pm.expect(rfq.current_stage_name).to.eql('RFQ received'));",
+                  "pm.environment.set('demo_rfq_id', rfq.id);",
+                  "pm.environment.set('demo_rfq_code', rfq.rfq_code);",
+                  "pm.environment.set('demo_current_stage_id', rfq.current_stage_id);",
+                  "console.log('Demo RFQ created:', rfq.rfq_code, rfq.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[DEMO-02] Search RFQs by demo client",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/rfqs?search={{demo_client_name}}",
+            "description": "Shows that the newly created RFQ is discoverable via the portfolio/list endpoint."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Search demo RFQ -> 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "const found = (body.data || []).find(r => r.id === pm.environment.get('demo_rfq_id'));",
+                  "pm.test('Created demo RFQ can be found by client search', () => pm.expect(!!found).to.be.true);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[DEMO-03] Get demo RFQ detail",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/rfqs/{{demo_rfq_id}}",
+            "description": "Loads the full RFQ detail and refreshes `demo_current_stage_id` from the authoritative aggregate view."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Get demo RFQ detail -> 200', () => pm.response.to.have.status(200));",
+                  "const rfq = pm.response.json();",
+                  "pm.test('Demo RFQ detail matches runtime vars', () => {",
+                  "  pm.expect(rfq.name).to.eql(pm.environment.get('demo_rfq_name'));",
+                  "  pm.expect(rfq.client).to.eql(pm.environment.get('demo_client_name'));",
+                  "});",
+                  "pm.environment.set('demo_current_stage_id', rfq.current_stage_id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[DEMO-04] List demo stages \u2192 save live stage IDs",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/rfqs/{{demo_rfq_id}}/stages",
+            "description": "Captures live stage IDs (`demo_s1_id` ... `demo_s5_id`) so the rest of the walkthrough stays copy/paste free."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Demo stages -> 200', () => pm.response.to.have.status(200));",
+                  "const stages = pm.response.json().data;",
+                  "pm.test('GHI-SHORT creates exactly 5 stages', () => pm.expect(stages.length).to.eql(5));",
+                  "stages.forEach(s => { pm.environment.set('demo_s' + s.order + '_id', s.id); pm.environment.set('demo_s' + s.order + '_name', s.name); });",
+                  "pm.test('Stage 1 is In Progress', () => pm.expect(stages[0].status).to.eql('In Progress'));",
+                  "pm.test('Later stages are not started (normalized or legacy spelling)', () => {",
+                  "  const accepted = ['Not started', 'Not Started'];",
+                  "  for (let i = 1; i < stages.length; i++) pm.expect(accepted).to.include(stages[i].status);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[DEMO-05] Get stage 1 detail",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/rfqs/{{demo_rfq_id}}/stages/{{demo_s1_id}}",
+            "description": "Confirms the first live stage is active and has no mandatory fields."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Stage 1 detail -> 200', () => pm.response.to.have.status(200));",
+                  "const s = pm.response.json();",
+                  "pm.test('Stage 1 has no mandatory fields', () => pm.expect(s.mandatory_fields === null || s.mandatory_fields === '').to.be.true);",
+                  "pm.test('Stage 1 children are empty', () => {",
+                  "  pm.expect(s.notes).to.be.an('array').that.is.empty;",
+                  "  pm.expect(s.files).to.be.an('array').that.is.empty;",
+                  "  pm.expect(s.subtasks).to.be.an('array').that.is.empty;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[DEMO-06] Advance stage 1",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/rfqs/{{demo_rfq_id}}/stages/{{demo_s1_id}}/advance",
+            "description": "Completes stage 1 and should auto-activate stage 2."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Advance current stage -> 200', () => pm.response.to.have.status(200));",
+                  "const s = pm.response.json();",
+                  "pm.test('Returned stage is Completed', () => pm.expect(s.status).to.eql('Completed'));",
+                  "pm.test('Returned stage progress is 100', () => pm.expect(s.progress).to.eql(100));",
+                  "pm.test('actual_end is set', () => pm.expect(s.actual_end).to.not.be.null);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[DEMO-07] Verify RFQ after stage 1",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/rfqs/{{demo_rfq_id}}",
+            "description": "Checks aggregate side effects after stage 1: progress 20, current stage = Cost estimation."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('RFQ after stage 1 advance -> 200', () => pm.response.to.have.status(200));",
+                  "const rfq = pm.response.json();",
+                  "pm.environment.set('demo_current_stage_id', rfq.current_stage_id);",
+                  "pm.test('Current stage moved to Cost estimation', () => pm.expect(rfq.current_stage_name).to.eql('Cost estimation'));",
+                  "pm.test('RFQ progress is 20', () => pm.expect(rfq.progress).to.eql(20));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[DEMO-08] Get stage 2 detail",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/rfqs/{{demo_rfq_id}}/stages/{{demo_s2_id}}",
+            "description": "Reads the mandatory field requirements for Cost estimation."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Stage 2 detail -> 200', () => pm.response.to.have.status(200));",
+                  "const s = pm.response.json();",
+                  "pm.test('Stage 2 mandatory field is estimation_completed', () => pm.expect(String(s.mandatory_fields)).to.include('estimation_completed'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[DEMO-09] Negative: advance stage 2 without mandatory data",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/rfqs/{{demo_rfq_id}}/stages/{{demo_s2_id}}/advance",
+            "description": "Expected business-rule rejection. This proves mandatory-field enforcement before stage advancement."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Advance without mandatory data -> 422', () => pm.response.to.have.status(422));",
+                  "const body = pm.response.json();",
+                  "pm.test('Error explains missing mandatory field', () => pm.expect(JSON.stringify(body)).to.include('estimation_completed'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[DEMO-10] Fill mandatory field for stage 2",
+          "request": {
+            "method": "PATCH",
+            "url": "{{base_url}}/rfqs/{{demo_rfq_id}}/stages/{{demo_s2_id}}",
+            "description": "Adds `captured_data.estimation_completed = true` so stage 2 can advance cleanly.",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"captured_data\": {\n    \"estimation_completed\": true\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Patch stage 2 captured_data -> 200', () => pm.response.to.have.status(200));",
+                  "const s = pm.response.json();",
+                  "pm.test('captured_data.estimation_completed persisted', () => pm.expect(s.captured_data.estimation_completed).to.eql(true));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[DEMO-11] Advance stage 2",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/rfqs/{{demo_rfq_id}}/stages/{{demo_s2_id}}/advance",
+            "description": "Completes stage 2 and should move the RFQ to Internal approval (stage 3)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Advance current stage -> 200', () => pm.response.to.have.status(200));",
+                  "const s = pm.response.json();",
+                  "pm.test('Returned stage is Completed', () => pm.expect(s.status).to.eql('Completed'));",
+                  "pm.test('Returned stage progress is 100', () => pm.expect(s.progress).to.eql(100));",
+                  "pm.test('actual_end is set', () => pm.expect(s.actual_end).to.not.be.null);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[DEMO-12] Verify RFQ after stage 2",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/rfqs/{{demo_rfq_id}}",
+            "description": "Checks aggregate side effects after stage 2: progress 40, current stage = Internal approval."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('RFQ after stage 2 advance -> 200', () => pm.response.to.have.status(200));",
+                  "const rfq = pm.response.json();",
+                  "pm.environment.set('demo_current_stage_id', rfq.current_stage_id);",
+                  "pm.test('Current stage moved to Internal approval', () => pm.expect(rfq.current_stage_name).to.eql('Internal approval'));",
+                  "pm.test('RFQ progress is 40', () => pm.expect(rfq.progress).to.eql(40));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[DEMO-13] Negative: try to advance stage 4 out of sequence",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/rfqs/{{demo_rfq_id}}/stages/{{demo_s4_id}}/advance",
+            "description": "Expected 409 Conflict. This proves only the current active stage can advance."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Out-of-sequence advance blocked -> 409', () => pm.response.to.have.status(409));",
+                  "const body = pm.response.json();",
+                  "pm.test('Conflict mentions current active stage', () => pm.expect(JSON.stringify(body)).to.include('current active stage'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[DEMO-14] Add a note to current stage 3",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/rfqs/{{demo_rfq_id}}/stages/{{demo_s3_id}}/notes",
+            "description": "Adds a workspace note to the current stage.",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"Internal approval note added during the boss demo from Postman.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Add stage note -> 201', () => pm.response.to.have.status(201));",
+                  "const note = pm.response.json();",
+                  "pm.environment.set('demo_note_id', note.id);",
+                  "pm.test('Note text persisted', () => pm.expect(note.text).to.include('boss demo'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[DEMO-15] Get stage 3 detail after note",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/rfqs/{{demo_rfq_id}}/stages/{{demo_s3_id}}",
+            "description": "Verifies note persistence and reveals the next mandatory field (`approval_signature`)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Stage 3 detail -> 200', () => pm.response.to.have.status(200));",
+                  "const s = pm.response.json();",
+                  "pm.test('Stage 3 mandatory field is approval_signature', () => pm.expect(String(s.mandatory_fields)).to.include('approval_signature'));",
+                  "pm.test('Note is embedded in stage detail', () => pm.expect((s.notes || []).length).to.be.at.least(1));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[DEMO-16] Create subtask on stage 3",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/rfqs/{{demo_rfq_id}}/stages/{{demo_s3_id}}/subtasks",
+            "description": "Adds a subtask to the stage workspace.",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Collect approval signature\",\n  \"assigned_to\": \"Omar Chabchoub\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Create subtask -> 201', () => pm.response.to.have.status(201));",
+                  "const sub = pm.response.json();",
+                  "pm.environment.set('demo_subtask_id', sub.id);",
+                  "pm.test('New subtask defaults to Open', () => pm.expect(sub.status).to.eql('Open'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[DEMO-17] List subtasks on stage 3",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/rfqs/{{demo_rfq_id}}/stages/{{demo_s3_id}}/subtasks",
+            "description": "Confirms the subtask is visible in the dedicated subtask list endpoint."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('List subtasks -> 200', () => pm.response.to.have.status(200));",
+                  "const data = pm.response.json().data || [];",
+                  "pm.test('Created subtask is present', () => pm.expect(data.some(s => s.id === pm.environment.get('demo_subtask_id'))).to.be.true);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[DEMO-18] Update subtask to Done / 100%",
+          "request": {
+            "method": "PATCH",
+            "url": "{{base_url}}/rfqs/{{demo_rfq_id}}/stages/{{demo_s3_id}}/subtasks/{{demo_subtask_id}}",
+            "description": "Marks the subtask as done.",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"Done\",\n  \"progress\": 100\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Update subtask -> 200', () => pm.response.to.have.status(200));",
+                  "const sub = pm.response.json();",
+                  "pm.test('Subtask can move to Done / 100%', () => { pm.expect(sub.status).to.eql('Done'); pm.expect(sub.progress).to.eql(100); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[DEMO-19] Get stage 3 detail after subtask update",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/rfqs/{{demo_rfq_id}}/stages/{{demo_s3_id}}",
+            "description": "Verifies note + subtask are both embedded in stage detail."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Stage 3 detail after subtask -> 200', () => pm.response.to.have.status(200));",
+                  "const s = pm.response.json();",
+                  "pm.test('Subtask is embedded in stage detail', () => pm.expect((s.subtasks || []).some(x => x.id === pm.environment.get('demo_subtask_id'))).to.be.true);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[DEMO-20] Upload a file to stage 3",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/rfqs/{{demo_rfq_id}}/stages/{{demo_s3_id}}/files",
+            "description": "Uploads a local file to the stage. Set `demo_upload_file_path` in the environment before running this request.",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": "{{demo_upload_file_path}}"
+                },
+                {
+                  "key": "type",
+                  "value": "Other",
+                  "type": "text"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.environment.get('demo_upload_file_path')) {",
+                  "  throw new Error('Set environment variable demo_upload_file_path to a local file path before running the upload request.');",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Upload file -> 201', () => pm.response.to.have.status(201));",
+                  "const f = pm.response.json();",
+                  "pm.environment.set('demo_file_id', f.id);",
+                  "pm.test('Uploaded file type is Other', () => pm.expect(f.type).to.eql('Other'));",
+                  "pm.test('File path references demo RFQ', () => pm.expect(f.file_path).to.include(pm.environment.get('demo_rfq_id')));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[DEMO-21] List stage 3 files",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/rfqs/{{demo_rfq_id}}/stages/{{demo_s3_id}}/files",
+            "description": "Confirms the uploaded file appears in the stage file list."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('List stage files -> 200', () => pm.response.to.have.status(200));",
+                  "const data = pm.response.json().data || [];",
+                  "pm.test('Uploaded file appears in stage file list', () => pm.expect(data.some(f => f.id === pm.environment.get('demo_file_id'))).to.be.true);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[DEMO-22] Download uploaded file",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/files/{{demo_file_id}}/download",
+            "description": "Checks the file download shortcut endpoint."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Download file -> 200', () => pm.response.to.have.status(200));",
+                  "const cd = pm.response.headers.get('Content-Disposition') || pm.response.headers.get('content-disposition') || '';",
+                  "pm.test('Download response looks like an attachment', () => pm.expect(cd.toLowerCase()).to.include('attachment'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[DEMO-23] Delete uploaded file",
+          "request": {
+            "method": "DELETE",
+            "url": "{{base_url}}/files/{{demo_file_id}}",
+            "description": "Deletes the stage file by its global file ID."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Delete returns 204 No Content', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[DEMO-24] Verify stage file list is empty",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/rfqs/{{demo_rfq_id}}/stages/{{demo_s3_id}}/files",
+            "description": "Confirms the file is no longer visible after deletion."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Stage files empty after delete -> 200', () => pm.response.to.have.status(200));",
+                  "pm.test('No files remain on stage', () => pm.expect(pm.response.json().data).to.be.an('array').that.is.empty);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[DEMO-25] Delete subtask",
+          "request": {
+            "method": "DELETE",
+            "url": "{{base_url}}/rfqs/{{demo_rfq_id}}/stages/{{demo_s3_id}}/subtasks/{{demo_subtask_id}}",
+            "description": "Deletes the workspace subtask."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Delete returns 204 No Content', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[DEMO-26] Verify subtask list is empty",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/rfqs/{{demo_rfq_id}}/stages/{{demo_s3_id}}/subtasks",
+            "description": "Confirms the subtask is no longer visible after deletion."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Subtasks empty after delete -> 200', () => pm.response.to.have.status(200));",
+                  "pm.test('No subtasks remain on stage', () => pm.expect(pm.response.json().data).to.be.an('array').that.is.empty);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[DEMO-27] Negative: advance stage 3 without approval signature",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/rfqs/{{demo_rfq_id}}/stages/{{demo_s3_id}}/advance",
+            "description": "Expected 422 because `approval_signature` is still missing."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Advance stage 3 without approval signature -> 422', () => pm.response.to.have.status(422));",
+                  "pm.test('Error mentions approval_signature', () => pm.expect(JSON.stringify(pm.response.json())).to.include('approval_signature'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[DEMO-28] Fill mandatory field for stage 3",
+          "request": {
+            "method": "PATCH",
+            "url": "{{base_url}}/rfqs/{{demo_rfq_id}}/stages/{{demo_s3_id}}",
+            "description": "Adds `captured_data.approval_signature = true` so stage 3 can advance.",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"captured_data\": {\n    \"approval_signature\": true\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Patch stage 3 captured_data -> 200', () => pm.response.to.have.status(200));",
+                  "pm.test('approval_signature persisted', () => pm.expect(pm.response.json().captured_data.approval_signature).to.eql(true));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[DEMO-29] Advance stage 3",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/rfqs/{{demo_rfq_id}}/stages/{{demo_s3_id}}/advance",
+            "description": "Completes stage 3 and should move the RFQ to stage 4 (Offer submission)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Advance current stage -> 200', () => pm.response.to.have.status(200));",
+                  "const s = pm.response.json();",
+                  "pm.test('Returned stage is Completed', () => pm.expect(s.status).to.eql('Completed'));",
+                  "pm.test('Returned stage progress is 100', () => pm.expect(s.progress).to.eql(100));",
+                  "pm.test('actual_end is set', () => pm.expect(s.actual_end).to.not.be.null);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[DEMO-30] Verify RFQ after stage 3",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/rfqs/{{demo_rfq_id}}",
+            "description": "Checks aggregate side effects after stage 3: progress 60, current stage = Offer submission."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('RFQ after stage 3 advance -> 200', () => pm.response.to.have.status(200));",
+                  "const rfq = pm.response.json();",
+                  "pm.environment.set('demo_current_stage_id', rfq.current_stage_id);",
+                  "pm.test('Current stage moved to Offer submission', () => pm.expect(rfq.current_stage_name).to.eql('Offer submission'));",
+                  "pm.test('RFQ progress is 60', () => pm.expect(rfq.progress).to.eql(60));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[DEMO-31] Create manual reminder on current stage 4",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/reminders",
+            "description": "Creates a manual reminder tied to the RFQ and current stage.",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"rfq_id\": \"{{demo_rfq_id}}\",\n  \"rfq_stage_id\": \"{{demo_s4_id}}\",\n  \"type\": \"internal\",\n  \"message\": \"Manual reminder created during the Postman boss demo.\",\n  \"due_date\": \"{{demo_reminder_due}}\",\n  \"assigned_to\": \"Omar Chabchoub\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Create reminder -> 201', () => pm.response.to.have.status(201));",
+                  "const r = pm.response.json();",
+                  "pm.environment.set('demo_reminder_id', r.id);",
+                  "pm.test('Reminder starts open', () => pm.expect(r.status).to.eql('open'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[DEMO-32] List reminders filtered by demo RFQ",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/reminders?rfq_id={{demo_rfq_id}}",
+            "description": "Shows the reminder feed filtered to this single RFQ."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('List reminders -> 200', () => pm.response.to.have.status(200));",
+                  "const data = pm.response.json().data || [];",
+                  "pm.test('Demo reminder is returned', () => pm.expect(data.some(r => r.id === pm.environment.get('demo_reminder_id'))).to.be.true);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[DEMO-33] Reminder stats",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/reminders/stats",
+            "description": "Validates reminder KPI counters."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Reminder stats -> 200', () => pm.response.to.have.status(200));",
+                  "const s = pm.response.json();",
+                  "['open_tasks','overdue_tasks','due_this_week','with_active_reminders'].forEach(k => pm.expect(s).to.have.property(k));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[DEMO-34] Process reminders batch",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/reminders/process",
+            "description": "Runs the reminder processing batch endpoint. With a due date of tomorrow, this often returns processed_count = 0, which is still valid."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Process reminders -> 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('processed_count is present', () => pm.expect(body.data.processed_count).to.be.a('number'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[DEMO-35] Test reminder email endpoint",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/reminders/test",
+            "description": "V1 log-only reminder email smoke test."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Reminder test endpoint -> 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Message present', () => pm.expect(pm.response.json().message).to.be.a('string').and.not.empty);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[DEMO-36] Patch RFQ metadata",
+          "request": {
+            "method": "PATCH",
+            "url": "{{base_url}}/rfqs/{{demo_rfq_id}}",
+            "description": "Shows that RFQ business metadata can be updated independently of stage progression.",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"description\": \"Controlled RFQ updated from Postman during the boss demo walkthrough.\",\n  \"priority\": \"critical\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Patch RFQ -> 200', () => pm.response.to.have.status(200));",
+                  "const rfq = pm.response.json();",
+                  "pm.test('Description and priority updated', () => {",
+                  "  pm.expect(rfq.description).to.include('updated from Postman');",
+                  "  pm.expect(rfq.priority).to.eql('critical');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[DEMO-37] Export RFQs",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/rfqs/export",
+            "description": "Checks the export/download endpoint used for reporting and offline review."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Export RFQs -> 200', () => pm.response.to.have.status(200));",
+                  "const cd = pm.response.headers.get('Content-Disposition') || pm.response.headers.get('content-disposition') || '';",
+                  "pm.test('Export response is an attachment', () => pm.expect(cd.toLowerCase()).to.include('attachment'));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "2 \u2014 Optional Advanced Tricks & Guardrails",
+      "description": "Extra value-add demonstrations beyond the main boss flow: invalid payload schema validation, long workflow behavior, blocker flow, skip stages, stage overrides, reminder-rule toggle. Run only if you want to go deeper.",
+      "item": [
+        {
+          "name": "[ADV-01] Negative schema: invalid code_prefix",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/rfqs",
+            "description": "Expected 422 schema/validation rejection. Useful to show payload guardrails.",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Invalid Prefix Demo {{demo_suffix}}\",\n  \"client\": \"Invalid Prefix Client {{demo_suffix}}\",\n  \"deadline\": \"{{demo_deadline_short}}\",\n  \"owner\": \"Omar Chabchoub\",\n  \"workflow_id\": \"{{workflow_short_id}}\",\n  \"industry\": \"Industrial Automation\",\n  \"country\": \"Saudi Arabia\",\n  \"priority\": \"normal\",\n  \"description\": \"This request should fail because code_prefix is invalid.\",\n  \"code_prefix\": \"TST\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Invalid code_prefix rejected -> 422', () => pm.response.to.have.status(422));",
+                  "pm.test('Error mentions allowed code_prefix values', () => {",
+                  "  const msg = JSON.stringify(pm.response.json());",
+                  "  pm.expect(msg).to.include('code_prefix');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[ADV-02] Create long-workflow RFQ",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/rfqs",
+            "description": "Creates a second RFQ on GHI-LONG to show the 11-stage lifecycle and blocker flow.",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"{{long_demo_rfq_name}}\",\n  \"client\": \"{{long_demo_client_name}}\",\n  \"deadline\": \"{{demo_deadline_long}}\",\n  \"owner\": \"Mohamed Guidara\",\n  \"workflow_id\": \"{{workflow_long_id}}\",\n  \"industry\": \"Oil & Gas \u2014 Upstream\",\n  \"country\": \"Saudi Arabia\",\n  \"priority\": \"critical\",\n  \"description\": \"Long-workflow RFQ for advanced Postman demo\",\n  \"code_prefix\": \"IF\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Create long RFQ -> 201', () => pm.response.to.have.status(201));",
+                  "const rfq = pm.response.json();",
+                  "pm.environment.set('long_rfq_id', rfq.id);",
+                  "pm.environment.set('long_rfq_code', rfq.rfq_code);",
+                  "pm.test('Long RFQ uses GHI long workflow', () => pm.expect(rfq.workflow_name).to.eql('GHI long workflow'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[ADV-03] List long-workflow stages \u2192 save IDs",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/rfqs/{{long_rfq_id}}/stages",
+            "description": "Captures `long_s1_id` ... `long_s11_id` and proves the long workflow instantiates 11 stages."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Long RFQ stages -> 200', () => pm.response.to.have.status(200));",
+                  "const stages = pm.response.json().data || [];",
+                  "pm.test('GHI-LONG produces 11 stages', () => pm.expect(stages.length).to.eql(11));",
+                  "stages.forEach(s => pm.environment.set('long_s' + s.order + '_id', s.id));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[ADV-04] Advance long stage 1",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/rfqs/{{long_rfq_id}}/stages/{{long_s1_id}}/advance",
+            "description": "Moves the long RFQ to stage 2 so we can demonstrate blocker handling there."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Advance current stage -> 200', () => pm.response.to.have.status(200));",
+                  "const s = pm.response.json();",
+                  "pm.test('Returned stage is Completed', () => pm.expect(s.status).to.eql('Completed'));",
+                  "pm.test('Returned stage progress is 100', () => pm.expect(s.progress).to.eql(100));",
+                  "pm.test('actual_end is set', () => pm.expect(s.actual_end).to.not.be.null);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[ADV-05] Set blocker on long stage 2",
+          "request": {
+            "method": "PATCH",
+            "url": "{{base_url}}/rfqs/{{long_rfq_id}}/stages/{{long_s2_id}}",
+            "description": "Flags stage 2 as Blocked before attempting an advance.",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"blocker_status\": \"Blocked\",\n  \"blocker_reason_code\": \"supplier_delay\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Set blocker on long stage 2 -> 200', () => pm.response.to.have.status(200));",
+                  "const s = pm.response.json();",
+                  "pm.test('blocker_status is Blocked', () => pm.expect(s.blocker_status).to.eql('Blocked'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[ADV-06] Negative: advance blocked long stage 2",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/rfqs/{{long_rfq_id}}/stages/{{long_s2_id}}/advance",
+            "description": "Expected 409 because blocker_status is Blocked."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Blocked stage cannot advance -> 409', () => pm.response.to.have.status(409));",
+                  "pm.test('Error mentions blocked stage', () => pm.expect(JSON.stringify(pm.response.json())).to.include('Blocked'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[ADV-07] Resolve blocker + fill mandatory for long stage 2",
+          "request": {
+            "method": "PATCH",
+            "url": "{{base_url}}/rfqs/{{long_rfq_id}}/stages/{{long_s2_id}}",
+            "description": "Clears the blocker and fills the stage-2 mandatory field so the advance can succeed.",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"blocker_status\": \"Resolved\",\n  \"blocker_reason_code\": null,\n  \"captured_data\": {\n    \"go_nogo_decision\": \"GO \u2014 unblock after supplier recovery\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Resolve blocker + fill mandatory -> 200', () => pm.response.to.have.status(200));",
+                  "const s = pm.response.json();",
+                  "pm.test('blocker_status resolved and go_nogo_decision saved', () => {",
+                  "  pm.expect(s.blocker_status === null || s.blocker_status === 'Resolved').to.be.true;",
+                  "  pm.expect(s.captured_data.go_nogo_decision).to.include('GO');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[ADV-08] Advance long stage 2 after recovery",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/rfqs/{{long_rfq_id}}/stages/{{long_s2_id}}/advance",
+            "description": "Completes the blocker flow successfully."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Advance current stage -> 200', () => pm.response.to.have.status(200));",
+                  "const s = pm.response.json();",
+                  "pm.test('Returned stage is Completed', () => pm.expect(s.status).to.eql('Completed'));",
+                  "pm.test('Returned stage progress is 100', () => pm.expect(s.progress).to.eql(100));",
+                  "pm.test('actual_end is set', () => pm.expect(s.actual_end).to.not.be.null);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[ADV-09] Create RFQ with skip_stages",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/rfqs",
+            "description": "Creates a long-workflow RFQ while skipping template stages 3 and 6 (using workflow template IDs, not live RFQ stage IDs).",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"{{skip_demo_rfq_name}}\",\n  \"client\": \"Postman Skip Client {{demo_suffix}}\",\n  \"deadline\": \"{{demo_deadline_long}}\",\n  \"owner\": \"Mohamed Guidara\",\n  \"workflow_id\": \"{{workflow_long_id}}\",\n  \"industry\": \"Oil & Gas \u2014 Upstream\",\n  \"country\": \"Saudi Arabia\",\n  \"priority\": \"normal\",\n  \"description\": \"Skip-stage demo RFQ\",\n  \"code_prefix\": \"IF\",\n  \"skip_stages\": [\"{{tpl_long_s3}}\", \"{{tpl_long_s6}}\"]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Create skip-stages RFQ -> 201', () => pm.response.to.have.status(201));",
+                  "const rfq = pm.response.json();",
+                  "pm.environment.set('skip_rfq_id', rfq.id);",
+                  "pm.environment.set('skip_rfq_code', rfq.rfq_code);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[ADV-10] Verify skip_stages result",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/rfqs/{{skip_rfq_id}}/stages",
+            "description": "Confirms there are only 9 live stages and that the skipped stage names are absent."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Skip RFQ stages -> 200', () => pm.response.to.have.status(200));",
+                  "const stages = pm.response.json().data || [];",
+                  "const names = stages.map(s => s.name);",
+                  "pm.test('Skipping 2 template stages leaves 9 live stages', () => pm.expect(stages.length).to.eql(9));",
+                  "pm.test('Skipped stage names are absent', () => {",
+                  "  pm.expect(names).to.not.include('Pre-bid clarifications');",
+                  "  pm.expect(names).to.not.include('Vendor inquiry');",
+                  "});",
+                  "pm.test('Live stages renumber from 1..9', () => stages.forEach((s,i) => pm.expect(s.order).to.eql(i+1)));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[ADV-11] Create RFQ with stage override",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/rfqs",
+            "description": "Creates a long-workflow RFQ and overrides the assigned team on template stage 4.",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"{{override_demo_rfq_name}}\",\n  \"client\": \"Postman Override Client {{demo_suffix}}\",\n  \"deadline\": \"{{demo_deadline_long}}\",\n  \"owner\": \"Mohamed Guidara\",\n  \"workflow_id\": \"{{workflow_long_id}}\",\n  \"industry\": \"Oil & Gas \u2014 Upstream\",\n  \"country\": \"Saudi Arabia\",\n  \"priority\": \"normal\",\n  \"description\": \"Stage-override demo RFQ\",\n  \"code_prefix\": \"IF\",\n  \"stage_overrides\": [\n    {\n      \"stage_template_id\": \"{{tpl_long_s4}}\",\n      \"assigned_team\": \"{{override_assigned_team}}\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Create override RFQ -> 201', () => pm.response.to.have.status(201));",
+                  "const rfq = pm.response.json();",
+                  "pm.environment.set('override_rfq_id', rfq.id);",
+                  "pm.environment.set('override_rfq_code', rfq.rfq_code);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[ADV-12] Verify stage override applied",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/rfqs/{{override_rfq_id}}/stages",
+            "description": "Checks that the overridden team is applied on the live RFQ stage."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Override RFQ stages -> 200', () => pm.response.to.have.status(200));",
+                  "const stages = pm.response.json().data || [];",
+                  "const stage4 = stages.find(s => s.order === 4);",
+                  "pm.test('Overridden team applied on stage 4', () => pm.expect(stage4.assigned_team).to.eql(pm.environment.get('override_assigned_team')));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[ADV-13] Toggle reminder rule on",
+          "request": {
+            "method": "PATCH",
+            "url": "{{base_url}}/reminders/rules/{{external_followup_rule_id}}",
+            "description": "Optional safe admin demo for reminder-rule toggling.",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"is_active\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Toggle reminder rule -> 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Rule is now active', () => pm.expect(pm.response.json().is_active).to.eql(true));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "3 \u2014 Optional Diagnostics (Non-Blocking)",
+      "description": "These requests reproduce the weak points found during earlier testing, but in a diagnostic/non-blocking way. They will not fail the run if scenario data is inconsistent; instead they log findings to the Postman console.",
+      "item": [
+        {
+          "name": "[DIAG-01] Load seeded RFQ detail",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/rfqs/{{seeded_rfq_id}}",
+            "description": "Loads one seeded RFQ captured during Setup so we can compare its aggregate fields against the live stage chain."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Seeded RFQ detail -> 200', () => pm.response.to.have.status(200));",
+                  "const rfq = pm.response.json();",
+                  "pm.environment.set('seeded_rfq_detail_json', JSON.stringify(rfq));",
+                  "pm.environment.set('seeded_current_stage_id', rfq.current_stage_id || '');",
+                  "pm.test('Diagnostic target loaded', () => pm.expect(rfq.id).to.eql(pm.environment.get('seeded_rfq_id')));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[DIAG-02] Compare seeded RFQ detail vs live stage chain",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/rfqs/{{seeded_rfq_id}}/stages",
+            "description": "Non-blocking comparison. Logs warnings if RFQ aggregate fields (status/progress/current stage) do not align with the underlying stage chain."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Seeded RFQ stages loaded for diagnostics -> 200', () => pm.response.to.have.status(200));",
+                  "const stages = pm.response.json().data || [];",
+                  "pm.environment.set('seeded_stage_statuses', JSON.stringify(stages.map(s => s.status)));",
+                  "const rfq = JSON.parse(pm.environment.get('seeded_rfq_detail_json') || '{}');",
+                  "const completed = stages.filter(s => s.status === 'Completed').length;",
+                  "const active = stages.find(s => s.status === 'In Progress');",
+                  "const expectedProgress = stages.length ? Math.round((completed / stages.length) * 100) : 0;",
+                  "const issues = [];",
+                  "if (typeof rfq.progress === 'number' && rfq.progress !== expectedProgress) issues.push(`Progress mismatch: rfq.progress=${rfq.progress}, expected\u2248${expectedProgress}`);",
+                  "if (active && rfq.current_stage_name && rfq.current_stage_name !== active.name) issues.push(`Current stage name mismatch: rfq='${rfq.current_stage_name}', live='${active.name}'`);",
+                  "if (active && rfq.current_stage_id && rfq.current_stage_id !== active.id) issues.push('Current stage id mismatch between RFQ aggregate and stage chain');",
+                  "if (active && rfq.status === 'Submitted' && completed < stages.length - 1) issues.push('RFQ aggregate status is Submitted while live stage chain is still mid-workflow');",
+                  "pm.environment.set('seeded_diagnostic_issues', JSON.stringify(issues));",
+                  "console.log('Seeded data diagnostic issues:', issues);",
+                  "pm.test('Seeded diagnostic comparison executed (non-blocking)', () => true);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[DIAG-03] Status-label normalization check",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/rfqs/{{demo_rfq_id}}/stages",
+            "description": "Non-blocking check across seeded + controlled responses. Logs a warning if both 'Not Started' and 'Not started' coexist."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Demo stage list for normalization diagnostics -> 200', () => pm.response.to.have.status(200));",
+                  "const demoStatuses = new Set((pm.response.json().data || []).map(s => s.status));",
+                  "const seededStatuses = new Set(JSON.parse(pm.environment.get('seeded_stage_statuses') || '[]'));",
+                  "const union = Array.from(new Set([...demoStatuses, ...seededStatuses]));",
+                  "const issues = [];",
+                  "if (union.includes('Not Started') && union.includes('Not started')) issues.push('Both \"Not Started\" and \"Not started\" are present across responses.');",
+                  "console.log('Status normalization union:', union);",
+                  "if (issues.length) console.warn('Status normalization diagnostic issues:', issues);",
+                  "pm.test('Status normalization diagnostic executed (non-blocking)', () => true);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -11,7 +11,7 @@ This is the single authoritative smoke/demo path for leadership and reviewer val
 ## 2) Authoritative Startup
 
 ```bash
-docker compose up --build -d
+docker compose up -d --build
 docker compose ps
 ```
 
@@ -41,6 +41,15 @@ Expected response:
 {"status":"ok","service":"mock_event_bus"}
 ```
 
+Minimal local proof sequence (PowerShell):
+
+```powershell
+docker compose up -d --build
+(Invoke-WebRequest http://localhost:8000/health).Content
+(Invoke-WebRequest http://localhost:8081/).Content
+docker compose logs --tail 100 event_bus_mock
+```
+
 ## 3) Authoritative Seed Command
 
 ```bash
@@ -56,6 +65,28 @@ If it fails:
 
 - Check API logs: `docker compose logs --tail 200 api`
 - Confirm API container is up: `docker compose ps`
+
+## 3.1) Required Local Compose Wiring (Validated)
+
+- `AUTH_BYPASS_ENABLED: "true"`
+- `AUTH_BYPASS_TEAM: Estimation`
+- `AUTH_BYPASS_USER_NAME: Mohamed Guidara`
+- `EVENT_BUS_URL: http://event_bus_mock:8081/events`
+
+These values are set in `docker-compose.yml` and are required for the validated local stage-advance + event-delivery workflow.
+
+## 3.2) Postman Validation Order (Validated)
+
+Run Postman in this order:
+
+1. Folder 0
+2. Folder 1
+
+Then verify event delivery:
+
+```bash
+docker compose logs --tail 100 event_bus_mock
+```
 
 ## 4) Authoritative Smoke/Demo Sequence
 
@@ -150,7 +181,7 @@ Full reset (containers + DB volume):
 
 ```bash
 docker compose down -v
-docker compose up --build -d
+docker compose up -d --build
 docker compose exec -e PYTHONPATH=/app api python scripts/seed.py --scenario=demo --reset --seed=42
 ```
 
@@ -184,3 +215,13 @@ Expected outcome:
 
 - Stage advance endpoint returns success (`200`).
 - `event_bus_mock` logs show `EVENT RECEIVED` and the JSON envelope posted by `rfq_manager_ms`.
+
+Validated local V1 proof now covers:
+
+- API healthy (`/health`)
+- DB healthy (compose health)
+- Metrics exposed (`/metrics`)
+- Request IDs present in responses (`X-Request-ID`)
+- Postman Folder 0 and Folder 1 demo path
+- File upload flow (within Postman/demo path)
+- Event delivery to local mock bus (`event_bus_mock` logs)

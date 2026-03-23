@@ -16,7 +16,7 @@ This runbook is for day-to-day operation of the current `rfq_manager_ms` V1 serv
 Start:
 
 ```bash
-docker compose up --build -d
+docker compose up -d --build
 ```
 
 Bootstrap note:
@@ -77,6 +77,12 @@ Invoke-RestMethod "$env:BASE_URL/rfq-manager/v1/rfqs"
 
 # 4) Reminder smoke
 Invoke-RestMethod "$env:BASE_URL/rfq-manager/v1/reminders/stats"
+
+# 5) Mock event bus health
+(Invoke-WebRequest "http://localhost:8081/").Content
+
+# 6) Event delivery log check
+docker compose logs --tail 100 event_bus_mock
 ```
 
 Bash / zsh:
@@ -111,7 +117,7 @@ alembic upgrade head
 Seed (Docker Compose authoritative path):
 
 ```bash
-docker compose exec -e PYTHONPATH=/app api python scripts/seed.py --scenario=demo --seed=42
+docker compose exec -e PYTHONPATH=/app api python scripts/seed.py --scenario=demo --reset --seed=42
 ```
 
 Reset and reseed (Compose):
@@ -164,6 +170,13 @@ python scripts/seed.py --scenario=demo --reset --seed=42
   - publish is attempted after successful commit
   - publish failures are logged and do not roll back completed business writes
 - Tune publication timeout with `EVENT_BUS_REQUEST_TIMEOUT_SECONDS`.
+
+Validated local compose wiring for stage-advance demo path:
+
+- `AUTH_BYPASS_ENABLED: "true"`
+- `AUTH_BYPASS_TEAM: Estimation`
+- `AUTH_BYPASS_USER_NAME: Mohamed Guidara`
+- `EVENT_BUS_URL: http://event_bus_mock:8081/events`
 
 ## 5.3) Dormant Model Decisions (H5)
 

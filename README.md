@@ -139,18 +139,22 @@ Operational endpoints outside v1: `/health`, `/metrics`.
 ```bash
 # Prerequisite: Docker Desktop / Docker Engine must be running
 
-# Build and start API + PostgreSQL
-docker compose up --build -d
+# Build and start API + PostgreSQL + local mock event bus
+docker compose up -d --build
 
 # Confirm both services are up
 docker compose ps
 
-# Check API health and docs
+# Check API health, mock event bus health, and docs
 # http://localhost:8000/health
+# http://localhost:8081/
 # http://localhost:8000/docs
 
-# Seed demo data inside the API container
-docker compose exec -e PYTHONPATH=/app api python scripts/seed.py --scenario=demo --seed=42
+# Seed demo data inside the API container (authoritative demo command)
+docker compose exec -e PYTHONPATH=/app api python scripts/seed.py --scenario=demo --reset --seed=42
+
+# Verify event delivery logs from local mock bus
+docker compose logs --tail 100 event_bus_mock
 
 # Run the leadership/reviewer smoke path
 # docs/SMOKE_DEMO.md
@@ -160,6 +164,22 @@ docker compose logs --tail 200 api
 
 # Stop services
 docker compose down
+```
+
+Validated local compose wiring:
+
+- `AUTH_BYPASS_ENABLED: "true"`
+- `AUTH_BYPASS_TEAM: Estimation`
+- `AUTH_BYPASS_USER_NAME: Mohamed Guidara`
+- `EVENT_BUS_URL: http://event_bus_mock:8081/events`
+
+Minimal local proof sequence (PowerShell):
+
+```powershell
+docker compose up -d --build
+(Invoke-WebRequest http://localhost:8000/health).Content
+(Invoke-WebRequest http://localhost:8081/).Content
+docker compose logs --tail 100 event_bus_mock
 ```
 
 ### Local venv
