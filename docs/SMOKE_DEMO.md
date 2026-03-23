@@ -19,12 +19,26 @@ Expected outcome:
 
 - `postgres` is `healthy`.
 - `api` is `running` (and becomes `healthy` shortly after startup).
+- `event_bus_mock` is `running`.
 
 If it fails:
 
 ```bash
 docker compose logs --tail 200 postgres
 docker compose logs --tail 200 api
+docker compose logs --tail 200 event_bus_mock
+```
+
+Mock event bus quick check:
+
+```bash
+curl -sS http://localhost:8081/
+```
+
+Expected response:
+
+```json
+{"status":"ok","service":"mock_event_bus"}
 ```
 
 ## 3) Authoritative Seed Command
@@ -139,3 +153,34 @@ docker compose down -v
 docker compose up --build -d
 docker compose exec -e PYTHONPATH=/app api python scripts/seed.py --scenario=demo --reset --seed=42
 ```
+
+## 6) Local Event Delivery Verification (H4 + mock bus)
+
+After seed and smoke list/get steps:
+
+PowerShell:
+
+```powershell
+$env:BASE_URL = "http://localhost:8000"
+$rfqList = Invoke-RestMethod "$env:BASE_URL/rfq-manager/v1/rfqs"
+$rfqId = $rfqList.data[0].id
+$stages = Invoke-RestMethod "$env:BASE_URL/rfq-manager/v1/rfqs/$rfqId/stages"
+$stageId = $stages.data[0].id
+Invoke-RestMethod -Method Post "$env:BASE_URL/rfq-manager/v1/rfqs/$rfqId/stages/$stageId/advance"
+docker compose logs --tail 100 event_bus_mock
+```
+
+Bash / zsh:
+
+```bash
+BASE_URL="http://localhost:8000"
+RFQ_ID=$(curl -fsS "$BASE_URL/rfq-manager/v1/rfqs" | python -c "import sys,json; print(json.load(sys.stdin)['data'][0]['id'])")
+STAGE_ID=$(curl -fsS "$BASE_URL/rfq-manager/v1/rfqs/$RFQ_ID/stages" | python -c "import sys,json; print(json.load(sys.stdin)['data'][0]['id'])")
+curl -fsS -X POST "$BASE_URL/rfq-manager/v1/rfqs/$RFQ_ID/stages/$STAGE_ID/advance"
+docker compose logs --tail 100 event_bus_mock
+```
+
+Expected outcome:
+
+- Stage advance endpoint returns success (`200`).
+- `event_bus_mock` logs show `EVENT RECEIVED` and the JSON envelope posted by `rfq_manager_ms`.
