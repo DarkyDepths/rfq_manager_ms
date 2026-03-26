@@ -46,3 +46,6 @@ migrations/__pycache__/
 # ── Node / Newman ─────────────────────────────────
 node_modules/
 *newman_results*.json
+
+# ── Context docs (not shipped) ────────────────────
+Context/
