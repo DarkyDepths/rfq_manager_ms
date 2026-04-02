@@ -77,11 +77,22 @@ def get_auth_context(
     iam_connector: IAMServiceConnector = Depends(get_iam_service_connector),
 ) -> AuthContext:
     if settings.AUTH_BYPASS_ENABLED:
+        debug_user_id = request.headers.get("X-Debug-User-Id")
+        debug_user_name = request.headers.get("X-Debug-User-Name")
+        debug_team = request.headers.get("X-Debug-User-Team")
+        debug_permissions = request.headers.get("X-Debug-Permissions")
+
+        permissions = ["*"]
+        if debug_permissions:
+            parsed = [item.strip() for item in debug_permissions.split(",") if item.strip()]
+            if parsed:
+                permissions = parsed
+
         context = AuthContext(
-            user_id=settings.AUTH_BYPASS_USER_ID,
-            user_name=settings.AUTH_BYPASS_USER_NAME,
-            team=settings.AUTH_BYPASS_TEAM,
-            permissions=["*"],
+            user_id=debug_user_id or settings.AUTH_BYPASS_USER_ID,
+            user_name=debug_user_name or settings.AUTH_BYPASS_USER_NAME,
+            team=debug_team or settings.AUTH_BYPASS_TEAM,
+            permissions=permissions,
         )
         request.state.user = {
             "id": context.user_id,

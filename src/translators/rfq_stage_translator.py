@@ -47,6 +47,7 @@ class StageFileResponse(BaseModel):
     id: UUID
     filename: str
     download_url: str
+    storage_reference: Optional[str] = None
     type: str
     uploaded_by: str
     size_bytes: Optional[int] = None
@@ -128,6 +129,7 @@ def file_to_schema(file) -> StageFileResponse:
         id=file.id,
         filename=file.filename,
         download_url=f"/rfq-manager/v1/files/{file.id}/download",
+        storage_reference=file.file_path,
         type=file.type,
         uploaded_by=file.uploaded_by,
         size_bytes=file.size_bytes,
