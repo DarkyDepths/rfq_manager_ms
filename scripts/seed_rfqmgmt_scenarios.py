@@ -12,18 +12,18 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from scripts.seed import _make_engine_and_session, _run_migrations, seed_base_data
-from src.controllers.rfq_controller import RfqController
-from src.datasources.rfq_datasource import RfqDatasource
-from src.datasources.rfq_stage_datasource import RfqStageDatasource
-from src.datasources.workflow_datasource import WorkflowDatasource
-from src.models.reminder import Reminder
-from src.models.rfq import RFQ
-from src.models.rfq_note import RFQNote
-from src.models.rfq_stage import RFQStage
-from src.models.subtask import Subtask
-from src.models.workflow import Workflow
-from src.translators.rfq_translator import RfqCreateRequest
+from scripts.seed import _make_engine_and_session, _run_migrations, seed_base_data  # noqa: E402
+from src.controllers.rfq_controller import RfqController  # noqa: E402
+from src.datasources.rfq_datasource import RfqDatasource  # noqa: E402
+from src.datasources.rfq_stage_datasource import RfqStageDatasource  # noqa: E402
+from src.datasources.workflow_datasource import WorkflowDatasource  # noqa: E402
+from src.models.reminder import Reminder  # noqa: E402
+from src.models.rfq import RFQ  # noqa: E402
+from src.models.rfq_note import RFQNote  # noqa: E402
+from src.models.rfq_stage import RFQStage  # noqa: E402
+from src.models.subtask import Subtask  # noqa: E402
+from src.models.workflow import Workflow  # noqa: E402
+from src.translators.rfq_translator import RfqCreateRequest  # noqa: E402
 
 
 BatchName = Literal["must-have", "later", "optional"]
