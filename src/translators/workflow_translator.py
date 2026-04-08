@@ -34,6 +34,7 @@ class StageTemplateResponse(BaseModel):
     order: int
     default_team: Optional[str] = None
     planned_duration_days: int
+    is_required: bool = False
 
     class Config:
         from_attributes = True
@@ -46,6 +47,8 @@ class WorkflowSummary(BaseModel):
     stage_count: int = 0
     is_active: bool
     is_default: bool
+    selection_mode: str = "fixed"
+    base_workflow_id: Optional[UUID] = None
 
     class Config:
         from_attributes = True
@@ -62,6 +65,8 @@ class WorkflowDetail(BaseModel):
     stage_count: int = 0
     is_active: bool
     is_default: bool
+    selection_mode: str = "fixed"
+    base_workflow_id: Optional[UUID] = None
     stages: List[StageTemplateResponse] = []
 
     class Config:
@@ -72,25 +77,31 @@ class WorkflowDetail(BaseModel):
 # CONVERSION FUNCTIONS
 # ═══════════════════════════════════════════════════
 
-def to_summary(workflow) -> WorkflowSummary:
+def to_summary(workflow, stages=None) -> WorkflowSummary:
+    effective_stages = stages if stages is not None else workflow.stages
     return WorkflowSummary(
         id=workflow.id,
         name=workflow.name,
         code=workflow.code,
-        stage_count=len(workflow.stages) if workflow.stages else 0,
+        stage_count=len(effective_stages) if effective_stages else 0,
         is_active=workflow.is_active,
         is_default=workflow.is_default,
+        selection_mode=getattr(workflow, "selection_mode", "fixed") or "fixed",
+        base_workflow_id=getattr(workflow, "base_workflow_id", None),
     )
 
 
-def to_detail(workflow) -> WorkflowDetail:
+def to_detail(workflow, stages=None) -> WorkflowDetail:
+    effective_stages = stages if stages is not None else workflow.stages
     return WorkflowDetail(
         id=workflow.id,
         name=workflow.name,
         code=workflow.code,
         description=workflow.description,
-        stage_count=len(workflow.stages) if workflow.stages else 0,
+        stage_count=len(effective_stages) if effective_stages else 0,
         is_active=workflow.is_active,
         is_default=workflow.is_default,
-        stages=[StageTemplateResponse.model_validate(s) for s in workflow.stages],
+        selection_mode=getattr(workflow, "selection_mode", "fixed") or "fixed",
+        base_workflow_id=getattr(workflow, "base_workflow_id", None),
+        stages=[StageTemplateResponse.model_validate(s) for s in effective_stages],
     )

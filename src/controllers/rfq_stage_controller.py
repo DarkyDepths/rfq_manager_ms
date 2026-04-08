@@ -26,7 +26,11 @@ from src.translators import rfq_stage_translator
 from src.models.rfq_stage import RFQStage
 from src.models.subtask import Subtask
 from src.utils.errors import NotFoundError, ConflictError, UnprocessableEntityError, BadRequestError, ForbiddenError
-from src.utils.rfq_lifecycle import apply_terminal_stage_freeze, validate_rfq_status_transition
+from src.utils.rfq_lifecycle import (
+    apply_terminal_stage_freeze,
+    calculate_rfq_lifecycle_progress,
+    validate_rfq_status_transition,
+)
 from src.utils.rfq_status import (
     RFQ_STATUS_AWARDED,
     RFQ_STATUS_CANCELLED,
@@ -911,23 +915,12 @@ class RfqStageController:
             return None
 
     def _update_rfq_progress(self, rfq):
-        """Recalculate RFQ progress from non-skipped stages only."""
+        """Recalculate RFQ progress from lifecycle-completed stages only."""
         stages = self.stage_ds.list_by_rfq(rfq.id)
         if not stages:
             return
 
-        non_skipped = [stage for stage in stages if stage.status != "Skipped"]
-        if not non_skipped:
-            rfq.progress = 100
-            self.session.flush()
-            return
-
-        if all(stage.status == "Completed" for stage in non_skipped):
-            rfq.progress = 100
-        else:
-            total_progress = sum(stage.progress for stage in non_skipped)
-            rfq.progress = total_progress // len(non_skipped)
-
+        rfq.progress = calculate_rfq_lifecycle_progress(stages, rfq.status)
         self.session.flush()
 
     def _list_active_subtasks(self, stage_id):

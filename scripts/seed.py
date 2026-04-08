@@ -36,18 +36,20 @@ GHI_LONG = {
     "name": "GHI long workflow",
     "description": "Full lifecycle for complex, engineered RFQs with design, BOQ/BOM and vendor inquiries.",
     "is_default": True,
+    "selection_mode": "fixed",
+    "base_workflow_code": None,
     "stages": [
-        {"name": "RFQ received",            "order": 1,  "default_team": "Estimation",  "planned_duration_days": 2,  "mandatory_fields": None},
-        {"name": "Go / No-Go",              "order": 2,  "default_team": "Estimation",  "planned_duration_days": 2,  "mandatory_fields": "go_nogo_decision"},
-        {"name": "Pre-bid clarifications",   "order": 3,  "default_team": "Estimation",  "planned_duration_days": 3,  "mandatory_fields": None},
-        {"name": "Preliminary design",       "order": 4,  "default_team": "Engineering", "planned_duration_days": 5,  "mandatory_fields": "design_approved"},
-        {"name": "BOQ / BOM preparation",    "order": 5,  "default_team": "Estimation",  "planned_duration_days": 5,  "mandatory_fields": "boq_completed"},
-        {"name": "Vendor inquiry",           "order": 6,  "default_team": "Estimation",  "planned_duration_days": 5,  "mandatory_fields": None},
-        {"name": "Cost estimation",          "order": 7,  "default_team": "Estimation",  "planned_duration_days": 5,  "mandatory_fields": "estimation_completed"},
-        {"name": "Internal approval",        "order": 8,  "default_team": "Estimation",  "planned_duration_days": 3,  "mandatory_fields": "approval_signature"},
-        {"name": "Offer submission",         "order": 9,  "default_team": "Estimation",  "planned_duration_days": 2,  "mandatory_fields": "final_price"},
-        {"name": "Post-bid clarifications",  "order": 10, "default_team": "Estimation",  "planned_duration_days": 5,  "mandatory_fields": None},
-        {"name": "Award / Lost",             "order": 11, "default_team": "Estimation",  "planned_duration_days": 1,  "mandatory_fields": None},
+        {"name": "RFQ received",            "order": 1,  "default_team": "Estimation",  "planned_duration_days": 2,  "mandatory_fields": None, "is_required": True},
+        {"name": "Go / No-Go",              "order": 2,  "default_team": "Estimation",  "planned_duration_days": 2,  "mandatory_fields": "go_nogo_decision", "is_required": True},
+        {"name": "Pre-bid clarifications",   "order": 3,  "default_team": "Estimation",  "planned_duration_days": 3,  "mandatory_fields": None, "is_required": False},
+        {"name": "Preliminary design",       "order": 4,  "default_team": "Engineering", "planned_duration_days": 5,  "mandatory_fields": "design_approved", "is_required": False},
+        {"name": "BOQ / BOM preparation",    "order": 5,  "default_team": "Estimation",  "planned_duration_days": 5,  "mandatory_fields": "boq_completed", "is_required": False},
+        {"name": "Vendor inquiry",           "order": 6,  "default_team": "Estimation",  "planned_duration_days": 5,  "mandatory_fields": None, "is_required": False},
+        {"name": "Cost estimation",          "order": 7,  "default_team": "Estimation",  "planned_duration_days": 5,  "mandatory_fields": "estimation_completed", "is_required": False},
+        {"name": "Internal approval",        "order": 8,  "default_team": "Estimation",  "planned_duration_days": 3,  "mandatory_fields": "approval_signature", "is_required": False},
+        {"name": "Offer submission",         "order": 9,  "default_team": "Estimation",  "planned_duration_days": 2,  "mandatory_fields": "final_price", "is_required": False},
+        {"name": "Post-bid clarifications",  "order": 10, "default_team": "Estimation",  "planned_duration_days": 5,  "mandatory_fields": None, "is_required": False},
+        {"name": "Award / Lost",             "order": 11, "default_team": "Estimation",  "planned_duration_days": 1,  "mandatory_fields": None, "is_required": True},
     ],
 }
 
@@ -56,16 +58,29 @@ GHI_SHORT = {
     "name": "GHI short workflow",
     "description": "Simplified path for repeat orders, standard items or small-value RFQs.",
     "is_default": False,
+    "selection_mode": "fixed",
+    "base_workflow_code": None,
     "stages": [
-        {"name": "RFQ received",      "order": 1, "default_team": "Estimation", "planned_duration_days": 2, "mandatory_fields": None},
-        {"name": "Cost estimation",   "order": 2, "default_team": "Estimation", "planned_duration_days": 5, "mandatory_fields": "estimation_completed"},
-        {"name": "Internal approval", "order": 3, "default_team": "Estimation", "planned_duration_days": 3, "mandatory_fields": "approval_signature"},
-        {"name": "Offer submission",  "order": 4, "default_team": "Estimation", "planned_duration_days": 2, "mandatory_fields": "final_price"},
-        {"name": "Award / Lost",      "order": 5, "default_team": "Estimation", "planned_duration_days": 1, "mandatory_fields": None},
+        {"name": "RFQ received",      "order": 1, "default_team": "Estimation", "planned_duration_days": 2, "mandatory_fields": None, "is_required": True},
+        {"name": "Go / No-Go",        "order": 2, "default_team": "Estimation", "planned_duration_days": 2, "mandatory_fields": "go_nogo_decision", "is_required": True},
+        {"name": "Cost estimation",   "order": 3, "default_team": "Estimation", "planned_duration_days": 5, "mandatory_fields": "estimation_completed", "is_required": True},
+        {"name": "Internal approval", "order": 4, "default_team": "Estimation", "planned_duration_days": 3, "mandatory_fields": "approval_signature", "is_required": True},
+        {"name": "Offer submission",  "order": 5, "default_team": "Estimation", "planned_duration_days": 2, "mandatory_fields": "final_price", "is_required": True},
+        {"name": "Award / Lost",      "order": 6, "default_team": "Estimation", "planned_duration_days": 1, "mandatory_fields": None, "is_required": True},
     ],
 }
 
-WORKFLOWS = [GHI_LONG, GHI_SHORT]
+GHI_CUSTOM = {
+    "code": "GHI-CUSTOM",
+    "name": "GHI customized workflow",
+    "description": "Customizable lifecycle that reuses the full GHI long workflow catalog at RFQ creation time.",
+    "is_default": False,
+    "selection_mode": "customizable",
+    "base_workflow_code": "GHI-LONG",
+    "stages": [],
+}
+
+WORKFLOWS = [GHI_LONG, GHI_SHORT, GHI_CUSTOM]
 
 REMINDER_RULES = [
     {
@@ -166,19 +181,55 @@ def _run_migrations(reset: bool):
     command.upgrade(alembic_cfg, "head")
 
 def seed_base_data(session):
+    workflow_lookup = {}
     for wf_def in WORKFLOWS:
         existing = session.query(Workflow).filter_by(code=wf_def["code"]).first()
         if existing:
-            continue
-        workflow = Workflow(
-            name=wf_def["name"], code=wf_def["code"],
-            description=wf_def["description"], is_active=True, is_default=wf_def["is_default"]
-        )
-        session.add(workflow)
-        session.flush()
+            workflow = existing
+            workflow.name = wf_def["name"]
+            workflow.description = wf_def["description"]
+            workflow.is_active = True
+            workflow.is_default = wf_def["is_default"]
+            workflow.selection_mode = wf_def.get("selection_mode", "fixed")
+        else:
+            workflow = Workflow(
+                name=wf_def["name"],
+                code=wf_def["code"],
+                description=wf_def["description"],
+                is_active=True,
+                is_default=wf_def["is_default"],
+                selection_mode=wf_def.get("selection_mode", "fixed"),
+            )
+            session.add(workflow)
+            session.flush()
+
+        workflow_lookup[wf_def["code"]] = workflow
+
+        existing_templates = {template.name: template for template in workflow.stages}
         for stage_data in wf_def["stages"]:
-            template = StageTemplate(workflow_id=workflow.id, **stage_data)
-            session.add(template)
+            template = existing_templates.get(stage_data["name"])
+            if template:
+                template.order = stage_data["order"]
+                template.default_team = stage_data["default_team"]
+                template.planned_duration_days = stage_data["planned_duration_days"]
+                template.mandatory_fields = stage_data["mandatory_fields"]
+                template.is_required = stage_data.get("is_required", False)
+            else:
+                template = StageTemplate(
+                    workflow_id=workflow.id,
+                    **stage_data,
+                )
+                session.add(template)
+
+    session.flush()
+
+    for wf_def in WORKFLOWS:
+        base_workflow_code = wf_def.get("base_workflow_code")
+        if not base_workflow_code:
+            continue
+        workflow = workflow_lookup[wf_def["code"]]
+        base_workflow = workflow_lookup.get(base_workflow_code)
+        workflow.base_workflow_id = base_workflow.id if base_workflow else None
 
     for rule_def in REMINDER_RULES:
         if not session.query(ReminderRule).filter_by(name=rule_def["name"]).first():

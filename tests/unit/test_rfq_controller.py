@@ -45,6 +45,9 @@ class MockWorkflow:
         self.id = workflow_id
         self.name = "Workflow A"
         self.stages = []
+        self.selection_mode = "fixed"
+        self.base_workflow_id = None
+        self.base_workflow = None
 
 
 class MockWorkflowDatasource:
@@ -124,30 +127,34 @@ class MockRfqDatasourceForUpdate:
 
 
 class MockTemplate:
-    def __init__(self, template_id, order=1, name="Stage", default_team="Team", mandatory_fields=None, planned_duration_days=5):
+    def __init__(self, template_id, order=1, name="Stage", default_team="Team", mandatory_fields=None, planned_duration_days=5, is_required=False):
         self.id = template_id
         self.order = order
         self.name = name
         self.default_team = default_team
         self.mandatory_fields = mandatory_fields
         self.planned_duration_days = planned_duration_days
+        self.is_required = is_required
 
 
 class MockWorkflowForCreate:
-    def __init__(self, workflow_id, stages=None):
+    def __init__(self, workflow_id, stages=None, selection_mode="fixed", base_workflow_id=None, base_workflow=None):
         self.id = workflow_id
         self.name = "Workflow Create"
         self.stages = stages or [MockTemplate(uuid.uuid4(), order=1, name="Stage 1")]
+        self.selection_mode = selection_mode
+        self.base_workflow_id = base_workflow_id
+        self.base_workflow = base_workflow
 
 
 class MockWorkflowDatasourceForCreate:
-    def __init__(self, workflow):
-        self.workflow = workflow
+    def __init__(self, workflow, extra_workflows=None):
+        self.workflows = {workflow.id: workflow}
+        for extra_workflow in extra_workflows or []:
+            self.workflows[extra_workflow.id] = extra_workflow
 
     def get_by_id(self, workflow_id):
-        if workflow_id == self.workflow.id:
-            return self.workflow
-        return None
+        return self.workflows.get(workflow_id)
 
 
 class MockRfqDatasourceForCreate:
@@ -487,19 +494,43 @@ def test_create_allows_exact_minimum_feasible_deadline():
 
 def test_create_validates_deadline_against_filtered_stage_set_after_skip_stages():
     workflow_id = uuid.uuid4()
-    template_stage_1 = MockTemplate(uuid.uuid4(), order=1, name="Stage 1", planned_duration_days=2)
-    template_stage_2 = MockTemplate(uuid.uuid4(), order=2, name="Stage 2", planned_duration_days=3)
-    template_stage_3 = MockTemplate(uuid.uuid4(), order=3, name="Stage 3", planned_duration_days=4)
+    base_workflow_id = uuid.uuid4()
+    template_stage_1 = MockTemplate(
+        uuid.uuid4(),
+        order=1,
+        name="Stage 1",
+        planned_duration_days=2,
+        is_required=True,
+    )
+    template_stage_2 = MockTemplate(
+        uuid.uuid4(),
+        order=2,
+        name="Stage 2",
+        planned_duration_days=3,
+    )
+    template_stage_3 = MockTemplate(
+        uuid.uuid4(),
+        order=3,
+        name="Stage 3",
+        planned_duration_days=4,
+    )
+    base_workflow = MockWorkflowForCreate(
+        base_workflow_id,
+        stages=[template_stage_1, template_stage_2, template_stage_3],
+    )
     workflow = MockWorkflowForCreate(
         workflow_id,
-        stages=[template_stage_1, template_stage_2, template_stage_3],
+        stages=[],
+        selection_mode="customizable",
+        base_workflow_id=base_workflow_id,
+        base_workflow=base_workflow,
     )
     rfq_ds = MockRfqDatasourceForCreate()
     stage_ds = MockRfqStageDatasourceForCreate()
     session = MockSession()
     ctrl = RfqController(
         rfq_datasource=rfq_ds,
-        workflow_datasource=MockWorkflowDatasourceForCreate(workflow),
+        workflow_datasource=MockWorkflowDatasourceForCreate(workflow, [base_workflow]),
         rfq_stage_datasource=stage_ds,
         session=session,
     )
@@ -521,6 +552,209 @@ def test_create_validates_deadline_against_filtered_stage_set_after_skip_stages(
 
     assert result.deadline == date.today() + timedelta(days=5)
     assert len(stage_ds.created_stages) == 2
+
+
+def test_create_rejects_skip_stage_ids_outside_customizable_catalog():
+    workflow_id = uuid.uuid4()
+    base_workflow_id = uuid.uuid4()
+    required_template = MockTemplate(
+        uuid.uuid4(),
+        order=1,
+        name="RFQ received",
+        is_required=True,
+    )
+    base_workflow = MockWorkflowForCreate(
+        base_workflow_id,
+        stages=[required_template],
+    )
+    workflow = MockWorkflowForCreate(
+        workflow_id,
+        stages=[],
+        selection_mode="customizable",
+        base_workflow_id=base_workflow_id,
+        base_workflow=base_workflow,
+    )
+    ctrl = RfqController(
+        rfq_datasource=MockRfqDatasourceForCreate(),
+        workflow_datasource=MockWorkflowDatasourceForCreate(workflow, [base_workflow]),
+        rfq_stage_datasource=MockRfqStageDatasourceForCreate(),
+        session=MockSession(),
+    )
+
+    with pytest.raises(BadRequestError) as exc:
+        ctrl.create(
+            RfqCreateRequest(
+                name="Custom Workflow",
+                client="Client",
+                deadline=date.today() + timedelta(days=5),
+                industry="Industrial Systems",
+                owner="Owner",
+                country="Saudi Arabia",
+                priority="critical",
+                workflow_id=workflow_id,
+                code_prefix="IF",
+                skip_stages=[uuid.uuid4()],
+            )
+        )
+
+    assert "do not belong to this customizable workflow" in str(exc.value)
+
+
+def test_create_rejects_skip_stages_for_fixed_workflow():
+    workflow_id = uuid.uuid4()
+    template_stage_1 = MockTemplate(uuid.uuid4(), order=1, name="Stage 1")
+    template_stage_2 = MockTemplate(uuid.uuid4(), order=2, name="Stage 2")
+    workflow = MockWorkflowForCreate(
+        workflow_id,
+        stages=[template_stage_1, template_stage_2],
+        selection_mode="fixed",
+    )
+    ctrl = RfqController(
+        rfq_datasource=MockRfqDatasourceForCreate(),
+        workflow_datasource=MockWorkflowDatasourceForCreate(workflow),
+        rfq_stage_datasource=MockRfqStageDatasourceForCreate(),
+        session=MockSession(),
+    )
+
+    with pytest.raises(BadRequestError) as exc:
+        ctrl.create(
+            RfqCreateRequest(
+                name="Fixed Workflow",
+                client="Client",
+                deadline=date.today() + timedelta(days=10),
+                industry="Industrial Systems",
+                owner="Owner",
+                country="Saudi Arabia",
+                priority="critical",
+                workflow_id=workflow_id,
+                code_prefix="IF",
+                skip_stages=[template_stage_2.id],
+            )
+        )
+
+    assert "only allowed for customizable workflows" in str(exc.value)
+
+
+def test_create_rejects_skipping_required_stage_for_customizable_workflow():
+    workflow_id = uuid.uuid4()
+    base_workflow_id = uuid.uuid4()
+    required_template = MockTemplate(
+        uuid.uuid4(),
+        order=1,
+        name="RFQ received",
+        is_required=True,
+    )
+    optional_template = MockTemplate(
+        uuid.uuid4(),
+        order=2,
+        name="Preliminary design",
+        is_required=False,
+    )
+    base_workflow = MockWorkflowForCreate(
+        base_workflow_id,
+        stages=[required_template, optional_template],
+    )
+    workflow = MockWorkflowForCreate(
+        workflow_id,
+        stages=[],
+        selection_mode="customizable",
+        base_workflow_id=base_workflow_id,
+        base_workflow=base_workflow,
+    )
+    ctrl = RfqController(
+        rfq_datasource=MockRfqDatasourceForCreate(),
+        workflow_datasource=MockWorkflowDatasourceForCreate(workflow, [base_workflow]),
+        rfq_stage_datasource=MockRfqStageDatasourceForCreate(),
+        session=MockSession(),
+    )
+
+    with pytest.raises(BadRequestError) as exc:
+        ctrl.create(
+            RfqCreateRequest(
+                name="Custom Workflow",
+                client="Client",
+                deadline=date.today() + timedelta(days=10),
+                industry="Industrial Systems",
+                owner="Owner",
+                country="Saudi Arabia",
+                priority="critical",
+                workflow_id=workflow_id,
+                code_prefix="IF",
+                skip_stages=[required_template.id],
+            )
+        )
+
+    assert "Required workflow stages cannot be removed." in str(exc.value)
+
+
+def test_create_customizable_workflow_reuses_base_stage_catalog_and_renumbers_selected_stages():
+    workflow_id = uuid.uuid4()
+    base_workflow_id = uuid.uuid4()
+    required_template = MockTemplate(
+        uuid.uuid4(),
+        order=1,
+        name="RFQ received",
+        planned_duration_days=2,
+        is_required=True,
+    )
+    optional_template = MockTemplate(
+        uuid.uuid4(),
+        order=4,
+        name="Preliminary design",
+        planned_duration_days=5,
+        is_required=False,
+    )
+    terminal_template = MockTemplate(
+        uuid.uuid4(),
+        order=11,
+        name="Award / Lost",
+        planned_duration_days=1,
+        is_required=True,
+    )
+    base_workflow = MockWorkflowForCreate(
+        base_workflow_id,
+        stages=[required_template, optional_template, terminal_template],
+    )
+    workflow = MockWorkflowForCreate(
+        workflow_id,
+        stages=[],
+        selection_mode="customizable",
+        base_workflow_id=base_workflow_id,
+        base_workflow=base_workflow,
+    )
+    rfq_ds = MockRfqDatasourceForCreate()
+    stage_ds = MockRfqStageDatasourceForCreate()
+    ctrl = RfqController(
+        rfq_datasource=rfq_ds,
+        workflow_datasource=MockWorkflowDatasourceForCreate(workflow, [base_workflow]),
+        rfq_stage_datasource=stage_ds,
+        session=MockSession(),
+    )
+
+    ctrl.create(
+        RfqCreateRequest(
+            name="Custom Workflow",
+            client="Client",
+            deadline=date.today() + timedelta(days=8),
+            industry="Industrial Systems",
+            owner="Owner",
+            country="Saudi Arabia",
+            priority="critical",
+            workflow_id=workflow_id,
+            code_prefix="IF",
+            skip_stages=[optional_template.id],
+        )
+    )
+
+    assert [stage["name"] for stage in stage_ds.created_stages] == [
+        "RFQ received",
+        "Award / Lost",
+    ]
+    assert [stage["order"] for stage in stage_ds.created_stages] == [1, 2]
+    assert [stage["stage_template_id"] for stage in stage_ds.created_stages] == [
+        required_template.id,
+        terminal_template.id,
+    ]
 
 
 def test_recalculate_stage_dates_uses_template_id_when_names_overlap():
