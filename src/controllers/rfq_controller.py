@@ -77,15 +77,17 @@ class RfqController:
         if not workflow:
             raise NotFoundError(f"Workflow '{request.workflow_id}' not found")
 
-        if not workflow.stages:
+        effective_templates = self._resolve_effective_workflow_stages(workflow)
+        if not effective_templates:
             raise BadRequestError(f"Workflow '{workflow.name}' has no stage templates")
 
         # ── 2. Filter stages for custom workflows ─────
         # skip_stages allows cherry-picking: only create stages NOT in the skip list
-        active_templates = list(workflow.stages)
-        if request.skip_stages:
-            skip_set = set(request.skip_stages)
-            active_templates = [t for t in active_templates if t.id not in skip_set]
+        active_templates = self._build_active_stage_templates(
+            workflow,
+            effective_templates,
+            request.skip_stages,
+        )
 
         if not active_templates:
             raise BadRequestError("Cannot create RFQ with zero stages. At least one stage must remain.")
@@ -301,10 +303,15 @@ class RfqController:
         workflow = None
         if "deadline" in update_data:
             workflow = self.workflow_ds.get_by_id(rfq.workflow_id)
-            if workflow and workflow.stages:
+            effective_stages = (
+                self._resolve_effective_workflow_stages(workflow)
+                if workflow
+                else []
+            )
+            if effective_stages:
                 self._validate_workflow_feasible_deadline(
                     update_data["deadline"],
-                    workflow.stages,
+                    effective_stages,
                 )
             self._recalculate_stage_dates(
                 rfq,
@@ -414,7 +421,6 @@ class RfqController:
         stage_ids = {r.current_stage_id for r in rfqs if r.current_stage_id}
 
         from src.models.workflow import Workflow
-        from src.models.rfq_stage import RFQStage
 
         workflows = self.session.query(Workflow).filter(Workflow.id.in_(workflow_ids)).all()
         wf_map = {w.id: w.name for w in workflows}
@@ -502,7 +508,8 @@ class RfqController:
         if not workflow:
             return
 
-        from src.models.rfq_stage import RFQStage
+        effective_stages = self._resolve_effective_workflow_stages(workflow)
+
         stages = (
             self.session.query(RFQStage)
             .filter_by(rfq_id=rfq.id)
@@ -522,13 +529,13 @@ class RfqController:
 
             if getattr(stage, "stage_template_id", None):
                 template = next(
-                    (t for t in workflow.stages if t.id == stage.stage_template_id),
+                    (t for t in effective_stages if t.id == stage.stage_template_id),
                     None,
                 )
             else:
                 # Legacy fallback: old rows may not yet have stage_template_id populated.
                 template = next(
-                    (t for t in workflow.stages if t.name == stage.name),
+                    (t for t in effective_stages if t.name == stage.name),
                     None,
                 )
 
@@ -550,7 +557,6 @@ class RfqController:
         if not rfq.current_stage_id:
             return None
 
-        from src.models.rfq_stage import RFQStage
         stage = self.session.query(RFQStage).filter(RFQStage.id == rfq.current_stage_id).first()
         return stage.name if stage else None
 
@@ -612,3 +618,55 @@ class RfqController:
     def _calculate_progress_excluding_skipped(self, stages) -> int:
         """Compute RFQ progress from non-skipped stages to avoid progress deflation."""
         return calculate_progress_excluding_skipped(stages)
+
+    def _resolve_effective_workflow_stages(self, workflow):
+        selection_mode = getattr(workflow, "selection_mode", "fixed") or "fixed"
+        if selection_mode != "customizable":
+            return list(workflow.stages or [])
+
+        if getattr(workflow, "base_workflow", None):
+            return list(workflow.base_workflow.stages or [])
+
+        base_workflow_id = getattr(workflow, "base_workflow_id", None)
+        if not base_workflow_id:
+            raise BadRequestError(
+                f"Workflow '{workflow.name}' is customizable but has no base workflow configured."
+            )
+
+        base_workflow = self.workflow_ds.get_by_id(base_workflow_id)
+        if not base_workflow:
+            raise BadRequestError(
+                f"Workflow '{workflow.name}' references a missing base workflow."
+            )
+
+        return list(base_workflow.stages or [])
+
+    def _build_active_stage_templates(self, workflow, effective_templates, skip_stages):
+        selection_mode = getattr(workflow, "selection_mode", "fixed") or "fixed"
+        if not skip_stages:
+            return list(effective_templates)
+
+        if selection_mode != "customizable":
+            raise BadRequestError(
+                "Stage selection is only allowed for customizable workflows."
+            )
+
+        skip_set = set(skip_stages)
+        effective_template_ids = {template.id for template in effective_templates}
+        invalid_skip_ids = skip_set - effective_template_ids
+        if invalid_skip_ids:
+            raise BadRequestError(
+                "One or more selected workflow stages do not belong to this customizable workflow."
+            )
+
+        required_stage_ids = {
+            template.id
+            for template in effective_templates
+            if getattr(template, "is_required", False)
+        }
+        if skip_set & required_stage_ids:
+            raise BadRequestError(
+                "Required workflow stages cannot be removed."
+            )
+
+        return [template for template in effective_templates if template.id not in skip_set]

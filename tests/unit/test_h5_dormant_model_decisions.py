@@ -10,7 +10,7 @@ from src.models.rfq_history import RFQHistory
 from src.models.rfq_stage import RFQStage
 from src.models.rfq_stage_field_value import RFQStageFieldValue
 from src.models.workflow import StageTemplate, Workflow
-from src.translators.rfq_stage_translator import RfqStageUpdateRequest
+from src.translators.rfq_stage_translator import RfqStageAdvanceRequest, RfqStageUpdateRequest
 from src.translators.rfq_translator import RfqCreateRequest, RfqUpdateRequest
 
 
@@ -108,7 +108,12 @@ def test_controller_flows_do_not_persist_dormant_tables_in_v1(db_session):
 
     rfq_row = db_session.query(RFQ).filter(RFQ.id == created.id).first()
     stage = db_session.query(RFQStage).filter(RFQStage.rfq_id == created.id).first()
-    stage_ctrl.advance(rfq_row.id, stage.id, actor_team="Engineering")
+    stage_ctrl.advance(
+        rfq_row.id,
+        stage.id,
+        actor_team="Engineering",
+        request=RfqStageAdvanceRequest(terminal_outcome="awarded"),
+    )
 
     assert db_session.query(RFQHistory).count() == 0
     assert db_session.query(RFQStageFieldValue).count() == 0

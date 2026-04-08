@@ -11,7 +11,6 @@ from src.translators.reminder_translator import (
     ACTIVE_REMINDER_STATUSES,
     REMINDER_SOURCE_AUTOMATIC,
     REMINDER_STATUS_OPEN,
-    REMINDER_STATUS_OVERDUE,
     REMINDER_STATUS_RESOLVED,
     normalize_reminder_status,
 )

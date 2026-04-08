@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from src.models.rfq_stage import RFQStage
 from src.utils.errors import ConflictError
-from src.utils.rfq_status import RFQ_VALID_STATUS_TRANSITIONS
+from src.utils.rfq_status import RFQ_TERMINAL_STATUSES, RFQ_VALID_STATUS_TRANSITIONS
 
 
 def validate_rfq_status_transition(current_status: str, new_status: str) -> None:
@@ -21,16 +21,25 @@ def validate_rfq_status_transition(current_status: str, new_status: str) -> None
         )
 
 
+def calculate_rfq_lifecycle_progress(stages, rfq_status: str | None = None) -> int:
+    if rfq_status in RFQ_TERMINAL_STATUSES:
+        return 100
+
+    effective_stages = [stage for stage in stages if stage.status != "Skipped"]
+    if not effective_stages:
+        return 100
+
+    completed_stages = [
+        stage for stage in effective_stages if stage.status == "Completed"
+    ]
+    if len(completed_stages) == len(effective_stages):
+        return 100
+
+    return (len(completed_stages) * 100) // len(effective_stages)
+
+
 def calculate_progress_excluding_skipped(stages) -> int:
-    non_skipped = [stage for stage in stages if stage.status != "Skipped"]
-    if not non_skipped:
-        return 100
-
-    if all(stage.status == "Completed" for stage in non_skipped):
-        return 100
-
-    total_progress = sum(stage.progress for stage in non_skipped)
-    return total_progress // len(non_skipped)
+    return calculate_rfq_lifecycle_progress(stages)
 
 
 def apply_terminal_stage_freeze(session: Session, rfq, update_data: dict[str, Any]) -> None:
@@ -57,4 +66,7 @@ def apply_terminal_stage_freeze(session: Session, rfq, update_data: dict[str, An
             stage.status = "Skipped"
 
     update_data["current_stage_id"] = None
-    update_data["progress"] = calculate_progress_excluding_skipped(stages)
+    update_data["progress"] = calculate_rfq_lifecycle_progress(
+        stages,
+        update_data.get("status"),
+    )

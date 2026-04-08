@@ -1,7 +1,6 @@
 import pytest
 import uuid
 from src.controllers.workflow_controller import WorkflowController
-from src.models.workflow import Workflow
 from src.utils.errors import NotFoundError
 from src.translators.workflow_translator import WorkflowUpdateRequest
 
@@ -9,14 +8,120 @@ U1 = str(uuid.uuid4())
 U2 = str(uuid.uuid4())
 
 class MockWorkflowDatasource:
+    @staticmethod
+    def _build_workflow(
+        workflow_id,
+        name,
+        code,
+        is_active,
+        is_default,
+        *,
+        selection_mode="fixed",
+        base_workflow_id=None,
+        base_workflow=None,
+        stages=None,
+    ):
+        workflow = type("Workflow", (), {})()
+        workflow.id = workflow_id
+        workflow.name = name
+        workflow.code = code
+        workflow.description = None
+        workflow.is_active = is_active
+        workflow.is_default = is_default
+        workflow.selection_mode = selection_mode
+        workflow.base_workflow_id = base_workflow_id
+        workflow.base_workflow = base_workflow
+        workflow.stages = stages or []
+        return workflow
+
     def list_all(self):
-        w1 = Workflow(id=U1, name="WF 1", code="W1", is_active=True, is_default=True)
-        w2 = Workflow(id=U2, name="WF 2", code="W2", is_active=False, is_default=False)
+        base_stage = type(
+            "StageTemplate",
+            (),
+            {
+                "id": uuid.uuid4(),
+                "name": "RFQ received",
+                "order": 1,
+                "default_team": "Estimation",
+                "planned_duration_days": 2,
+                "is_required": True,
+            },
+        )()
+        w1 = self._build_workflow(
+            U1,
+            "WF 1",
+            "W1",
+            True,
+            True,
+            stages=[base_stage],
+        )
+        w2 = self._build_workflow(
+            U2,
+            "WF 2",
+            "W2",
+            False,
+            False,
+            selection_mode="customizable",
+            base_workflow_id=w1.id,
+            base_workflow=w1,
+            stages=[],
+        )
         return [w1, w2]
         
     def get_by_id(self, wf_id):
         if str(wf_id) == U1:
-            return Workflow(id=U1, name="WF 1", code="W1", is_active=True, is_default=True)
+            stage = type(
+                "StageTemplate",
+                (),
+                {
+                    "id": uuid.uuid4(),
+                    "name": "RFQ received",
+                    "order": 1,
+                    "default_team": "Estimation",
+                    "planned_duration_days": 2,
+                    "is_required": True,
+                },
+            )()
+            return self._build_workflow(
+                U1,
+                "WF 1",
+                "W1",
+                True,
+                True,
+                stages=[stage],
+            )
+        if str(wf_id) == U2:
+            base_stage = type(
+                "StageTemplate",
+                (),
+                {
+                    "id": uuid.uuid4(),
+                    "name": "RFQ received",
+                    "order": 1,
+                    "default_team": "Estimation",
+                    "planned_duration_days": 2,
+                    "is_required": True,
+                },
+            )()
+            base = self._build_workflow(
+                U1,
+                "WF 1",
+                "W1",
+                True,
+                True,
+                stages=[base_stage],
+            )
+            return self._build_workflow(
+                U2,
+                "WF 2",
+                "W2",
+                False,
+                False,
+                selection_mode="customizable",
+                base_workflow_id=U1,
+                base_workflow=base,
+                stages=[],
+            )
         return None
         
     def clear_default(self):
@@ -46,6 +151,21 @@ def test_workflow_get_success():
     
     result = ctrl.get(U1)
     assert result.name == "WF 1"
+    assert result.selection_mode == "fixed"
+    assert result.stage_count == 1
+
+
+def test_workflow_get_customizable_uses_base_stage_catalog():
+    ds = MockWorkflowDatasource()
+    ctrl = WorkflowController(datasource=ds, session=MockSession())
+
+    result = ctrl.get(U2)
+
+    assert result.selection_mode == "customizable"
+    assert str(result.base_workflow_id) == U1
+    assert result.stage_count == 1
+    assert result.stages[0].name == "RFQ received"
+    assert result.stages[0].is_required is True
 
 def test_workflow_get_not_found():
     ds = MockWorkflowDatasource()

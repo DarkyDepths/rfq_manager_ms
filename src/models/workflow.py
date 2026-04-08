@@ -20,6 +20,13 @@ class Workflow(Base):
     description = Column(String(1000), nullable=True)
     is_active = Column(Boolean, default=True)
     is_default = Column(Boolean, default=False)         # only one can be True
+    selection_mode = Column(String(20), nullable=False, default="fixed")
+    base_workflow_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("workflow.id"),
+        nullable=True,
+        index=True,
+    )
 
     # ── Timestamps ────────────────────────────────────
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -33,6 +40,11 @@ class Workflow(Base):
         "StageTemplate",
         back_populates="workflow",
         order_by="StageTemplate.order",  # always return stages in order
+    )
+    base_workflow = relationship(
+        "Workflow",
+        remote_side=[id],
+        backref="derived_workflows",
     )
 
 
@@ -63,6 +75,7 @@ class StageTemplate(Base):
     default_team = Column(String(100), nullable=True)    # "Engineering"
     planned_duration_days = Column(Integer, nullable=False, default=5)
     mandatory_fields = Column(String(500), nullable=True)  # comma-separated: "margin,final_price"
+    is_required = Column(Boolean, nullable=False, default=False)
 
     # ── Relationships ─────────────────────────────────
     workflow = relationship("Workflow", back_populates="stages")
