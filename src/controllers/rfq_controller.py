@@ -25,6 +25,15 @@ from src.connectors.event_bus import EventBusConnector
 from src.models.rfq_stage import RFQStage
 from src.translators import rfq_translator
 from src.utils.errors import NotFoundError, BadRequestError, ConflictError
+from src.utils.rfq_lifecycle import (
+    apply_terminal_stage_freeze,
+    calculate_progress_excluding_skipped,
+    validate_rfq_status_transition,
+)
+from src.utils.rfq_status import (
+    RFQ_STATUS_CANCELLED,
+    RFQ_TERMINAL_STATUSES,
+)
 import csv
 import io
 from typing import List
@@ -36,17 +45,6 @@ logger = logging.getLogger(__name__)
 
 
 class RfqController:
-
-    VALID_STATUS_TRANSITIONS = {
-        "Draft": {"In preparation", "Cancelled"},
-        "In preparation": {"Submitted", "Cancelled"},
-        "Submitted": {"Awarded", "Lost", "Cancelled"},
-        "Awarded": set(),
-        "Lost": set(),
-        "Cancelled": set(),
-    }
-
-    TERMINAL_STATUSES = {"Awarded", "Lost", "Cancelled"}
 
     def __init__(
         self,
@@ -82,16 +80,7 @@ class RfqController:
         if not workflow.stages:
             raise BadRequestError(f"Workflow '{workflow.name}' has no stage templates")
 
-        # ── 2. Generate rfq_code ──────────────────────
-        rfq_code = self.rfq_ds.get_next_code(request.code_prefix)
-
-        # ── 3. Create the RFQ row ─────────────────────
-        rfq_data = rfq_translator.from_create_request(request)
-        rfq_data["rfq_code"] = rfq_code
-        rfq_data["status"] = "In preparation"
-        rfq = self.rfq_ds.create(rfq_data)
-
-        # ── 4. Filter stages for custom workflows ─────
+        # ── 2. Filter stages for custom workflows ─────
         # skip_stages allows cherry-picking: only create stages NOT in the skip list
         active_templates = list(workflow.stages)
         if request.skip_stages:
@@ -100,6 +89,20 @@ class RfqController:
 
         if not active_templates:
             raise BadRequestError("Cannot create RFQ with zero stages. At least one stage must remain.")
+
+        self._validate_workflow_feasible_deadline(
+            request.deadline,
+            active_templates,
+        )
+
+        # ── 3. Generate rfq_code ──────────────────────
+        rfq_code = self.rfq_ds.get_next_code(request.code_prefix)
+
+        # ── 4. Create the RFQ row ─────────────────────
+        rfq_data = rfq_translator.from_create_request(request)
+        rfq_data["rfq_code"] = rfq_code
+        rfq_data["status"] = "In preparation"
+        rfq = self.rfq_ds.create(rfq_data)
 
         # ── 5. Calculate planned dates ────────────────
         stage_dates = self._calculate_stage_dates(
@@ -288,65 +291,40 @@ class RfqController:
             raise NotFoundError(f"RFQ '{rfq_id}' not found")
 
         update_data = request.model_dump(exclude_unset=True)
-        previous_status = rfq.status
         previous_deadline = rfq.deadline
-        new_status = update_data.get("status")
 
-        # ── LG-01: Enforce RFQ lifecycle FSM transitions ─────────────
-        if new_status:
-            self._validate_status_transition(rfq.status, new_status)
-
-        if "deadline" in update_data:
-            self._recalculate_stage_dates(rfq, update_data["deadline"])
-
-        # ── GAP-1 & 3: Handle terminal state stage freezing ─────────────
-        if new_status in self.TERMINAL_STATUSES and rfq.status != new_status:
-            # 1. Skip current stage if not completed
-            stages = (
-                self.session.query(RFQStage)
-                .filter_by(rfq_id=rfq.id)
-                .order_by(RFQStage.order.asc())
-                .all()
+        if update_data and rfq.status in RFQ_TERMINAL_STATUSES:
+            raise ConflictError(
+                "Terminal RFQs are read-only through standard lifecycle controls."
             )
 
-            current_stage_order = 0
-            for stage in stages:
-                if stage.id == rfq.current_stage_id:
-                    current_stage_order = stage.order
-                    if stage.status == "In Progress":
-                        stage.status = "Skipped"
-                        stage.actual_end = date.today()
-                    elif stage.status == "Not Started":
-                        stage.status = "Skipped"
-                    break
+        workflow = None
+        if "deadline" in update_data:
+            workflow = self.workflow_ds.get_by_id(rfq.workflow_id)
+            if workflow and workflow.stages:
+                self._validate_workflow_feasible_deadline(
+                    update_data["deadline"],
+                    workflow.stages,
+                )
+            self._recalculate_stage_dates(
+                rfq,
+                update_data["deadline"],
+                workflow=workflow,
+            )
 
-            # 2. Skip all subsequent uncompleted stages
-            for stage in stages:
-                if stage.order > current_stage_order and stage.status != "Completed":
-                    stage.status = "Skipped"
-
-            # 3. Clear current_stage_id & freeze progress at current value
-            update_data["current_stage_id"] = None
-            update_data["progress"] = self._calculate_progress_excluding_skipped(stages)
+        if (
+            "outcome_reason" in update_data
+            and rfq.status not in RFQ_TERMINAL_STATUSES
+        ):
+            raise BadRequestError(
+                "outcome_reason can only be set when the RFQ is in a terminal state."
+            )
 
         rfq = self.rfq_ds.update(rfq, update_data)
         self.session.commit()
         self.session.refresh(rfq)
 
         metadata = self._build_event_metadata(actor_user_id, actor_name, actor_team)
-
-        if previous_status != rfq.status:
-            self._publish_event_best_effort(
-                "rfq.status_changed",
-                payload={
-                    "rfq_id": str(rfq.id),
-                    "rfq_code": rfq.rfq_code,
-                    "previous_status": previous_status,
-                    "new_status": rfq.status,
-                    "changed_at": self._utc_now_iso(),
-                },
-                metadata=metadata,
-            )
 
         if previous_deadline != rfq.deadline:
             self._publish_event_best_effort(
@@ -364,6 +342,64 @@ class RfqController:
         current_stage_name = self._get_current_stage_name(rfq)
         workflow_name = self._get_workflow_name(rfq.workflow_id)
         return rfq_translator.to_detail(rfq, current_stage_name=current_stage_name, workflow_name=workflow_name)
+
+    def cancel(
+        self,
+        rfq_id,
+        request: rfq_translator.RfqCancelRequest,
+        actor_user_id: str | None = None,
+        actor_name: str | None = None,
+        actor_team: str | None = None,
+    ) -> rfq_translator.RfqDetail:
+        """Explicit safe-cancel path. Preserves history and freezes workflow progression."""
+        rfq = self.rfq_ds.get_by_id(rfq_id)
+        if not rfq:
+            raise NotFoundError(f"RFQ '{rfq_id}' not found")
+
+        update_data = request.model_dump(exclude_unset=True)
+        previous_status = rfq.status
+
+        if rfq.status != RFQ_STATUS_CANCELLED:
+            self._validate_status_transition(rfq.status, RFQ_STATUS_CANCELLED)
+            update_data["status"] = RFQ_STATUS_CANCELLED
+            self._apply_terminal_stage_freeze(rfq, update_data)
+        elif not update_data:
+            current_stage_name = self._get_current_stage_name(rfq)
+            workflow_name = self._get_workflow_name(rfq.workflow_id)
+            return rfq_translator.to_detail(
+                rfq,
+                current_stage_name=current_stage_name,
+                workflow_name=workflow_name,
+            )
+
+        rfq = self.rfq_ds.update(rfq, update_data)
+        self.session.commit()
+        self.session.refresh(rfq)
+
+        if previous_status != rfq.status:
+            self._publish_event_best_effort(
+                "rfq.status_changed",
+                payload={
+                    "rfq_id": str(rfq.id),
+                    "rfq_code": rfq.rfq_code,
+                    "previous_status": previous_status,
+                    "new_status": rfq.status,
+                    "changed_at": self._utc_now_iso(),
+                },
+                metadata=self._build_event_metadata(
+                    actor_user_id,
+                    actor_name,
+                    actor_team,
+                ),
+            )
+
+        current_stage_name = self._get_current_stage_name(rfq)
+        workflow_name = self._get_workflow_name(rfq.workflow_id)
+        return rfq_translator.to_detail(
+            rfq,
+            current_stage_name=current_stage_name,
+            workflow_name=workflow_name,
+        )
 
     # ══════════════════════════════════════════════════
     # PRIVATE HELPERS
@@ -384,15 +420,58 @@ class RfqController:
         wf_map = {w.id: w.name for w in workflows}
 
         stages = self.session.query(RFQStage).filter(RFQStage.id.in_(stage_ids)).all()
-        st_map = {s.id: s.name for s in stages}
+        st_map = {s.id: s for s in stages}
 
         results = []
         for rfq in rfqs:
             wf_name = wf_map.get(rfq.workflow_id)
-            st_name = st_map.get(rfq.current_stage_id)
+            current_stage = st_map.get(rfq.current_stage_id)
+            st_name = current_stage.name if current_stage else None
+            rfq.current_stage_blocker_status = (
+                current_stage.blocker_status
+                if current_stage and current_stage.blocker_status == "Blocked"
+                else None
+            )
+            rfq.current_stage_blocker_reason_code = (
+                current_stage.blocker_reason_code
+                if current_stage
+                and current_stage.blocker_status == "Blocked"
+                and isinstance(current_stage.blocker_reason_code, str)
+                and current_stage.blocker_reason_code.strip()
+                else None
+            )
             results.append(rfq_translator.to_summary(rfq, current_stage_name=st_name, workflow_name=wf_name))
             
         return results
+
+    @staticmethod
+    def _get_stage_planned_duration_days(stage) -> int:
+        duration = getattr(stage, "planned_duration_days", None)
+        if isinstance(duration, int):
+            return max(duration, 0)
+        return 5
+
+    def _calculate_total_planned_duration_days(self, stages) -> int:
+        return sum(self._get_stage_planned_duration_days(stage) for stage in stages)
+
+    def _calculate_minimum_feasible_deadline(
+        self,
+        stages,
+        reference_date: date | None = None,
+    ) -> date:
+        return (reference_date or date.today()) + timedelta(
+            days=self._calculate_total_planned_duration_days(stages),
+        )
+
+    def _validate_workflow_feasible_deadline(self, deadline: date, stages) -> None:
+        if not stages:
+            return
+
+        minimum_deadline = self._calculate_minimum_feasible_deadline(stages)
+        if deadline < minimum_deadline:
+            raise BadRequestError(
+                f"This deadline is too narrow for the selected workflow. Choose {minimum_deadline.isoformat()} or later."
+            )
 
     def _calculate_stage_dates(self, deadline: date, stages) -> dict:
         """Back-calculate planned_start/planned_end from the deadline.
@@ -404,7 +483,7 @@ class RfqController:
         current_end = deadline
 
         for i, stage in enumerate(sorted_stages):
-            duration = stage.planned_duration_days if hasattr(stage, 'planned_duration_days') else 5
+            duration = self._get_stage_planned_duration_days(stage)
             stage_start = current_end - timedelta(days=duration)
 
             # new_order is the sequential position from the end
@@ -417,9 +496,9 @@ class RfqController:
 
         return result
 
-    def _recalculate_stage_dates(self, rfq, new_deadline: date):
+    def _recalculate_stage_dates(self, rfq, new_deadline: date, workflow=None):
         """When the deadline changes, recalculate all uncompleted stage planned dates."""
-        workflow = self.workflow_ds.get_by_id(rfq.workflow_id)
+        workflow = workflow or self.workflow_ds.get_by_id(rfq.workflow_id)
         if not workflow:
             return
 
@@ -454,7 +533,7 @@ class RfqController:
                 )
 
             if template:
-                duration = template.planned_duration_days
+                duration = self._get_stage_planned_duration_days(template)
 
             stage_start = current_end - timedelta(days=duration)
 
@@ -482,16 +561,12 @@ class RfqController:
         workflow = self.workflow_ds.get_by_id(workflow_id)
         return workflow.name if workflow else None
 
+    def _apply_terminal_stage_freeze(self, rfq, update_data: dict[str, Any]) -> None:
+        apply_terminal_stage_freeze(self.session, rfq, update_data)
+
     def _validate_status_transition(self, current_status: str, new_status: str):
         """Raise 409 when a status transition violates lifecycle FSM."""
-        if new_status == current_status:
-            return
-
-        allowed_next = self.VALID_STATUS_TRANSITIONS.get(current_status, set())
-        if new_status not in allowed_next:
-            raise ConflictError(
-                f"Invalid RFQ status transition from '{current_status}' to '{new_status}'."
-            )
+        validate_rfq_status_transition(current_status, new_status)
 
     @staticmethod
     def _utc_now_iso() -> str:
@@ -536,12 +611,4 @@ class RfqController:
 
     def _calculate_progress_excluding_skipped(self, stages) -> int:
         """Compute RFQ progress from non-skipped stages to avoid progress deflation."""
-        non_skipped = [stage for stage in stages if stage.status != "Skipped"]
-        if not non_skipped:
-            return 100
-
-        if all(stage.status == "Completed" for stage in non_skipped):
-            return 100
-
-        total_progress = sum(stage.progress for stage in non_skipped)
-        return total_progress // len(non_skipped)
+        return calculate_progress_excluding_skipped(stages)

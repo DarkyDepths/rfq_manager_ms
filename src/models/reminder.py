@@ -7,11 +7,13 @@ Columns:
 - id              UUID PK
 - rfq_id          UUID FK → rfq.id
 - rfq_stage_id    UUID FK → rfq_stage.id (nullable)
+- reminder_rule_id UUID FK → reminder_rule.id (nullable for automatic reminders)
 - type            VARCHAR  — internal | external
 - message         TEXT
 - due_date        DATE
 - assigned_to     VARCHAR  (nullable)
-- status          VARCHAR  — open | sent | overdue | resolved
+- status          VARCHAR  — open | overdue | resolved
+- source          VARCHAR  — manual | automatic
 - created_by      VARCHAR
 - created_at      TIMESTAMP WITH TZ
 - updated_at      TIMESTAMP WITH TZ
@@ -47,13 +49,20 @@ class Reminder(Base):
         ForeignKey("rfq_stage.id", ondelete="SET NULL"),
         nullable=True,
     )
+    reminder_rule_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("reminder_rule.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
 
     # ── Fields ────────────────────────────────────────
     type = Column(String(20), nullable=False)            # internal | external
     message = Column(String(1000), nullable=False)       # "Follow up on nozzle material"
     due_date = Column(Date, nullable=False, index=True)
     assigned_to = Column(String(200), nullable=True)     # "Engineering"
-    status = Column(String(20), nullable=False, default="open", index=True)  # open | sent | overdue | resolved
+    status = Column(String(20), nullable=False, default="open", index=True)  # open | overdue | resolved
+    source = Column(String(20), nullable=False, default="manual", index=True)  # manual | automatic
     created_by = Column(String(200), nullable=True)      # user who created it
 
     # ── Notification tracking ─────────────────────────

@@ -10,7 +10,15 @@ Functions:
 from uuid import UUID
 from datetime import date, datetime
 from typing import Optional, List, Literal
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
+
+
+ACTIVE_REMINDER_STATUSES = frozenset({"open", "overdue", "sent"})
+REMINDER_STATUS_OPEN = "open"
+REMINDER_STATUS_OVERDUE = "overdue"
+REMINDER_STATUS_RESOLVED = "resolved"
+REMINDER_SOURCE_MANUAL = "manual"
+REMINDER_SOURCE_AUTOMATIC = "automatic"
 
 
 class ReminderCreateRequest(BaseModel):
@@ -20,6 +28,17 @@ class ReminderCreateRequest(BaseModel):
     message: str
     due_date: date
     assigned_to: Optional[str] = None
+
+    @model_validator(mode="after")
+    def normalize(self):
+        normalized_message = self.message.strip() if isinstance(self.message, str) else ""
+        if not normalized_message:
+            raise ValueError("Reminder message is required.")
+        self.message = normalized_message
+        if isinstance(self.assigned_to, str):
+            normalized_assigned_to = self.assigned_to.strip()
+            self.assigned_to = normalized_assigned_to or None
+        return self
 
 class ReminderRuleUpdateRequest(BaseModel):
     is_active: bool
@@ -31,8 +50,13 @@ class ReminderResponse(BaseModel):
     type: str
     message: str
     due_date: date
+    rfq_code: Optional[str] = None
+    rfq_name: Optional[str] = None
+    rfq_deadline: Optional[date] = None
+    rfq_stage_name: Optional[str] = None
     assigned_to: Optional[str] = None
-    status: str
+    status: Literal["open", "overdue", "resolved"]
+    source: Literal["manual", "automatic"] = REMINDER_SOURCE_MANUAL
     delay_days: int = 0          # computed, not from DB
     created_by: Optional[str] = None
     created_at: datetime
@@ -65,9 +89,23 @@ class ReminderRuleListResponse(BaseModel):
     data: List[ReminderRuleResponse]
 
 
+def normalize_reminder_status(status: str | None, due_date: date | None) -> Literal["open", "overdue", "resolved"]:
+    today = date.today()
+    normalized_status = (status or "").strip().lower()
+
+    if normalized_status == REMINDER_STATUS_RESOLVED:
+        return REMINDER_STATUS_RESOLVED
+
+    if due_date and due_date < today:
+        return REMINDER_STATUS_OVERDUE
+
+    return REMINDER_STATUS_OPEN
+
+
 def to_response(reminder) -> ReminderResponse:
     today = date.today()
     delay = max(0, (today - reminder.due_date).days) if reminder.due_date else 0
+    normalized_status = normalize_reminder_status(reminder.status, reminder.due_date)
 
     return ReminderResponse(
         id=reminder.id,
@@ -76,8 +114,13 @@ def to_response(reminder) -> ReminderResponse:
         type=reminder.type,
         message=reminder.message,
         due_date=reminder.due_date,
+        rfq_code=getattr(reminder, "rfq_code", None),
+        rfq_name=getattr(reminder, "rfq_name", None),
+        rfq_deadline=getattr(reminder, "rfq_deadline", None),
+        rfq_stage_name=getattr(reminder, "rfq_stage_name", None),
         assigned_to=reminder.assigned_to,
-        status=reminder.status,
+        status=normalized_status,
+        source=getattr(reminder, "source", REMINDER_SOURCE_MANUAL),
         delay_days=delay,                # computed here
         created_by=reminder.created_by,
         created_at=reminder.created_at,

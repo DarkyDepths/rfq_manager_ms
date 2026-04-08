@@ -34,12 +34,24 @@ class ReminderDatasource:
         self.session.refresh(reminder)
         return reminder
 
+    def get_by_id(self, reminder_id) -> Reminder | None:
+        return self.session.query(Reminder).filter(Reminder.id == reminder_id).first()
+
     def list(self, user: str = None, status: str = None, rfq_id=None) -> list[Reminder]:
+        today = date.today()
         query = self.session.query(Reminder)
         if user:
             query = query.filter(Reminder.assigned_to == user)
         if status:
-            query = query.filter(Reminder.status == status)
+            normalized_status = status.strip().lower()
+            if normalized_status == "resolved":
+                query = query.filter(Reminder.status == "resolved")
+            elif normalized_status == "overdue":
+                query = query.filter(Reminder.status != "resolved", Reminder.due_date < today)
+            elif normalized_status == "open":
+                query = query.filter(Reminder.status != "resolved", Reminder.due_date >= today)
+            else:
+                query = query.filter(Reminder.status == status)
         if rfq_id:
             query = query.filter(Reminder.rfq_id == rfq_id)
         return query.order_by(Reminder.due_date.asc()).all()
@@ -47,19 +59,24 @@ class ReminderDatasource:
     def get_stats(self) -> dict:
         today = date.today()
         week_end = today + timedelta(days=7)
+        active_filter = Reminder.status != "resolved"
 
-        open_count = self.session.query(func.count(Reminder.id)).filter(Reminder.status == "open").scalar()
+        open_count = (
+            self.session.query(func.count(Reminder.id))
+            .filter(active_filter, Reminder.due_date >= today)
+            .scalar()
+        )
         overdue_count = self.session.query(func.count(Reminder.id)).filter(
-            Reminder.status.in_(["open", "sent"]),
+            active_filter,
             Reminder.due_date < today,
         ).scalar()
         due_this_week = self.session.query(func.count(Reminder.id)).filter(
-            Reminder.status.in_(["open", "sent"]),
+            active_filter,
             Reminder.due_date >= today,
             Reminder.due_date <= week_end,
         ).scalar()
-        with_active = self.session.query(func.count(Reminder.id)).filter(
-            Reminder.status.in_(["open", "sent"]),
+        with_active = self.session.query(func.count(func.distinct(Reminder.rfq_id))).filter(
+            active_filter,
         ).scalar()
 
         return {
@@ -84,3 +101,11 @@ class ReminderDatasource:
         self.session.flush()
         self.session.refresh(rule)
         return rule
+
+    def update(self, reminder: Reminder, data: dict) -> Reminder:
+        for key, value in data.items():
+            if hasattr(reminder, key):
+                setattr(reminder, key, value)
+        self.session.flush()
+        self.session.refresh(reminder)
+        return reminder

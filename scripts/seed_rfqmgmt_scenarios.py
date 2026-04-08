@@ -110,7 +110,7 @@ SCENARIOS: tuple[ManagerScenarioSpec, ...] = (
         client="Saudi Electricity Company",
         industry="Power",
         country="Saudi Arabia",
-        owner="Lina Haddad",
+        owner="GHI Estimator",
         priority="normal",
         status="In preparation",
         deadline_offset_days=21,
@@ -123,7 +123,7 @@ SCENARIOS: tuple[ManagerScenarioSpec, ...] = (
         notes=(
             NoteSeed(
                 stage_name="RFQ received",
-                user_name="Lina Haddad",
+                user_name="Estimation Manager",
                 text="Kickoff logged. Scope acknowledged and owner assigned for first review.",
             ),
         ),
@@ -136,7 +136,7 @@ SCENARIOS: tuple[ManagerScenarioSpec, ...] = (
         client="Saudi Aramco",
         industry="Oil & Gas",
         country="Saudi Arabia",
-        owner="Karim Ben Ali",
+        owner="GHI Estimator",
         priority="normal",
         status="In preparation",
         deadline_offset_days=35,
@@ -183,7 +183,7 @@ SCENARIOS: tuple[ManagerScenarioSpec, ...] = (
         client="SABIC",
         industry="Petrochemicals",
         country="Qatar",
-        owner="Maya Fares",
+        owner="GHI Estimator",
         priority="critical",
         status="In preparation",
         deadline_offset_days=-5,
@@ -236,7 +236,7 @@ SCENARIOS: tuple[ManagerScenarioSpec, ...] = (
             ReminderSeed(
                 message="Follow up with client on outstanding clarification pack.",
                 due_offset_days=-2,
-                status="sent",
+                status="overdue",
                 reminder_type="external",
                 assigned_to="Client Contact",
                 send_count=1,
@@ -261,7 +261,7 @@ SCENARIOS: tuple[ManagerScenarioSpec, ...] = (
         client="Saudi Aramco",
         industry="Oil & Gas",
         country="Bahrain",
-        owner="Youssef Nasser",
+        owner="GHI Estimator",
         priority="normal",
         status="In preparation",
         deadline_offset_days=14,
@@ -334,7 +334,7 @@ SCENARIOS: tuple[ManagerScenarioSpec, ...] = (
         client="Maaden",
         industry="Mining",
         country="Saudi Arabia",
-        owner="Nour Haddad",
+        owner="GHI Estimator",
         priority="normal",
         status="In preparation",
         deadline_offset_days=12,
@@ -349,7 +349,7 @@ SCENARIOS: tuple[ManagerScenarioSpec, ...] = (
             SubtaskSeed(
                 stage_name="Cost estimation",
                 name="Complete direct cost line check",
-                assigned_to="Nour Haddad",
+                assigned_to="GHI Estimator",
                 progress=60,
                 status="In progress",
                 due_offset_days=2,
@@ -365,7 +365,7 @@ SCENARIOS: tuple[ManagerScenarioSpec, ...] = (
             SubtaskSeed(
                 stage_name="Cost estimation",
                 name="Prepare estimator assumptions list",
-                assigned_to="Nour Haddad",
+                assigned_to="GHI Estimator",
                 progress=80,
                 status="In progress",
                 due_offset_days=1,
@@ -374,7 +374,7 @@ SCENARIOS: tuple[ManagerScenarioSpec, ...] = (
         notes=(
             NoteSeed(
                 stage_name="Cost estimation",
-                user_name="Nour Haddad",
+                user_name="GHI Estimator",
                 text="Workbook expected from estimator later today; commercial review pending.",
                 days_before_updated=1,
             ),
@@ -385,7 +385,7 @@ SCENARIOS: tuple[ManagerScenarioSpec, ...] = (
                 due_offset_days=4,
                 status="open",
                 reminder_type="internal",
-                assigned_to="Nour Haddad",
+                assigned_to="GHI Estimator",
                 stage_name="Cost estimation",
             ),
         ),
@@ -398,7 +398,7 @@ SCENARIOS: tuple[ManagerScenarioSpec, ...] = (
         client="SWCC",
         industry="Water",
         country="UAE",
-        owner="Manual Tester",
+        owner="GHI Estimator",
         priority="critical",
         status="In preparation",
         deadline_offset_days=8,
@@ -417,7 +417,7 @@ SCENARIOS: tuple[ManagerScenarioSpec, ...] = (
         client="Saudi Electricity Company",
         industry="Power",
         country="Saudi Arabia",
-        owner="Sara Ben Ali",
+        owner="GHI Estimator",
         priority="normal",
         status="In preparation",
         deadline_offset_days=16,
@@ -445,7 +445,7 @@ SCENARIOS: tuple[ManagerScenarioSpec, ...] = (
         client="SWCC",
         industry="Water",
         country="Oman",
-        owner="Omar Rahman",
+        owner="GHI Estimator",
         priority="critical",
         status="In preparation",
         deadline_offset_days=3,
@@ -497,7 +497,7 @@ SCENARIOS: tuple[ManagerScenarioSpec, ...] = (
         client="SABIC",
         industry="Petrochemicals",
         country="Saudi Arabia",
-        owner="Ahmed Proposal Ops",
+        owner="GHI Estimator",
         priority="critical",
         status="Submitted",
         deadline_offset_days=-2,
@@ -533,7 +533,7 @@ SCENARIOS: tuple[ManagerScenarioSpec, ...] = (
             ReminderSeed(
                 message="External follow-up with client buyer after submission.",
                 due_offset_days=2,
-                status="sent",
+                status="open",
                 reminder_type="external",
                 assigned_to="Client Buyer",
                 send_count=1,
@@ -550,7 +550,7 @@ SCENARIOS: tuple[ManagerScenarioSpec, ...] = (
         client="Maaden",
         industry="Mining",
         country="Saudi Arabia",
-        owner="Lina Haddad",
+        owner="GHI Estimator",
         priority="normal",
         status="Awarded",
         deadline_offset_days=-12,
@@ -569,7 +569,7 @@ SCENARIOS: tuple[ManagerScenarioSpec, ...] = (
         notes=(
             NoteSeed(
                 stage_name="Award / Lost",
-                user_name="Lina Haddad",
+                user_name="Estimation Manager",
                 text="Award confirmed by client. Operational closure completed without additional intelligence refresh.",
                 days_before_updated=0,
             ),
@@ -580,7 +580,7 @@ SCENARIOS: tuple[ManagerScenarioSpec, ...] = (
                 due_offset_days=-10,
                 status="resolved",
                 reminder_type="internal",
-                assigned_to="Lina Haddad",
+                assigned_to="Estimation Manager",
                 stage_name="Award / Lost",
             ),
         ),
@@ -593,7 +593,7 @@ SCENARIOS: tuple[ManagerScenarioSpec, ...] = (
         client="Saudi Aramco",
         industry="Oil & Gas",
         country="Saudi Arabia",
-        owner="Karim Ben Ali",
+        owner="GHI Estimator",
         priority="normal",
         status="Lost",
         deadline_offset_days=-8,
@@ -663,7 +663,7 @@ SCENARIOS: tuple[ManagerScenarioSpec, ...] = (
         client="SEC",
         industry="Power",
         country="Saudi Arabia",
-        owner="Nour Haddad",
+        owner="GHI Estimator",
         priority="normal",
         status="In preparation",
         deadline_offset_days=18,
@@ -682,7 +682,7 @@ SCENARIOS: tuple[ManagerScenarioSpec, ...] = (
         client="SWCC",
         industry="Water",
         country="Saudi Arabia",
-        owner="Omar Rahman",
+        owner="GHI Estimator",
         priority="normal",
         status="In preparation",
         deadline_offset_days=24,
@@ -965,10 +965,17 @@ def _create_controller(session) -> RfqController:
 def _create_scenario_rfq(session, scenario: ManagerScenarioSpec) -> RFQ:
     workflow = _stage_lookup(session, scenario.workflow_code)
     controller = _create_controller(session)
+    scenario_deadline = date.today() + timedelta(days=scenario.deadline_offset_days)
+    minimum_feasible_deadline = (
+        controller._calculate_minimum_feasible_deadline(workflow.stages)
+        if workflow.stages
+        else date.today()
+    )
+    create_deadline = max(scenario_deadline, minimum_feasible_deadline)
     request = RfqCreateRequest(
         name=scenario.name,
         client=scenario.client,
-        deadline=date.today() + timedelta(days=scenario.deadline_offset_days),
+        deadline=create_deadline,
         owner=scenario.owner,
         workflow_id=workflow.id,
         industry=scenario.industry,
@@ -981,6 +988,9 @@ def _create_scenario_rfq(session, scenario: ManagerScenarioSpec) -> RFQ:
     rfq = session.query(RFQ).filter(RFQ.id == detail.id).first()
     if rfq is None:
         raise RuntimeError(f"Failed to create scenario RFQ '{scenario.key}'")
+    if scenario_deadline != create_deadline:
+        controller._recalculate_stage_dates(rfq, scenario_deadline, workflow=workflow)
+        rfq.deadline = scenario_deadline
     _apply_stage_blueprint(session, rfq, scenario)
     session.commit()
     session.refresh(rfq)

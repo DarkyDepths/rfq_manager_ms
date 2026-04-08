@@ -62,6 +62,7 @@ class Permissions:
 
     REMINDER_CREATE = "reminder:create"
     REMINDER_READ = "reminder:read"
+    REMINDER_UPDATE = "reminder:update"
     REMINDER_UPDATE_RULES = "reminder:update_rules"
     REMINDER_TEST = "reminder:test"
     REMINDER_PROCESS = "reminder:process"

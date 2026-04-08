@@ -2,10 +2,12 @@ import pytest
 import uuid
 from datetime import date
 from datetime import datetime
+from datetime import timedelta
 
+from pydantic import ValidationError
 from src.controllers.rfq_controller import RfqController
-from src.translators.rfq_translator import RfqUpdateRequest
-from src.utils.errors import ConflictError
+from src.translators.rfq_translator import RfqCancelRequest, RfqCreateRequest, RfqUpdateRequest
+from src.utils.errors import BadRequestError, ConflictError
 from src.utils.observability import request_id_context
 
 class MockRFQ:
@@ -42,6 +44,7 @@ class MockWorkflow:
     def __init__(self, workflow_id):
         self.id = workflow_id
         self.name = "Workflow A"
+        self.stages = []
 
 
 class MockWorkflowDatasource:
@@ -106,6 +109,7 @@ class MockRfqForUpdate:
 class MockRfqDatasourceForUpdate:
     def __init__(self, rfq):
         self.rfq = rfq
+        self.last_update_data = None
 
     def get_by_id(self, rfq_id):
         if rfq_id == self.rfq.id:
@@ -113,6 +117,7 @@ class MockRfqDatasourceForUpdate:
         return None
 
     def update(self, rfq, data):
+        self.last_update_data = dict(data)
         for key, value in data.items():
             setattr(rfq, key, value)
         return rfq
@@ -129,10 +134,10 @@ class MockTemplate:
 
 
 class MockWorkflowForCreate:
-    def __init__(self, workflow_id):
+    def __init__(self, workflow_id, stages=None):
         self.id = workflow_id
         self.name = "Workflow Create"
-        self.stages = [MockTemplate(uuid.uuid4(), order=1, name="Stage 1")]
+        self.stages = stages or [MockTemplate(uuid.uuid4(), order=1, name="Stage 1")]
 
 
 class MockWorkflowDatasourceForCreate:
@@ -223,54 +228,62 @@ def test_export_csv_formatting_and_filtering():
     assert lines[2] == "IF-002,Valves,SABIC,normal,Submitted,100,2023-11-15,Team B,2023-09-01"
 
 
-def test_update_rejects_invalid_status_transition_submitted_to_draft():
-    rfq = MockRfqForUpdate(status="Submitted")
-    ds = MockRfqDatasourceForUpdate(rfq)
-    ctrl = RfqController(ds, MockWorkflowDatasource(), None, MockSession())
-
-    with pytest.raises(ConflictError) as exc:
-        ctrl.update(rfq.id, RfqUpdateRequest(status="Draft"))
-
-    assert "Invalid RFQ status transition" in str(exc.value)
-
-
-def test_update_allows_valid_status_transition_in_preparation_to_submitted():
+def test_update_allows_metadata_only_changes():
     rfq = MockRfqForUpdate(status="In preparation")
     session = MockSession()
     ds = MockRfqDatasourceForUpdate(rfq)
     ctrl = RfqController(ds, MockWorkflowDatasource(), None, session)
 
-    result = ctrl.update(rfq.id, RfqUpdateRequest(status="Submitted"))
+    result = ctrl.update(
+        rfq.id,
+        RfqUpdateRequest(name="RFQ B", client="Client B"),
+    )
 
-    assert result.status == "Submitted"
+    assert result.name == "RFQ B"
+    assert result.client == "Client B"
+    assert result.status == "In preparation"
+    assert ds.last_update_data == {"name": "RFQ B", "client": "Client B"}
     assert session.committed is True
 
 
-def test_update_rejects_invalid_status_transition_in_preparation_to_awarded():
+def test_update_request_rejects_unknown_status_field():
+    with pytest.raises(ValidationError) as exc:
+        RfqUpdateRequest.model_validate({"name": "Should Not Persist", "status": "Submitted"})
+
+    assert "status" in str(exc.value)
+    assert "Extra inputs are not permitted" in str(exc.value)
+
+
+def test_cancel_allows_transition_to_cancelled():
     rfq = MockRfqForUpdate(status="In preparation")
+    session = MockSession()
     ds = MockRfqDatasourceForUpdate(rfq)
-    ctrl = RfqController(ds, MockWorkflowDatasource(), None, MockSession())
+    ctrl = RfqController(ds, MockWorkflowDatasource(), None, session)
 
-    with pytest.raises(ConflictError) as exc:
-        ctrl.update(rfq.id, RfqUpdateRequest(status="Awarded"))
+    result = ctrl.cancel(
+        rfq.id, RfqCancelRequest(outcome_reason="Client withdrew scope.")
+    )
 
-    assert "Invalid RFQ status transition" in str(exc.value)
+    assert result.status == "Cancelled"
+    assert session.committed is True
 
 
-def test_update_allows_valid_status_transition_submitted_to_awarded():
+def test_cancel_preserves_terminal_freeze_semantics():
     rfq = MockRfqForUpdate(status="Submitted")
     session = MockSession()
     ds = MockRfqDatasourceForUpdate(rfq)
     ctrl = RfqController(ds, MockWorkflowDatasource(), None, session)
 
-    result = ctrl.update(rfq.id, RfqUpdateRequest(status="Awarded"))
+    result = ctrl.cancel(
+        rfq.id, RfqCancelRequest(outcome_reason="Client withdrew scope.")
+    )
 
-    assert result.status == "Awarded"
+    assert result.status == "Cancelled"
     assert result.current_stage_id is None
     assert session.committed is True
 
 
-def test_update_terminal_progress_ignores_skipped_stages():
+def test_cancel_ignores_skipped_stages_when_freezing_progress():
     rfq = MockRfqForUpdate(status="Submitted")
     session = MockSession()
 
@@ -319,7 +332,9 @@ def test_update_terminal_progress_ignores_skipped_stages():
     ds = MockRfqDatasourceForUpdate(rfq)
     ctrl = RfqController(ds, MockWorkflowDatasource(), None, session)
 
-    result = ctrl.update(rfq.id, RfqUpdateRequest(status="Awarded"))
+    result = ctrl.cancel(
+        rfq.id, RfqCancelRequest(outcome_reason="Client withdrew scope.")
+    )
 
     assert result.progress == 100
     assert stage_skipped.status == "Skipped"
@@ -339,13 +354,14 @@ def test_create_sets_explicit_initial_status_in_preparation():
         session=session,
     )
 
-    from src.translators.rfq_translator import RfqCreateRequest
-
     req = RfqCreateRequest(
         name="RFQ Create",
         client="Client",
         deadline=date(2030, 1, 1),
+        industry="Industrial Systems",
         owner="Owner",
+        country="Saudi Arabia",
+        priority="critical",
         workflow_id=workflow_id,
         code_prefix="IF",
     )
@@ -374,13 +390,14 @@ def test_create_persists_stage_template_id_on_generated_stages():
         session=session,
     )
 
-    from src.translators.rfq_translator import RfqCreateRequest
-
     req = RfqCreateRequest(
         name="RFQ Create",
         client="Client",
         deadline=date(2030, 1, 1),
+        industry="Industrial Systems",
         owner="Owner",
+        country="Saudi Arabia",
+        priority="critical",
         workflow_id=workflow_id,
         code_prefix="IF",
     )
@@ -389,6 +406,121 @@ def test_create_persists_stage_template_id_on_generated_stages():
 
     assert len(stage_ds.created_stages) == 1
     assert stage_ds.created_stages[0]["stage_template_id"] == template_id
+
+
+def test_create_rejects_deadline_that_is_too_narrow_for_selected_workflow():
+    workflow_id = uuid.uuid4()
+    workflow = MockWorkflowForCreate(
+        workflow_id,
+        stages=[
+            MockTemplate(uuid.uuid4(), order=1, name="Stage 1", planned_duration_days=2),
+            MockTemplate(uuid.uuid4(), order=2, name="Stage 2", planned_duration_days=3),
+        ],
+    )
+    rfq_ds = MockRfqDatasourceForCreate()
+    stage_ds = MockRfqStageDatasourceForCreate()
+    session = MockSession()
+    ctrl = RfqController(
+        rfq_datasource=rfq_ds,
+        workflow_datasource=MockWorkflowDatasourceForCreate(workflow),
+        rfq_stage_datasource=stage_ds,
+        session=session,
+    )
+
+    with pytest.raises(BadRequestError) as exc:
+        ctrl.create(
+            RfqCreateRequest(
+                name="Too Narrow",
+                client="Client",
+                deadline=date.today() + timedelta(days=4),
+                industry="Industrial Systems",
+                owner="Owner",
+                country="Saudi Arabia",
+                priority="critical",
+                workflow_id=workflow_id,
+                code_prefix="IF",
+            )
+        )
+
+    assert "too narrow for the selected workflow" in str(exc.value)
+    assert rfq_ds.last_create_data is None
+    assert stage_ds.created_stages == []
+
+
+def test_create_allows_exact_minimum_feasible_deadline():
+    workflow_id = uuid.uuid4()
+    workflow = MockWorkflowForCreate(
+        workflow_id,
+        stages=[
+            MockTemplate(uuid.uuid4(), order=1, name="Stage 1", planned_duration_days=2),
+            MockTemplate(uuid.uuid4(), order=2, name="Stage 2", planned_duration_days=3),
+        ],
+    )
+    rfq_ds = MockRfqDatasourceForCreate()
+    stage_ds = MockRfqStageDatasourceForCreate()
+    session = MockSession()
+    ctrl = RfqController(
+        rfq_datasource=rfq_ds,
+        workflow_datasource=MockWorkflowDatasourceForCreate(workflow),
+        rfq_stage_datasource=stage_ds,
+        session=session,
+    )
+
+    result = ctrl.create(
+        RfqCreateRequest(
+            name="Feasible",
+            client="Client",
+            deadline=date.today() + timedelta(days=5),
+            industry="Industrial Systems",
+            owner="Owner",
+            country="Saudi Arabia",
+            priority="critical",
+            workflow_id=workflow_id,
+            code_prefix="IF",
+        )
+    )
+
+    assert result.deadline == date.today() + timedelta(days=5)
+    assert rfq_ds.last_create_data is not None
+    assert len(stage_ds.created_stages) == 2
+
+
+def test_create_validates_deadline_against_filtered_stage_set_after_skip_stages():
+    workflow_id = uuid.uuid4()
+    template_stage_1 = MockTemplate(uuid.uuid4(), order=1, name="Stage 1", planned_duration_days=2)
+    template_stage_2 = MockTemplate(uuid.uuid4(), order=2, name="Stage 2", planned_duration_days=3)
+    template_stage_3 = MockTemplate(uuid.uuid4(), order=3, name="Stage 3", planned_duration_days=4)
+    workflow = MockWorkflowForCreate(
+        workflow_id,
+        stages=[template_stage_1, template_stage_2, template_stage_3],
+    )
+    rfq_ds = MockRfqDatasourceForCreate()
+    stage_ds = MockRfqStageDatasourceForCreate()
+    session = MockSession()
+    ctrl = RfqController(
+        rfq_datasource=rfq_ds,
+        workflow_datasource=MockWorkflowDatasourceForCreate(workflow),
+        rfq_stage_datasource=stage_ds,
+        session=session,
+    )
+
+    result = ctrl.create(
+        RfqCreateRequest(
+            name="Filtered Workflow",
+            client="Client",
+            deadline=date.today() + timedelta(days=5),
+            industry="Industrial Systems",
+            owner="Owner",
+            country="Saudi Arabia",
+            priority="critical",
+            workflow_id=workflow_id,
+            code_prefix="IF",
+            skip_stages=[template_stage_3.id],
+        )
+    )
+
+    assert result.deadline == date.today() + timedelta(days=5)
+    assert len(stage_ds.created_stages) == 2
 
 
 def test_recalculate_stage_dates_uses_template_id_when_names_overlap():
@@ -520,13 +652,14 @@ def test_create_publishes_rfq_created_once_after_commit():
         event_bus_connector=bus,
     )
 
-    from src.translators.rfq_translator import RfqCreateRequest
-
     req = RfqCreateRequest(
         name="RFQ Create",
         client="Client",
         deadline=date(2030, 1, 1),
+        industry="Industrial Systems",
         owner="Owner",
+        country="Saudi Arabia",
+        priority="critical",
         workflow_id=workflow_id,
         code_prefix="IF",
     )
@@ -545,7 +678,157 @@ def test_create_publishes_rfq_created_once_after_commit():
     assert call["metadata"]["actor_user_id"] == "u-1"
 
 
-def test_update_publishes_status_changed_only_when_value_actually_changes():
+def test_create_request_rejects_past_deadline():
+    with pytest.raises(ValidationError) as exc:
+        RfqCreateRequest(
+            name="RFQ Create",
+            client="Client",
+            deadline=date.today() - timedelta(days=1),
+            industry="Industrial Systems",
+            owner="Owner",
+            country="Saudi Arabia",
+            priority="critical",
+            workflow_id=uuid.uuid4(),
+            code_prefix="IF",
+        )
+
+    assert "deadline cannot be in the past" in str(exc.value)
+
+
+def test_update_request_rejects_past_deadline():
+    with pytest.raises(ValidationError) as exc:
+        RfqUpdateRequest(deadline=date.today() - timedelta(days=1))
+
+    assert "deadline cannot be in the past" in str(exc.value)
+
+
+def test_update_rejects_deadline_that_is_too_narrow_for_workflow():
+    workflow_id = uuid.uuid4()
+    workflow = MockWorkflowForCreate(
+        workflow_id,
+        stages=[
+            MockTemplate(uuid.uuid4(), order=1, name="Stage 1", planned_duration_days=2),
+            MockTemplate(uuid.uuid4(), order=2, name="Stage 2", planned_duration_days=3),
+        ],
+    )
+    rfq = MockRfqForUpdate(status="In preparation")
+    rfq.workflow_id = workflow_id
+    ds = MockRfqDatasourceForUpdate(rfq)
+    ctrl = RfqController(
+        ds,
+        MockWorkflowDatasourceForCreate(workflow),
+        None,
+        MockSession(),
+    )
+
+    with pytest.raises(BadRequestError) as exc:
+        ctrl.update(
+            rfq.id,
+            RfqUpdateRequest(deadline=date.today() + timedelta(days=4)),
+        )
+
+    assert "too narrow for the selected workflow" in str(exc.value)
+
+
+def test_update_allows_exact_minimum_feasible_deadline_for_workflow():
+    workflow_id = uuid.uuid4()
+    workflow = MockWorkflowForCreate(
+        workflow_id,
+        stages=[
+            MockTemplate(uuid.uuid4(), order=1, name="Stage 1", planned_duration_days=2),
+            MockTemplate(uuid.uuid4(), order=2, name="Stage 2", planned_duration_days=3),
+        ],
+    )
+    rfq = MockRfqForUpdate(status="In preparation")
+    rfq.workflow_id = workflow_id
+    session = MockSession()
+    ds = MockRfqDatasourceForUpdate(rfq)
+    ctrl = RfqController(
+        ds,
+        MockWorkflowDatasourceForCreate(workflow),
+        None,
+        session,
+    )
+
+    result = ctrl.update(
+        rfq.id,
+        RfqUpdateRequest(deadline=date.today() + timedelta(days=5)),
+    )
+
+    assert result.deadline == date.today() + timedelta(days=5)
+    assert session.committed is True
+
+
+def test_create_request_rejects_blank_required_text_fields():
+    with pytest.raises(ValidationError) as exc:
+        RfqCreateRequest(
+            name="   ",
+            client="Client",
+            deadline=date.today(),
+            industry="Industrial Systems",
+            owner="Owner",
+            country="Saudi Arabia",
+            priority="critical",
+            workflow_id=uuid.uuid4(),
+            code_prefix="IF",
+        )
+
+    assert "name is required" in str(exc.value)
+
+
+def test_create_request_rejects_blank_industry_and_country():
+    with pytest.raises(ValidationError) as exc:
+        RfqCreateRequest(
+            name="RFQ Create",
+            client="Client",
+            deadline=date.today(),
+            industry="   ",
+            owner="Owner",
+            country="   ",
+            priority="critical",
+            workflow_id=uuid.uuid4(),
+            code_prefix="IF",
+        )
+
+    message = str(exc.value)
+    assert "industry is required" in message
+    assert "country is required" in message
+
+
+def test_update_rejects_outcome_reason_for_non_terminal_rfq():
+    rfq = MockRfqForUpdate(status="In preparation")
+    ds = MockRfqDatasourceForUpdate(rfq)
+    ctrl = RfqController(ds, MockWorkflowDatasource(), None, MockSession())
+
+    with pytest.raises(BadRequestError) as exc:
+        ctrl.update(rfq.id, RfqUpdateRequest(outcome_reason="Still negotiating"))
+
+    assert "outcome_reason can only be set" in str(exc.value)
+
+
+def test_update_rejects_standard_lifecycle_control_updates_for_terminal_rfq():
+    rfq = MockRfqForUpdate(status="Cancelled")
+    session = MockSession()
+    ds = MockRfqDatasourceForUpdate(rfq)
+    ctrl = RfqController(ds, MockWorkflowDatasource(), None, session)
+
+    with pytest.raises(ConflictError) as exc:
+        ctrl.update(
+            rfq.id,
+            RfqUpdateRequest(
+                name="Do Not Persist",
+                outcome_reason="Cancelled after client withdrew scope.",
+            ),
+        )
+
+    assert "Terminal RFQs are read-only through standard lifecycle controls." in str(
+        exc.value
+    )
+    assert ds.last_update_data is None
+    assert session.committed is False
+
+
+def test_cancel_publishes_status_changed_only_when_value_actually_changes():
     rfq = MockRfqForUpdate(status="In preparation")
     session = MockSession()
     bus = MockEventBusConnector()
@@ -557,12 +840,12 @@ def test_update_publishes_status_changed_only_when_value_actually_changes():
         event_bus_connector=bus,
     )
 
-    ctrl.update(rfq.id, RfqUpdateRequest(status="Submitted"))
+    ctrl.cancel(rfq.id, RfqCancelRequest(outcome_reason="Client withdrew scope."))
     assert any(call["event_type"] == "rfq.status_changed" for call in bus.calls)
 
     bus.calls.clear()
-    rfq.status = "Submitted"
-    ctrl.update(rfq.id, RfqUpdateRequest(status="Submitted"))
+    rfq.status = "Cancelled"
+    ctrl.cancel(rfq.id, RfqCancelRequest(outcome_reason="Client withdrew scope."))
     assert all(call["event_type"] != "rfq.status_changed" for call in bus.calls)
 
 
@@ -587,6 +870,58 @@ def test_update_publishes_deadline_changed_only_when_value_actually_changes():
     assert all(call["event_type"] != "rfq.deadline_changed" for call in bus.calls)
 
 
+def test_enrich_summaries_includes_current_stage_blocker_signal():
+    rfq = MockRfqForUpdate(status="In preparation")
+    rfq.workflow_id = uuid.uuid4()
+    current_stage_id = uuid.uuid4()
+    rfq.current_stage_id = current_stage_id
+
+    workflow = type("Workflow", (), {"id": rfq.workflow_id, "name": "Workflow A"})()
+    stage = type(
+        "Stage",
+        (),
+        {
+            "id": current_stage_id,
+            "name": "Client Clarifications",
+            "blocker_status": "Blocked",
+            "blocker_reason_code": "waiting_client_input",
+        },
+    )()
+
+    class _Query:
+        def __init__(self, items):
+            self.items = items
+
+        def filter(self, *_args, **_kwargs):
+            return self
+
+        def all(self):
+            return self.items
+
+    class _Session(MockSession):
+        def __init__(self):
+            super().__init__()
+            self.query_calls = 0
+
+        def query(self, _model):
+            self.query_calls += 1
+            return _Query([workflow] if self.query_calls == 1 else [stage])
+
+    ctrl = RfqController(
+        rfq_datasource=None,
+        workflow_datasource=None,
+        rfq_stage_datasource=None,
+        session=_Session(),
+    )
+
+    result = ctrl._enrich_summaries([rfq])
+
+    assert len(result) == 1
+    assert result[0].current_stage_name == "Client Clarifications"
+    assert result[0].current_stage_blocker_status == "Blocked"
+    assert result[0].current_stage_blocker_reason_code == "waiting_client_input"
+
+
 def test_event_publish_failure_does_not_fail_successful_update_and_is_logged(caplog):
     rfq = MockRfqForUpdate(status="In preparation")
     session = MockSession()
@@ -603,8 +938,8 @@ def test_event_publish_failure_does_not_fail_successful_update_and_is_logged(cap
         event_bus_connector=_FailingBus(),
     )
 
-    result = ctrl.update(rfq.id, RfqUpdateRequest(status="Submitted"))
+    result = ctrl.update(rfq.id, RfqUpdateRequest(deadline=date(2031, 1, 1)))
 
-    assert result.status == "Submitted"
+    assert result.deadline == date(2031, 1, 1)
     assert session.committed is True
     assert any("event_publish_failed" in record.message for record in caplog.records)

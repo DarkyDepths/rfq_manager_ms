@@ -63,7 +63,10 @@ def test_v1_stage_form_source_of_truth_remains_captured_data(db_session):
             name="H5 RFQ",
             client="Client",
             deadline=date(2030, 1, 1),
+            industry="Industrial Systems",
             owner="Owner",
+            country="Saudi Arabia",
+            priority="normal",
             workflow_id=workflow.id,
             code_prefix="IF",
         )
@@ -92,13 +95,15 @@ def test_controller_flows_do_not_persist_dormant_tables_in_v1(db_session):
             name="H5 RFQ",
             client="Client",
             deadline=date(2030, 2, 1),
+            industry="Industrial Systems",
             owner="Owner",
+            country="Saudi Arabia",
+            priority="normal",
             workflow_id=workflow.id,
             code_prefix="IF",
         )
     )
 
-    rfq_ctrl.update(created.id, RfqUpdateRequest(status="Submitted"))
     rfq_ctrl.update(created.id, RfqUpdateRequest(deadline=date(2030, 2, 15)))
 
     rfq_row = db_session.query(RFQ).filter(RFQ.id == created.id).first()
