@@ -13,10 +13,10 @@ File endpoints (#28–#30) are in file_route.py.
 """
 
 from uuid import UUID
-from fastapi import APIRouter, Depends, UploadFile, File, Form
+from fastapi import APIRouter, Depends, UploadFile, File, Form, Body
 
 from src.translators.rfq_stage_translator import (
-    RfqStageUpdateRequest, NoteCreateRequest,
+    RfqStageAdvanceRequest, RfqStageUpdateRequest, NoteCreateRequest,
     RfqStageDetailResponse, StageNoteResponse, StageFileResponse,
     RfqStageListResponse
 )
@@ -53,11 +53,11 @@ def update_stage(
     rfq_id: UUID,
     stage_id: UUID,
     body: RfqStageUpdateRequest,
-    _auth=Depends(require_permission(Permissions.RFQ_STAGE_UPDATE)),
+    auth: AuthContext = Depends(require_permission(Permissions.RFQ_STAGE_UPDATE)),
     ctrl: RfqStageController = Depends(get_rfq_stage_controller),
 ):
     """#13 — Update progress, captured_data, blocker_status."""
-    return ctrl.update(rfq_id, stage_id, body)
+    return ctrl.update(rfq_id, stage_id, body, actor_name=auth.user_name)
 
 
 @router.post("/{stage_id}/notes", status_code=201, response_model=StageNoteResponse)
@@ -97,6 +97,7 @@ async def upload_file(
 def advance_stage(
     rfq_id: UUID,
     stage_id: UUID,
+    body: RfqStageAdvanceRequest = Body(default_factory=RfqStageAdvanceRequest),
     auth: AuthContext = Depends(require_permission(Permissions.RFQ_STAGE_ADVANCE)),
     ctrl: RfqStageController = Depends(get_rfq_stage_controller),
 ):
@@ -104,7 +105,9 @@ def advance_stage(
     return ctrl.advance(
         rfq_id,
         stage_id,
+        request=body,
         actor_team=auth.team,
         actor_user_id=auth.user_id,
         actor_name=auth.user_name,
+        actor_permissions=auth.permissions,
     )

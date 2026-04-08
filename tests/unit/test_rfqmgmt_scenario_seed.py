@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, timedelta
 
 from scripts.seed_rfqmgmt_scenarios import (
     GOLDEN_SCENARIO_KEY,
@@ -114,5 +114,13 @@ def test_blocked_overdue_scenario_has_expected_operational_pressure(db_session):
     assert stage.blocker_reason_code == "waiting_client_docs"
 
     assert len(reminders) == 3
-    assert {reminder.status for reminder in reminders} == {"open", "sent"}
+    assert {reminder.status for reminder in reminders} == {"open", "overdue"}
     assert any(reminder.send_count == 1 for reminder in reminders)
+
+
+def test_tight_future_scenario_keeps_its_intended_deadline_after_safe_seed_create(db_session):
+    seed_manager_scenarios(db_session, batch="must-have")
+
+    rfq = _rfq_by_scenario(db_session, "RFQ-04")
+
+    assert rfq.deadline == date.today() + timedelta(days=14)

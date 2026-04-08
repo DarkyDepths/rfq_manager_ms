@@ -15,7 +15,7 @@ from pathlib import Path
 import uuid
 from datetime import date, datetime, timezone
 import logging
-from typing import Any
+from typing import Any, List, Sequence
 
 from sqlalchemy.orm import Session
 
@@ -26,11 +26,23 @@ from src.translators import rfq_stage_translator
 from src.models.rfq_stage import RFQStage
 from src.models.subtask import Subtask
 from src.utils.errors import NotFoundError, ConflictError, UnprocessableEntityError, BadRequestError, ForbiddenError
+from src.utils.rfq_lifecycle import apply_terminal_stage_freeze, validate_rfq_status_transition
+from src.utils.rfq_status import (
+    RFQ_STATUS_AWARDED,
+    RFQ_STATUS_CANCELLED,
+    RFQ_STATUS_IN_PREPARATION,
+    RFQ_STATUS_LOST,
+    RFQ_STATUS_SUBMITTED,
+)
 from src.config.settings import settings
 from src.utils.observability import get_request_id
 
 
 logger = logging.getLogger(__name__)
+
+INCOMPLETE_SUBTASKS_ADVANCE_MESSAGE = (
+    "All active subtasks must be completed before advancing this stage."
+)
 
 
 class RfqStageController:
@@ -68,19 +80,24 @@ class RfqStageController:
     # ══════════════════════════════════════════════════
     # #12 — UPDATE STAGE
     # ══════════════════════════════════════════════════
-    def update(self, rfq_id, stage_id, request: rfq_stage_translator.RfqStageUpdateRequest):
+    def update(
+        self,
+        rfq_id,
+        stage_id,
+        request: rfq_stage_translator.RfqStageUpdateRequest,
+        *,
+        actor_name: str | None = None,
+    ):
         stage = self._get_stage_or_404(rfq_id, stage_id)
-        update_data = request.model_dump(exclude_unset=True)
-
-        # PR4: Enforce subtask ownership of stage progress
-        if "progress" in update_data:
-            has_subtasks = (
-                self.session.query(Subtask)
-                .filter(Subtask.rfq_stage_id == stage.id, Subtask.deleted_at.is_(None))
-                .count() > 0
-            )
-            if has_subtasks:
-                raise ConflictError("Cannot manually update progress when active subtasks exist. Progress is determined by subtask rollup.")
+        update_data = request.model_dump(exclude_unset=True, exclude_none=True)
+        if "blocker_status" in request.model_fields_set and request.blocker_status is None:
+            update_data["blocker_status"] = None
+        update_data = self._normalize_stage_update(stage, update_data)
+        update_data = self._record_stage_history_events(
+            stage,
+            update_data,
+            actor_name=actor_name,
+        )
 
         stage = self.stage_ds.update(stage, update_data)
         self.session.commit()
@@ -149,8 +166,10 @@ class RfqStageController:
         rfq_id,
         stage_id,
         actor_team: str,
+        request: rfq_stage_translator.RfqStageAdvanceRequest | None = None,
         actor_user_id: str | None = None,
         actor_name: str | None = None,
+        actor_permissions: Sequence[str] | None = None,
     ):
         """
         The core workflow engine:
@@ -164,10 +183,15 @@ class RfqStageController:
         """
         stage = self._get_stage_or_404(rfq_id, stage_id)
         rfq = self.rfq_ds.get_by_id(rfq_id)
+        request = request or rfq_stage_translator.RfqStageAdvanceRequest()
         previous_stage_status = stage.status
         previous_rfq_status = rfq.status
 
-        self._validate_stage_team_access(stage, actor_team)
+        self._validate_stage_team_access(
+            stage,
+            actor_team,
+            actor_permissions=actor_permissions,
+        )
 
         # Step 1.5 — Validate stage is the current active stage
         if str(stage.id) != str(rfq.current_stage_id):
@@ -178,6 +202,33 @@ class RfqStageController:
 
         # Step 3 — Check mandatory fields
         self._validate_mandatory_fields(stage)
+        self._check_incomplete_subtasks(stage)
+        no_go_result = self._handle_no_go_cancellation(
+            stage,
+            rfq,
+            request,
+            actor_team=actor_team,
+            actor_user_id=actor_user_id,
+            actor_name=actor_name,
+            previous_rfq_status=previous_rfq_status,
+        )
+        if no_go_result is not None:
+            return no_go_result
+
+        next_stage = self.stage_ds.get_next_stage(rfq_id, stage.order)
+        terminal_outcome_result = self._handle_terminal_outcome_completion(
+            stage,
+            rfq,
+            next_stage,
+            request,
+            actor_team=actor_team,
+            actor_user_id=actor_user_id,
+            actor_name=actor_name,
+            previous_stage_status=previous_stage_status,
+            previous_rfq_status=previous_rfq_status,
+        )
+        if terminal_outcome_result is not None:
+            return terminal_outcome_result
 
         # Step 4 — Complete current stage
         stage.status = "Completed"
@@ -186,7 +237,6 @@ class RfqStageController:
         self.session.flush()
 
         # Step 5 — Start next stage (if exists)
-        next_stage = self.stage_ds.get_next_stage(rfq_id, stage.order)
         if next_stage:
             next_stage.status = "In Progress"
             next_stage.actual_start = date.today()
@@ -232,17 +282,42 @@ class RfqStageController:
 
         return self._load_detail(stage)
 
-    def _validate_stage_team_access(self, stage: RFQStage, actor_team: str):
+    def _validate_stage_team_access(
+        self,
+        stage: RFQStage,
+        actor_team: str,
+        *,
+        actor_permissions: Sequence[str] | None = None,
+    ):
         stage_team = (stage.assigned_team or "").strip().lower()
         user_team = (actor_team or "").strip().lower()
 
         if not stage_team:
             raise ForbiddenError("Stage advance denied: stage has no assigned team")
 
+        if user_team and user_team == stage_team:
+            return
+
+        if self._has_cross_team_advance_override(actor_permissions):
+            return
+
         if not user_team or user_team != stage_team:
             raise ForbiddenError(
                 f"Stage advance denied: actor team '{actor_team or 'unknown'}' does not match assigned team '{stage.assigned_team}'"
             )
+
+    @staticmethod
+    def _has_cross_team_advance_override(actor_permissions: Sequence[str] | None) -> bool:
+        permissions = {
+            permission.strip()
+            for permission in (actor_permissions or [])
+            if permission and permission.strip()
+        }
+        return (
+            "*" in permissions
+            or "rfq_stage:advance" in permissions
+            or "rfq_stage:*" in permissions
+        )
 
     # ══════════════════════════════════════════════════
     # PRIVATE HELPERS
@@ -252,12 +327,7 @@ class RfqStageController:
         """Load stage with all children for a complete detail response."""
         notes = self.stage_ds.get_notes(stage.id)
         files = self.stage_ds.list_files(stage.id)
-        subtasks = (
-            self.session.query(Subtask)
-            .filter(Subtask.rfq_stage_id == stage.id, Subtask.deleted_at.is_(None))
-            .order_by(Subtask.created_at)
-            .all()
-        )
+        subtasks = self._list_active_subtasks(stage.id)
         return rfq_stage_translator.to_detail(stage, notes=notes, files=files, subtasks=subtasks)
 
     def _get_stage_or_404(self, rfq_id, stage_id) -> RFQStage:
@@ -269,10 +339,286 @@ class RfqStageController:
     def _check_blockers(self, stage: RFQStage):
         """409 if stage is currently blocked."""
         if stage.blocker_status == "Blocked":
+            if stage.blocker_reason_code:
+                reason_fragment = f" ({stage.blocker_reason_code})"
+            else:
+                reason_fragment = ""
             raise ConflictError(
-                f"Stage '{stage.name}' is blocked ({stage.blocker_reason_code}). "
+                f"Stage '{stage.name}' is blocked{reason_fragment}. "
                 "Resolve the blocker before advancing."
             )
+
+    def _check_incomplete_subtasks(self, stage: RFQStage):
+        subtasks = self._list_active_subtasks(stage.id)
+        if any(subtask.progress < 100 or subtask.status != "Done" for subtask in subtasks):
+            raise ConflictError(INCOMPLETE_SUBTASKS_ADVANCE_MESSAGE)
+
+    def _normalize_stage_update(self, stage: RFQStage, update_data: dict[str, Any]) -> dict[str, Any]:
+        next_update = dict(update_data)
+
+        if "blocker_status" in next_update and next_update["blocker_status"] is None:
+            next_update["blocker_reason_code"] = None
+
+        captured_data = dict(stage.captured_data or {})
+        if isinstance(next_update.get("captured_data"), dict):
+            captured_data.update(next_update["captured_data"])
+            captured_data = rfq_stage_translator.normalize_stage_captured_data(captured_data)
+            next_update["captured_data"] = captured_data
+
+        negative_decision_field = rfq_stage_translator.find_negative_blocking_decision(
+            stage.mandatory_fields,
+            captured_data,
+        )
+        auto_blocker_source = rfq_stage_translator.get_auto_blocker_source_field(captured_data)
+
+        existing_reason = (
+            stage.blocker_reason_code.strip()
+            if isinstance(stage.blocker_reason_code, str) and stage.blocker_reason_code.strip()
+            else None
+        )
+        incoming_reason = next_update.get("blocker_reason_code")
+        effective_reason = (
+            incoming_reason.strip()
+            if isinstance(incoming_reason, str) and incoming_reason.strip()
+            else existing_reason
+        )
+
+        if negative_decision_field:
+            if not effective_reason:
+                raise UnprocessableEntityError(
+                    rfq_stage_translator.get_negative_decision_blocker_reason_message(
+                        negative_decision_field
+                    )
+                )
+
+            next_update["blocker_status"] = "Blocked"
+            next_update["blocker_reason_code"] = effective_reason
+            captured_data[rfq_stage_translator.AUTO_BLOCKER_SOURCE_FIELD] = negative_decision_field
+        elif (
+            auto_blocker_source
+            and stage.blocker_status == "Blocked"
+            and self._get_captured_stage_decision(captured_data, auto_blocker_source)
+            == rfq_stage_translator.YES_NO_VALUE_YES
+            and next_update.get("blocker_status") != "Blocked"
+        ):
+            next_update["blocker_status"] = "Resolved"
+            next_update["blocker_reason_code"] = None
+            captured_data.pop(rfq_stage_translator.AUTO_BLOCKER_SOURCE_FIELD, None)
+
+        resulting_blocker_status = next_update.get("blocker_status", stage.blocker_status)
+        if resulting_blocker_status != "Blocked":
+            captured_data.pop(rfq_stage_translator.AUTO_BLOCKER_SOURCE_FIELD, None)
+
+        if "captured_data" in next_update:
+            next_update["captured_data"] = captured_data
+
+        return next_update
+
+    def _record_stage_history_events(
+        self,
+        stage: RFQStage,
+        update_data: dict[str, Any],
+        *,
+        actor_name: str | None = None,
+    ) -> dict[str, Any]:
+        next_update = dict(update_data)
+        previous_captured = dict(stage.captured_data or {})
+        next_captured = dict(next_update.get("captured_data") or previous_captured)
+        existing_events = rfq_stage_translator.get_lifecycle_history_events_from_captured_data(
+            previous_captured
+        )
+        next_events = list(existing_events)
+
+        self._append_decision_history_events(
+            previous_captured,
+            next_captured,
+            next_events,
+            actor_name=actor_name,
+        )
+        self._append_blocker_history_events(
+            stage,
+            next_update,
+            previous_captured,
+            next_captured,
+            next_events,
+            actor_name=actor_name,
+        )
+
+        if next_events != existing_events or "captured_data" in next_update:
+            if next_events:
+                next_captured[rfq_stage_translator.LIFECYCLE_HISTORY_EVENTS_FIELD] = next_events[-100:]
+            next_update["captured_data"] = next_captured
+
+        return next_update
+
+    def _append_decision_history_events(
+        self,
+        previous_captured: dict[str, Any],
+        next_captured: dict[str, Any],
+        events: List[dict[str, Any]],
+        *,
+        actor_name: str | None = None,
+    ) -> None:
+        tracked_fields = [
+            rfq_stage_translator.GO_NO_GO_DECISION_FIELD,
+            rfq_stage_translator.DESIGN_APPROVED_FIELD,
+            rfq_stage_translator.BOQ_COMPLETED_FIELD,
+            rfq_stage_translator.TERMINAL_OUTCOME_FIELD,
+            rfq_stage_translator.LOST_REASON_CODE_FIELD,
+        ]
+
+        for field_key in tracked_fields:
+            previous_value = self._get_tracked_stage_field_value(previous_captured, field_key)
+            next_value = self._get_tracked_stage_field_value(next_captured, field_key)
+            if previous_value == next_value or next_value in {None, ""}:
+                continue
+
+            event_type = (
+                "terminal_outcome_recorded"
+                if field_key == rfq_stage_translator.TERMINAL_OUTCOME_FIELD
+                else "decision_recorded"
+            )
+            event = self._build_stage_history_event(
+                event_type,
+                actor_name=actor_name,
+                field_key=field_key,
+                value=next_value,
+            )
+
+            if (
+                field_key == rfq_stage_translator.LOST_REASON_CODE_FIELD
+                and next_value == "other"
+            ):
+                other_detail = rfq_stage_translator.get_lost_reason_other_detail_from_captured_data(
+                    next_captured
+                )
+                if other_detail:
+                    event["detail"] = other_detail
+
+            events.append(event)
+
+    def _append_blocker_history_events(
+        self,
+        stage: RFQStage,
+        update_data: dict[str, Any],
+        previous_captured: dict[str, Any],
+        next_captured: dict[str, Any],
+        events: List[dict[str, Any]],
+        *,
+        actor_name: str | None = None,
+    ) -> None:
+        previous_status = self._normalize_blocker_status(stage.blocker_status)
+        next_status = self._normalize_blocker_status(
+            update_data.get("blocker_status", stage.blocker_status)
+        )
+        previous_reason = self._normalize_text_value(stage.blocker_reason_code)
+        next_reason = self._normalize_text_value(
+            update_data.get("blocker_reason_code", stage.blocker_reason_code)
+        )
+        blocker_source = (
+            rfq_stage_translator.get_auto_blocker_source_field(next_captured)
+            or rfq_stage_translator.get_auto_blocker_source_field(previous_captured)
+        )
+        source = "automatic" if blocker_source else "manual"
+
+        if next_status == "Blocked":
+            if previous_status != "Blocked":
+                events.append(
+                    self._build_stage_history_event(
+                        "blocker_created",
+                        actor_name=actor_name,
+                        field_key=blocker_source,
+                        reason=next_reason,
+                        source=source,
+                    )
+                )
+            elif next_reason and next_reason != previous_reason:
+                events.append(
+                    self._build_stage_history_event(
+                        "blocker_updated",
+                        actor_name=actor_name,
+                        field_key=blocker_source,
+                        reason=next_reason,
+                        source=source,
+                    )
+                )
+            return
+
+        if previous_status == "Blocked" and next_status != "Blocked":
+            events.append(
+                self._build_stage_history_event(
+                    "blocker_resolved",
+                    actor_name=actor_name,
+                    field_key=blocker_source,
+                    reason=previous_reason,
+                    source=source,
+                )
+            )
+
+    @staticmethod
+    def _normalize_text_value(value: Any) -> str | None:
+        if not isinstance(value, str):
+            return None
+        normalized = value.strip()
+        return normalized or None
+
+    @staticmethod
+    def _normalize_blocker_status(value: Any) -> str | None:
+        return value if value in {"Blocked", "Resolved"} else None
+
+    def _get_tracked_stage_field_value(
+        self,
+        captured_data: dict[str, Any],
+        field_key: str,
+    ) -> str | None:
+        if field_key == rfq_stage_translator.TERMINAL_OUTCOME_FIELD:
+            return rfq_stage_translator.get_terminal_outcome_from_captured_data(captured_data)
+        if field_key == rfq_stage_translator.LOST_REASON_CODE_FIELD:
+            return rfq_stage_translator.get_lost_reason_code_from_captured_data(captured_data)
+        if field_key == rfq_stage_translator.GO_NO_GO_DECISION_FIELD:
+            try:
+                return rfq_stage_translator.normalize_go_no_go_decision_value(
+                    captured_data.get(field_key)
+                )
+            except ValueError:
+                return None
+        if rfq_stage_translator.is_controlled_yes_no_decision_field(field_key):
+            try:
+                return rfq_stage_translator.normalize_controlled_stage_decision_value(
+                    field_key,
+                    captured_data.get(field_key),
+                    allow_legacy_text=True,
+                )
+            except ValueError:
+                return None
+        return self._normalize_text_value(captured_data.get(field_key))
+
+    @staticmethod
+    def _build_stage_history_event(
+        event_type: str,
+        *,
+        actor_name: str | None = None,
+        field_key: str | None = None,
+        value: str | None = None,
+        reason: str | None = None,
+        source: str | None = None,
+    ) -> dict[str, Any]:
+        event = {
+            "id": str(uuid.uuid4()),
+            "type": event_type,
+            "at": datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
+        }
+        if actor_name:
+            event["actor_name"] = actor_name
+        if field_key:
+            event["field_key"] = field_key
+        if value:
+            event["value"] = value
+        if reason:
+            event["reason"] = reason
+        if source:
+            event["source"] = source
+        return event
 
     def _validate_mandatory_fields(self, stage: RFQStage):
         """422 if mandatory fields are missing from captured_data."""
@@ -281,12 +627,288 @@ class RfqStageController:
 
         required = [f.strip() for f in stage.mandatory_fields.split(",") if f.strip()]
         captured = stage.captured_data or {}
-        missing = [f for f in required if f not in captured or captured[f] is None]
+        missing = []
+
+        for field in required:
+            if (
+                field == rfq_stage_translator.GO_NO_GO_DECISION_FIELD
+                or rfq_stage_translator.is_controlled_yes_no_decision_field(field)
+            ):
+                decision = self._get_controlled_stage_decision(stage, field)
+                if decision is None:
+                    missing.append(field)
+                continue
+
+            if rfq_stage_translator.is_commercial_stage_field(field):
+                if rfq_stage_translator.get_commercial_amount_value(captured, field) is None:
+                    missing.append(field)
+                continue
+
+            if field == rfq_stage_translator.APPROVAL_SIGNATURE_FIELD:
+                try:
+                    signature = rfq_stage_translator.normalize_approval_signature_value(
+                        captured.get(field)
+                    )
+                except ValueError as exc:
+                    raise UnprocessableEntityError(str(exc)) from exc
+
+                if signature is None:
+                    missing.append(field)
+                continue
+
+            if (
+                field not in captured
+                or captured[field] is None
+                or (isinstance(captured[field], str) and not captured[field].strip())
+            ):
+                missing.append(field)
 
         if missing:
+            if len(missing) == 1:
+                field_message = rfq_stage_translator.get_stage_field_validation_message(
+                    missing[0]
+                )
+                if field_message:
+                    raise UnprocessableEntityError(field_message)
             raise UnprocessableEntityError(
                 f"Missing mandatory fields for stage '{stage.name}': {', '.join(missing)}"
             )
+
+    def _handle_no_go_cancellation(
+        self,
+        stage: RFQStage,
+        rfq,
+        request: rfq_stage_translator.RfqStageAdvanceRequest,
+        *,
+        actor_team: str,
+        actor_user_id: str | None,
+        actor_name: str | None,
+        previous_rfq_status: str,
+    ):
+        decision = self._get_go_no_go_decision(stage)
+        if decision != rfq_stage_translator.GO_NO_GO_VALUE_NO_GO:
+            return None
+
+        if not request.confirm_no_go_cancel:
+            raise ConflictError(rfq_stage_translator.GO_NO_GO_CONFIRM_CANCEL_MESSAGE)
+
+        if not request.outcome_reason:
+            raise UnprocessableEntityError(
+                rfq_stage_translator.GO_NO_GO_REASON_REQUIRED_MESSAGE
+            )
+
+        validate_rfq_status_transition(previous_rfq_status, RFQ_STATUS_CANCELLED)
+
+        update_data = {
+            "status": RFQ_STATUS_CANCELLED,
+            "outcome_reason": request.outcome_reason,
+        }
+        apply_terminal_stage_freeze(self.session, rfq, update_data)
+        rfq = self.rfq_ds.update(rfq, update_data)
+        self.session.commit()
+        self.session.refresh(rfq)
+        self.session.refresh(stage)
+
+        self._publish_event_best_effort(
+            "rfq.status_changed",
+            payload={
+                "rfq_id": str(rfq.id),
+                "rfq_code": getattr(rfq, "rfq_code", None),
+                "previous_status": previous_rfq_status,
+                "new_status": rfq.status,
+                "changed_at": self._utc_now_iso(),
+            },
+            metadata=self._build_event_metadata(
+                actor_user_id=actor_user_id,
+                actor_name=actor_name,
+                actor_team=actor_team,
+            ),
+        )
+
+        return self._load_detail(stage)
+
+    def _handle_terminal_outcome_completion(
+        self,
+        stage: RFQStage,
+        rfq,
+        next_stage: RFQStage | None,
+        request: rfq_stage_translator.RfqStageAdvanceRequest,
+        *,
+        actor_team: str,
+        actor_user_id: str | None,
+        actor_name: str | None,
+        previous_stage_status: str,
+        previous_rfq_status: str,
+    ):
+        if next_stage is not None:
+            return None
+
+        outcome = request.terminal_outcome or rfq_stage_translator.get_terminal_outcome_from_captured_data(
+            stage.captured_data
+        )
+        if outcome is None:
+            raise UnprocessableEntityError(
+                rfq_stage_translator.TERMINAL_OUTCOME_VALIDATION_MESSAGE
+            )
+
+        lost_reason_code = request.lost_reason_code or rfq_stage_translator.get_lost_reason_code_from_captured_data(
+            stage.captured_data
+        )
+        if outcome == rfq_stage_translator.TERMINAL_OUTCOME_LOST and not lost_reason_code:
+            raise UnprocessableEntityError(
+                rfq_stage_translator.LOST_REASON_REQUIRED_MESSAGE
+            )
+        lost_reason_other_detail = rfq_stage_translator.get_lost_reason_other_detail_from_captured_data(
+            stage.captured_data
+        )
+        if (
+            outcome == rfq_stage_translator.TERMINAL_OUTCOME_LOST
+            and lost_reason_code == "other"
+            and not lost_reason_other_detail
+        ):
+            raise UnprocessableEntityError(
+                rfq_stage_translator.LOST_REASON_OTHER_REQUIRED_MESSAGE
+            )
+
+        terminal_status = (
+            RFQ_STATUS_AWARDED
+            if outcome == rfq_stage_translator.TERMINAL_OUTCOME_AWARDED
+            else RFQ_STATUS_LOST
+        )
+        self._validate_terminal_outcome_transition(previous_rfq_status, terminal_status)
+
+        updated_captured_data = rfq_stage_translator.normalize_stage_captured_data(
+            {
+                **(stage.captured_data or {}),
+                rfq_stage_translator.TERMINAL_OUTCOME_FIELD: outcome,
+                rfq_stage_translator.LOST_REASON_CODE_FIELD: lost_reason_code,
+            }
+        )
+        lifecycle_events = rfq_stage_translator.get_lifecycle_history_events_from_captured_data(
+            stage.captured_data
+        )
+        lifecycle_events.append(
+            self._build_stage_history_event(
+                "terminal_outcome_recorded",
+                actor_name=actor_name,
+                field_key=rfq_stage_translator.TERMINAL_OUTCOME_FIELD,
+                value=outcome,
+                reason=rfq_stage_translator.build_terminal_outcome_reason(
+                    outcome,
+                    lost_reason_code=lost_reason_code,
+                    lost_reason_other_detail=lost_reason_other_detail,
+                    outcome_detail=request.outcome_reason,
+                ),
+            )
+        )
+        updated_captured_data[rfq_stage_translator.LIFECYCLE_HISTORY_EVENTS_FIELD] = lifecycle_events[-100:]
+        stage.captured_data = updated_captured_data
+        stage.status = "Completed"
+        stage.progress = 100
+        stage.actual_end = date.today()
+
+        rfq.status = terminal_status
+        rfq.current_stage_id = None
+        rfq.progress = 100
+        rfq.outcome_reason = rfq_stage_translator.build_terminal_outcome_reason(
+            outcome,
+            lost_reason_code=lost_reason_code,
+            lost_reason_other_detail=lost_reason_other_detail,
+            outcome_detail=request.outcome_reason,
+        )
+
+        self.session.commit()
+        self.session.refresh(stage)
+        self.session.refresh(rfq)
+
+        self._publish_event_best_effort(
+            "rfq.status_changed",
+            payload={
+                "rfq_id": str(rfq.id),
+                "rfq_code": getattr(rfq, "rfq_code", None),
+                "previous_status": previous_rfq_status,
+                "new_status": rfq.status,
+                "changed_at": self._utc_now_iso(),
+            },
+            metadata=self._build_event_metadata(
+                actor_user_id=actor_user_id,
+                actor_name=actor_name,
+                actor_team=actor_team,
+            ),
+        )
+
+        stage_event_payload: dict[str, Any] = {
+            "rfq_id": str(rfq.id),
+            "stage_id": str(stage.id),
+            "stage_name": stage.name,
+            "previous_stage_status": previous_stage_status,
+            "new_stage_status": stage.status,
+            "advanced_at": self._utc_now_iso(),
+            "assigned_team": stage.assigned_team,
+        }
+        if getattr(rfq, "rfq_code", None):
+            stage_event_payload["rfq_code"] = rfq.rfq_code
+        if previous_rfq_status != rfq.status:
+            stage_event_payload["previous_rfq_status"] = previous_rfq_status
+            stage_event_payload["new_rfq_status"] = rfq.status
+
+        self._publish_event_best_effort(
+            "stage.advanced",
+            payload=stage_event_payload,
+            metadata=self._build_event_metadata(
+                actor_user_id=actor_user_id,
+                actor_name=actor_name,
+                actor_team=actor_team,
+            ),
+        )
+
+        return self._load_detail(stage)
+
+    @staticmethod
+    def _validate_terminal_outcome_transition(current_status: str, new_status: str) -> None:
+        if current_status in {RFQ_STATUS_IN_PREPARATION, RFQ_STATUS_SUBMITTED}:
+            return
+        validate_rfq_status_transition(current_status, new_status)
+
+    def _get_go_no_go_decision(self, stage: RFQStage) -> str | None:
+        return self._get_controlled_stage_decision(
+            stage,
+            rfq_stage_translator.GO_NO_GO_DECISION_FIELD,
+        )
+
+    def _get_controlled_stage_decision(self, stage: RFQStage, field_key: str) -> str | None:
+        if not stage.mandatory_fields:
+            return None
+
+        required = [field.strip() for field in stage.mandatory_fields.split(",") if field.strip()]
+        if field_key not in required:
+            return None
+
+        captured = stage.captured_data or {}
+        raw_value = captured.get(field_key)
+
+        try:
+            return rfq_stage_translator.normalize_controlled_stage_decision_value(
+                field_key,
+                raw_value,
+                allow_legacy_text=True,
+            )
+        except ValueError as exc:
+            raise UnprocessableEntityError(str(exc)) from exc
+
+    @staticmethod
+    def _get_captured_stage_decision(captured_data: dict | None, field_key: str) -> str | None:
+        if not isinstance(captured_data, dict):
+            return None
+
+        try:
+            return rfq_stage_translator.normalize_controlled_stage_decision_value(
+                field_key,
+                captured_data.get(field_key),
+                allow_legacy_text=True,
+            )
+        except ValueError:
+            return None
 
     def _update_rfq_progress(self, rfq):
         """Recalculate RFQ progress from non-skipped stages only."""
@@ -307,6 +929,14 @@ class RfqStageController:
             rfq.progress = total_progress // len(non_skipped)
 
         self.session.flush()
+
+    def _list_active_subtasks(self, stage_id):
+        return (
+            self.session.query(Subtask)
+            .filter(Subtask.rfq_stage_id == stage_id, Subtask.deleted_at.is_(None))
+            .order_by(Subtask.created_at)
+            .all()
+        )
 
     @staticmethod
     def _utc_now_iso() -> str:

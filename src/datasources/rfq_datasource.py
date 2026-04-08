@@ -8,6 +8,13 @@ from typing import List
 
 from src.models.rfq import RFQ
 from src.utils.errors import BadRequestError
+from src.utils.rfq_status import (
+    RFQ_ACTIVE_STATUSES,
+    RFQ_DECIDED_STATUSES,
+    RFQ_STATUS_DRAFT,
+    RFQ_STATUS_AWARDED,
+    RFQ_STATUS_LOST,
+)
 
 
 class RfqDatasource:
@@ -46,7 +53,7 @@ class RfqDatasource:
         if status:
             query = query.filter(RFQ.status.in_(status))
         else:
-            query = query.filter(RFQ.status != "Draft")
+            query = query.filter(RFQ.status != RFQ_STATUS_DRAFT)
 
         if priority:
             query = query.filter(RFQ.priority == priority)
@@ -193,14 +200,14 @@ class RfqDatasource:
 
         open_rfqs = (
             self.session.query(func.count(RFQ.id))
-            .filter(RFQ.status.in_(["In preparation", "Submitted"]))
+            .filter(RFQ.status.in_(RFQ_ACTIVE_STATUSES))
             .scalar() or 0
         )
 
         critical = (
             self.session.query(func.count(RFQ.id))
             .filter(RFQ.priority == "critical")
-            .filter(RFQ.status.in_(["In preparation", "Submitted"]))
+            .filter(RFQ.status.in_(RFQ_ACTIVE_STATUSES))
             .scalar() or 0
         )
 
@@ -210,7 +217,7 @@ class RfqDatasource:
                     func.extract("epoch", RFQ.updated_at) - func.extract("epoch", RFQ.created_at)
                 ) / 86400
             )
-            .filter(RFQ.status.in_(["Awarded", "Lost"]))
+            .filter(RFQ.status.in_(RFQ_DECIDED_STATUSES))
             .scalar()
         )
 
@@ -228,12 +235,12 @@ class RfqDatasource:
         """
         awarded = (
             self.session.query(func.count(RFQ.id))
-            .filter(RFQ.status == "Awarded")
+            .filter(RFQ.status == RFQ_STATUS_AWARDED)
             .scalar() or 0
         )
         lost = (
             self.session.query(func.count(RFQ.id))
-            .filter(RFQ.status == "Lost")
+            .filter(RFQ.status == RFQ_STATUS_LOST)
             .scalar() or 0
         )
         total_decided = awarded + lost

@@ -7,6 +7,7 @@ Endpoints:
 - GET    /rfqs/export       — #3 Export RFQs as CSV
 - GET    /rfqs/{rfqId}      — #4 Get RFQ detail
 - PATCH  /rfqs/{rfqId}      — #5 Update RFQ
+- POST   /rfqs/{rfqId}/cancel — #5b Safe cancel RFQ
 - GET    /rfqs/stats        — #6 Dashboard KPIs
 - GET    /rfqs/analytics    — #7 Business analytics
 """
@@ -19,6 +20,7 @@ from typing import Optional, Literal, List
 from datetime import date
 
 from src.translators.rfq_translator import (
+    RfqCancelRequest,
     RfqCreateRequest,
     RfqUpdateRequest,
     RfqDetail,
@@ -26,6 +28,7 @@ from src.translators.rfq_translator import (
     RfqStats,
     RfqAnalytics,
 )
+from src.utils.rfq_status import RfqStatusLiteral
 
 from src.app_context import get_rfq_controller
 from src.controllers.rfq_controller import RfqController
@@ -55,7 +58,7 @@ def create_rfq(
 @router.get("", response_model=RfqListResponse)
 def list_rfqs(
     search: Optional[str] = Query(None, description="Search in name and client"),
-    status: Optional[List[Literal["Draft", "In preparation", "Submitted", "Awarded", "Lost", "Cancelled"]]] = Query(None, description="Filter by multiple statuses"),
+    status: Optional[List[RfqStatusLiteral]] = Query(None, description="Filter by multiple statuses"),
     priority: Optional[Literal["normal", "critical"]] = Query(None, description="Filter by priority"),
     owner: Optional[str] = Query(None, description="Filter by exact owner"),
     created_after: Optional[date] = Query(None, description="Filter RFQs created on or after this date"),
@@ -74,7 +77,7 @@ def list_rfqs(
 @router.get("/export", response_class=Response)
 def export_rfqs(
     search: Optional[str] = Query(None, description="Search in name and client"),
-    status: Optional[List[Literal["Draft", "In preparation", "Submitted", "Awarded", "Lost", "Cancelled"]]] = Query(None, description="Filter by multiple statuses"),
+    status: Optional[List[RfqStatusLiteral]] = Query(None, description="Filter by multiple statuses"),
     priority: Optional[Literal["normal", "critical"]] = Query(None, description="Filter by priority"),
     owner: Optional[str] = Query(None, description="Filter by exact owner"),
     created_after: Optional[date] = Query(None, description="Filter RFQs created on or after this date"),
@@ -138,6 +141,23 @@ def update_rfq(
 ):
     """Partial update — only send fields you want to change."""
     return ctrl.update(
+        rfq_id,
+        body,
+        actor_user_id=auth.user_id,
+        actor_name=auth.user_name,
+        actor_team=auth.team,
+    )
+
+
+@router.post("/{rfq_id}/cancel", response_model=RfqDetail)
+def cancel_rfq(
+    rfq_id: UUID,
+    body: RfqCancelRequest,
+    auth: AuthContext = Depends(require_permission(Permissions.RFQ_UPDATE)),
+    ctrl: RfqController = Depends(get_rfq_controller),
+):
+    """Explicit safe cancel path. Preserves RFQ history and generated stages."""
+    return ctrl.cancel(
         rfq_id,
         body,
         actor_user_id=auth.user_id,

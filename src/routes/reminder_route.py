@@ -92,3 +92,13 @@ def process_reminders(
 ):
     """#27 — Trigger batch processing of due reminders."""
     return ctrl.process_reminders()
+
+
+@router.post("/{reminder_id}/resolve", response_model=ReminderResponse)
+def resolve_reminder(
+    reminder_id: UUID,
+    _auth=Depends(require_permission(Permissions.REMINDER_UPDATE)),
+    ctrl: ReminderController = Depends(get_reminder_controller),
+):
+    """Resolve a reminder explicitly without deleting its history."""
+    return ctrl.resolve(reminder_id)
