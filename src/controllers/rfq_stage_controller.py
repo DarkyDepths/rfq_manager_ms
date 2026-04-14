@@ -34,7 +34,6 @@ from src.utils.rfq_lifecycle import (
 from src.utils.rfq_status import (
     RFQ_STATUS_AWARDED,
     RFQ_STATUS_CANCELLED,
-    RFQ_STATUS_IN_PREPARATION,
     RFQ_STATUS_LOST,
 )
 from src.config.settings import settings
