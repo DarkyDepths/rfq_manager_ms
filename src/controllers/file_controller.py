@@ -10,24 +10,17 @@ Dependencies: FileDatasource
 """
 
 import os
-from pathlib import Path
+from typing import Sequence
 from sqlalchemy.orm import Session
 
 from src.datasources.file_datasource import FileDatasource
 from src.datasources.rfq_stage_datasource import RfqStageDatasource
 from src.translators import file_translator
-from src.utils.errors import NotFoundError
-from src.config.settings import settings
+from src.utils.errors import ForbiddenError, NotFoundError
+from src.utils.file_storage import resolve_stored_file_path
 
 def _resolve_physical_path(stored_path: str) -> str:
-    """
-    Safely resolves the DB stored path to an absolute physical path.
-    Handles legacy records that started with 'uploads/'.
-    """
-    if stored_path.startswith("uploads/"):
-        stored_path = stored_path[len("uploads/"):]
-        
-    return (Path(settings.FILE_STORAGE_PATH) / stored_path).resolve().as_posix()
+    return resolve_stored_file_path(stored_path).as_posix()
 
 class FileController:
 
@@ -56,9 +49,51 @@ class FileController:
             raise NotFoundError(f"File '{file.filename}' not found on disk")
         return physical_path, file.filename
 
-    def delete(self, file_id):
+    def delete(
+        self,
+        file_id,
+        *,
+        actor_team: str | None = None,
+        actor_permissions: Sequence[str] | None = None,
+    ):
         file = self.ds.get_by_id(file_id)
         if not file:
             raise NotFoundError(f"File '{file_id}' not found")
+        stage = self.stage_ds.get_by_id(file.rfq_stage_id)
+        if not stage:
+            raise NotFoundError(f"Stage '{file.rfq_stage_id}' not found for file '{file_id}'")
+        self._validate_delete_scope(stage.assigned_team, actor_team, actor_permissions)
         self.ds.soft_delete(file)
         self.session.commit()
+
+    @staticmethod
+    def _validate_delete_scope(
+        stage_team: str | None,
+        actor_team: str | None,
+        actor_permissions: Sequence[str] | None,
+    ) -> None:
+        normalized_stage_team = (stage_team or "").strip().lower()
+        normalized_actor_team = (actor_team or "").strip().lower()
+        permissions = {
+            permission.strip()
+            for permission in (actor_permissions or [])
+            if permission and permission.strip()
+        }
+
+        if not normalized_stage_team:
+            raise ForbiddenError("File delete denied: stage has no assigned team")
+
+        if normalized_actor_team and normalized_actor_team == normalized_stage_team:
+            return
+
+        if {
+            "*",
+            "file:*",
+            "file:delete:any",
+            "rfq:*",
+        }.intersection(permissions):
+            return
+
+        raise ForbiddenError(
+            f"File delete denied: actor team '{actor_team or 'unknown'}' does not match assigned team '{stage_team}'"
+        )

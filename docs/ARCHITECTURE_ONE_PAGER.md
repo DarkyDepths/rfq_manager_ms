@@ -35,6 +35,8 @@
 
 - Total endpoints: 31
 - Base path: `/rfq-manager/v1`
+- Authoritative contract source: `docs/rfq_manager_ms_openapi_current.yaml`
+- Derived convenience views: `docs/rfq_manager_ms_api_contract_current.html`, `docs/rfq_manager_ms_swagger_current.html`
 - Resource groups:
   - RFQ (7)
   - Workflow (3)
@@ -60,6 +62,6 @@
 
 ## Deployment Baseline
 
-- Local integrated deployment via `docker-compose.yml`.
+- Local end-to-end validation now centers on `../scripts/rfqmgmt_scenario_stack.py`, with `docker-compose.scenario.yml` as the manager-side compose file.
 - Container build via `Dockerfile`.
 - CI baseline in `.github/workflows/ci.yml` runs `python scripts/verify.py` (ruff + pytest + startup/import sanity).

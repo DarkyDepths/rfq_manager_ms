@@ -77,6 +77,40 @@ def test_stage_get():
     assert res.blocker_status is None
     assert res.blocker_reason_code is None
 
+
+def test_stage_get_sanitizes_malformed_workflow_history_events_in_captured_data():
+    stage_ds = MockStageDatasource()
+    stage_ds.get_by_id = lambda _id: RFQStage(
+        id=ST1,
+        rfq_id=RFQ1,
+        name="Stage 1",
+        progress=50,
+        blocker_status="None",
+        status="In preparation",
+        order=1,
+        assigned_team="Team A",
+        captured_data={
+            "go_nogo_decision": "go",
+            "workflow_history_events": [
+                {"type": "decision_recorded", "value": "go", "actor_name": "  Reviewer  "},
+                {"type": "unknown_event", "value": "bad"},
+                "not-a-dict",
+                {"type": "blocker_created", "source": "AUTOMATIC", "reason": " waiting_client_input "},
+            ],
+        },
+    )
+
+    ctrl = RfqStageController(stage_ds, MockRfqDatasource(), MockSession())
+    res = ctrl.get(RFQ1, ST1)
+
+    history_events = _get_history_events(res.captured_data)
+    assert len(history_events) == 2
+    assert history_events[0]["type"] == "decision_recorded"
+    assert history_events[0]["actor_name"] == "Reviewer"
+    assert history_events[1]["type"] == "blocker_created"
+    assert history_events[1]["source"] == "automatic"
+    assert history_events[1]["reason"] == "waiting_client_input"
+
 def test_stage_update_persists_blocker_fields():
     ctrl = RfqStageController(MockStageDatasource(), MockRfqDatasource(), MockSession())
     req = RfqStageUpdateRequest(
@@ -1193,6 +1227,55 @@ def test_advance_last_stage_awarded_updates_rfq_terminal_truth():
     assert history_events[-1]["actor_name"] == "Closer"
     assert any(call["event_type"] == "rfq.status_changed" for call in bus.calls)
     assert any(call["event_type"] == "stage.advanced" for call in bus.calls)
+
+
+def test_advance_last_stage_does_not_duplicate_existing_terminal_outcome_history_event():
+    stage_ds = MockStageDatasource()
+    existing_event = {
+        "id": "evt-1",
+        "type": "terminal_outcome_recorded",
+        "at": "2026-01-01T00:00:00Z",
+        "field_key": "rfq_terminal_outcome",
+        "value": "awarded",
+        "actor_name": "Closer",
+    }
+    stage = RFQStage(
+        id=ST1,
+        rfq_id=RFQ1,
+        status="In Progress",
+        blocker_status="None",
+        mandatory_fields=None,
+        captured_data={
+            "rfq_terminal_outcome": "awarded",
+            "workflow_history_events": [existing_event],
+        },
+        order=5,
+        name="Award / Lost",
+        assigned_team="Team A",
+        actual_end=None,
+    )
+    stage_ds.get_by_id = lambda _id: stage
+    stage_ds.get_next_stage = lambda _rfq_id, _order: None
+
+    rfq_ds = MockRfqDatasource()
+    rfq = RFQ(id=RFQ1, current_stage_id=ST1, status="In preparation", progress=88)
+    rfq_ds.get_by_id = lambda _id: rfq
+
+    session = _TrackingSession()
+    ctrl = RfqStageController(stage_ds, rfq_ds, session)
+
+    result = ctrl.advance(
+        RFQ1,
+        ST1,
+        actor_team="Team A",
+        request=RfqStageAdvanceRequest(terminal_outcome="awarded"),
+        actor_name="Closer",
+    )
+
+    history_events = _get_history_events(result.captured_data)
+    assert len(history_events) == 1
+    assert history_events[0]["type"] == "terminal_outcome_recorded"
+    assert history_events[0]["value"] == "awarded"
 
 
 def test_advance_last_stage_lost_requires_reason():

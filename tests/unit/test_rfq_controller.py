@@ -36,7 +36,7 @@ class MockRfqDatasource:
         self.last_kwargs = kwargs
         # Return a mock query yielding two sample RFQs
         r1 = MockRFQ("IF-001", "Pump Package", "Aramco", "critical", "In preparation", 15, date(2023, 12, 1), "Team A", date(2023, 10, 1))
-        r2 = MockRFQ("IF-002", "Valves", "SABIC", "normal", "Submitted", 100, date(2023, 11, 15), "Team B", date(2023, 9, 1))
+        r2 = MockRFQ("IF-002", "Valves", "SABIC", "normal", "Awarded", 100, date(2023, 11, 15), "Team B", date(2023, 9, 1))
         return MockQuery([r1, r2])
 
 
@@ -211,14 +211,14 @@ def test_export_csv_formatting_and_filtering():
     
     # Test exporting with filters
     csv_str = ctrl.export_csv(
-        status=["In preparation", "Submitted"], 
+        status=["In preparation", "Awarded"], 
         priority="critical", 
         owner="Team A",
         created_after=date(2023, 1, 1)
     )
     
     # 1. Assert filters were correctly passed down to the datasource layer
-    assert ds.last_kwargs["status"] == ["In preparation", "Submitted"]
+    assert ds.last_kwargs["status"] == ["In preparation", "Awarded"]
     assert ds.last_kwargs["priority"] == "critical"
     assert ds.last_kwargs["owner"] == "Team A"
     assert ds.last_kwargs["created_after"] == date(2023, 1, 1)
@@ -232,7 +232,7 @@ def test_export_csv_formatting_and_filtering():
     assert len(lines) == 3
     assert lines[0] == "RFQ Code,Name,Client,Priority,Status,Progress (%),Deadline,Owner,Created At"
     assert lines[1] == "IF-001,Pump Package,Aramco,critical,In preparation,15,2023-12-01,Team A,2023-10-01"
-    assert lines[2] == "IF-002,Valves,SABIC,normal,Submitted,100,2023-11-15,Team B,2023-09-01"
+    assert lines[2] == "IF-002,Valves,SABIC,normal,Awarded,100,2023-11-15,Team B,2023-09-01"
 
 
 def test_update_allows_metadata_only_changes():
@@ -255,7 +255,7 @@ def test_update_allows_metadata_only_changes():
 
 def test_update_request_rejects_unknown_status_field():
     with pytest.raises(ValidationError) as exc:
-        RfqUpdateRequest.model_validate({"name": "Should Not Persist", "status": "Submitted"})
+        RfqUpdateRequest.model_validate({"name": "Should Not Persist", "status": "Awarded"})
 
     assert "status" in str(exc.value)
     assert "Extra inputs are not permitted" in str(exc.value)
@@ -276,7 +276,7 @@ def test_cancel_allows_transition_to_cancelled():
 
 
 def test_cancel_preserves_terminal_freeze_semantics():
-    rfq = MockRfqForUpdate(status="Submitted")
+    rfq = MockRfqForUpdate(status="In preparation")
     session = MockSession()
     ds = MockRfqDatasourceForUpdate(rfq)
     ctrl = RfqController(ds, MockWorkflowDatasource(), None, session)
@@ -291,7 +291,7 @@ def test_cancel_preserves_terminal_freeze_semantics():
 
 
 def test_cancel_ignores_skipped_stages_when_freezing_progress():
-    rfq = MockRfqForUpdate(status="Submitted")
+    rfq = MockRfqForUpdate(status="In preparation")
     session = MockSession()
 
     stage_completed = type(
@@ -1117,6 +1117,8 @@ def test_enrich_summaries_includes_current_stage_blocker_signal():
         {
             "id": current_stage_id,
             "name": "Client Clarifications",
+            "order": 4,
+            "status": "In Progress",
             "blocker_status": "Blocked",
             "blocker_reason_code": "waiting_client_input",
         },
@@ -1152,6 +1154,9 @@ def test_enrich_summaries_includes_current_stage_blocker_signal():
 
     assert len(result) == 1
     assert result[0].current_stage_name == "Client Clarifications"
+    assert result[0].current_stage_id == current_stage_id
+    assert result[0].current_stage_order == 4
+    assert result[0].current_stage_status == "In Progress"
     assert result[0].current_stage_blocker_status == "Blocked"
     assert result[0].current_stage_blocker_reason_code == "waiting_client_input"
 

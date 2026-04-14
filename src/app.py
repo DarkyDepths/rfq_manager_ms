@@ -121,6 +121,8 @@ def create_app() -> FastAPI:
     async def log_auth_mode():
         if settings.AUTH_BYPASS_ENABLED:
             logger.warning("Auth bypass enabled for local/dev mode only.")
+            if settings.AUTH_BYPASS_DEBUG_HEADERS_ENABLED:
+                logger.warning("X-Debug-* auth header overrides enabled for local/dev bypass mode.")
         else:
             logger.info("Auth enforcement enabled via IAM bearer token resolution.")
 

@@ -5,30 +5,29 @@ This document defines the current, implementation-true deployment approach for `
 ## 1) Scope
 
 - Covers how to run and promote the current API safely using the existing repository assets.
-- Reflects current runtime behavior in `Dockerfile`, `docker-compose.yml`, `src/config/settings.py`, and `.github/workflows/ci.yml`.
+- Reflects current runtime behavior in `Dockerfile`, `docker-compose.scenario.yml`, `src/config/settings.py`, and `.github/workflows/ci.yml`.
 - Does not introduce new platform architecture (Kubernetes, managed secrets, blue/green tooling, etc.).
 
 ## 2) Deployment Modes
 
-### A. Local integrated stack (recommended for dev/QA)
+### A. Local scenario stack (recommended for dev/QA validation)
 
-Use Docker Compose to run API + PostgreSQL:
+Use the workspace scenario orchestrator to run the curated manager + intelligence demo stack:
 
 ```bash
-docker compose up --build -d
+python ../scripts/rfqmgmt_scenario_stack.py all --seed-set full
 ```
 
 What this does:
 
-- Starts `postgres:16` with health checks.
-- Builds API image from local `Dockerfile`.
-- Runs `alembic upgrade head` before starting Uvicorn.
-- Exposes API on `:8000` and DB on `:5432`.
+- Starts the manager scenario compose file and its paired intelligence scenario stack.
+- Runs curated scenario seeding instead of generic fake sample data.
+- Exposes the manager API on `:18000` for local UI testing.
 
 Stop stack:
 
 ```bash
-docker compose down
+python ../scripts/rfqmgmt_scenario_stack.py down --remove-volumes
 ```
 
 ### B. Local Python runtime (venv)
@@ -66,8 +65,10 @@ Promotion recommendation for current V1 baseline:
 1. Keep `main` green (`python scripts/verify.py`).
 2. Build image from tagged commit.
 3. Run Alembic migrations (`alembic upgrade head`) in target environment.
-4. Start API with required env vars.
-5. Validate health and smoke-check key endpoints.
+4. Seed only base workflows/rules if the environment needs bootstrap metadata.
+5. Do not run scenario fake RFQ seeders in production-like environments.
+6. Start API with required env vars.
+7. Validate health and smoke-check key endpoints.
 
 ## 5) Rollback Approach (Current State)
 

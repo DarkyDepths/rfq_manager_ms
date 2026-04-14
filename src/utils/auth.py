@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 
 from fastapi import Depends, Request
@@ -14,6 +15,7 @@ from src.utils.errors import ForbiddenError, UnauthorizedError
 
 
 bearer_scheme = HTTPBearer(auto_error=False)
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -78,14 +80,32 @@ def get_auth_context(
     iam_connector: IAMServiceConnector = Depends(get_iam_service_connector),
 ) -> AuthContext:
     if settings.AUTH_BYPASS_ENABLED:
-        debug_user_id = request.headers.get("X-Debug-User-Id")
-        debug_user_name = request.headers.get("X-Debug-User-Name")
-        debug_team = request.headers.get("X-Debug-User-Team")
-        debug_permissions = request.headers.get("X-Debug-Permissions")
+        permissions = _parse_permissions_csv(settings.AUTH_BYPASS_PERMISSIONS)
+        debug_user_id = None
+        debug_user_name = None
+        debug_team = None
+        debug_permissions = None
 
-        permissions = ["*"]
+        if settings.AUTH_BYPASS_DEBUG_HEADERS_ENABLED:
+            debug_user_id = request.headers.get("X-Debug-User-Id")
+            debug_user_name = request.headers.get("X-Debug-User-Name")
+            debug_team = request.headers.get("X-Debug-User-Team")
+            debug_permissions = request.headers.get("X-Debug-Permissions")
+        elif any(
+            request.headers.get(header)
+            for header in (
+                "X-Debug-User-Id",
+                "X-Debug-User-Name",
+                "X-Debug-User-Team",
+                "X-Debug-Permissions",
+            )
+        ):
+            logger.warning(
+                "Ignoring X-Debug-* headers because AUTH_BYPASS_DEBUG_HEADERS_ENABLED=false"
+            )
+
         if debug_permissions:
-            parsed = [item.strip() for item in debug_permissions.split(",") if item.strip()]
+            parsed = _parse_permissions_csv(debug_permissions)
             if parsed:
                 permissions = parsed
 
@@ -132,3 +152,7 @@ def require_permission(permission: str):
         return auth
 
     return dependency
+
+
+def _parse_permissions_csv(raw_permissions: str | None) -> list[str]:
+    return [item.strip() for item in (raw_permissions or "").split(",") if item.strip()]

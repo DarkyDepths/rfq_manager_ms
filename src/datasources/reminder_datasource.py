@@ -51,7 +51,7 @@ class ReminderDatasource:
             elif normalized_status == "open":
                 query = query.filter(Reminder.status != "resolved", Reminder.due_date >= today)
             else:
-                query = query.filter(Reminder.status == status)
+                query = query.filter(Reminder.status == normalized_status)
         if rfq_id:
             query = query.filter(Reminder.rfq_id == rfq_id)
         return query.order_by(Reminder.due_date.asc()).all()

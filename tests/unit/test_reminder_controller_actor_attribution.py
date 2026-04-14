@@ -345,3 +345,17 @@ def test_automatic_reminder_cannot_be_resolved_manually():
         assert reminder.status == REMINDER_STATUS_OPEN
     finally:
         session.close()
+
+
+def test_test_email_response_is_explicitly_log_only_and_actor_scoped():
+    session = _make_session()
+    try:
+        controller = ReminderController(ReminderDatasource(session), session)
+
+        response = controller.test_email(actor_name="Ops Reviewer")
+
+        assert response["message"] == (
+            "Test reminder delivery is log-only in V1; no email was sent to Ops Reviewer."
+        )
+    finally:
+        session.close()

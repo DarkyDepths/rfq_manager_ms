@@ -49,6 +49,12 @@
       font-size: 12px;
       font-weight: 600;
     }
+
+    .custom-header .source-note {
+      font-size: 12px;
+      opacity: 0.9;
+      margin: 0 0 14px;
+    }
   </style>
 </head>
 
@@ -56,13 +62,14 @@
   
 
   <div class="custom-header">
+    <div class="source-note">Authoritative contract source: <code>docs/rfq_manager_ms_openapi_current.yaml</code>. This page is a derived convenience view.</div>
     <h1>rfq_manager_ms — Current API Explorer</h1>
     <p>OpenAPI 3.0 specification — reflecting current repository reality</p>
     <div class="badges">
       <span class="badge">V1.0</span>
       <span class="badge">31 Endpoints</span>
-      <span class="badge">6 Resources</span>
-      <span class="badge">9 Tables</span>
+      <span class="badge">7 Resources</span>
+      <span class="badge">11 Tables</span>
     </div>
   </div>
 
@@ -100,9 +107,9 @@
       document.getElementById('swagger-ui').innerHTML =
         '<div style="padding:40px;text-align:center;font-family:Inter,sans-serif;">' +
         '<h2 style="color:#1e293b;">Cannot load YAML from file:// protocol</h2>' +
-        '<p>Chrome blocks local file loading. Open a terminal in <code style="background:#f1f5f9;padding:2px 8px;border-radius:4px;">d:\\Current</code> and run:</p>' +
+        '<p>Chrome blocks local file loading. Open a terminal in <code style="background:#f1f5f9;padding:2px 8px;border-radius:4px;">d:\\PFE\\rfq_manager_ms\\docs</code> and run:</p>' +
         '<pre style="background:#1e293b;color:#e2e8f0;padding:16px 24px;border-radius:8px;display:inline-block;font-size:14px;">npx -y serve .</pre>' +
-        '<p style="margin-top:16px;">Then open <a href="http://localhost:3000/rfq_manager_ms_swagger_v1.html" style="color:#2563eb;">http://localhost:3000/rfq_manager_ms_swagger_v1.html</a></p>' +
+        '<p style="margin-top:16px;">Then open <a href="http://localhost:3000/rfq_manager_ms_swagger_current.html" style="color:#2563eb;">http://localhost:3000/rfq_manager_ms_swagger_current.html</a></p>' +
         '</div>';
     }
 

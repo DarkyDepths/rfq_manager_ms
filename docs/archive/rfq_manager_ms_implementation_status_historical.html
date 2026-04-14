@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>rfq_manager_ms — Historical Implementation Status</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Outfit:wght@300;400;600;700&display=swap');
+  :root {
+    --bg: #0f1117; --surface: #181b24; --surface2: #1f2330;
+    --border: rgba(255,255,255,0.06); --text: #e8e8ed; --muted: #8b8fa3;
+    --green: #34d399; --green-dim: rgba(52,211,153,0.1);
+    --blue: #60a5fa; --blue-dim: rgba(96,165,250,0.1);
+    --orange: #f5a623; --orange-dim: rgba(245,166,35,0.1);
+    --purple: #a78bfa; --purple-dim: rgba(167,139,250,0.1);
+    --red: #f87171; --red-dim: rgba(248,113,113,0.08);
+    --teal: #2dd4bf; --teal-dim: rgba(45,212,191,0.1);
+    --radius: 12px; --mono: 'JetBrains Mono', monospace; --sans: 'Outfit', sans-serif;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:var(--bg); color:var(--text); font-family:var(--sans); line-height:1.7; padding:40px 24px 80px; }
+  .container { max-width:860px; margin:0 auto; }
+  .header { text-align:center; margin-bottom:48px; }
+  .header .tag { display:inline-block; font-size:11px; font-weight:600; letter-spacing:1.5px; text-transform:uppercase; color:var(--green); background:var(--green-dim); padding:6px 16px; border-radius:20px; margin-bottom:16px; }
+  .header h1 { font-size:30px; font-weight:700; margin-bottom:8px; }
+  .header p { font-size:15px; color:var(--muted); max-width:600px; margin:0 auto; }
+  .phase { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:32px 28px; margin-bottom:28px; }
+  .phase-header { display:flex; align-items:center; gap:14px; margin-bottom:6px; }
+  .phase-num { font-size:11px; font-weight:700; letter-spacing:1px; text-transform:uppercase; padding:4px 12px; border-radius:6px; white-space:nowrap; }
+  .phase-num.p1 { color:var(--green); background:var(--green-dim); }
+  .phase-num.p2 { color:var(--blue); background:var(--blue-dim); }
+  .phase-num.p25 { color:var(--teal); background:var(--teal-dim); }
+  .phase-num.p3 { color:var(--orange); background:var(--orange-dim); }
+  .phase-num.p4 { color:var(--purple); background:var(--purple-dim); }
+  .phase-num.p5 { color:var(--red); background:var(--red-dim); }
+  .phase-num.p6 { color:var(--teal); background:var(--teal-dim); }
+  .phase h2 { font-size:20px; font-weight:700; }
+  .phase .goal { font-size:14px; color:var(--muted); margin-bottom:24px; margin-top:2px; }
+  .step { background:var(--bg); border:1px solid var(--border); border-radius:10px; padding:22px 20px; margin-bottom:14px; }
+  .step:last-child { margin-bottom:0; }
+  .step-header { display:flex; align-items:center; gap:10px; margin-bottom:12px; flex-wrap:wrap; }
+  .step-num { font-family:var(--mono); font-size:12px; font-weight:600; color:var(--muted); background:var(--surface2); padding:3px 10px; border-radius:5px; white-space:nowrap; }
+  .step h3 { font-size:16px; font-weight:600; }
+  .step-file { font-family:var(--mono); font-size:12px; color:var(--green); background:var(--green-dim); padding:2px 8px; border-radius:4px; margin-left:auto; white-space:nowrap; }
+  .substep { padding:10px 0; border-bottom:1px solid var(--border); }
+  .substep:last-child { border-bottom:none; padding-bottom:0; }
+  .substep-label { display:inline-block; font-size:10px; font-weight:700; letter-spacing:1px; text-transform:uppercase; padding:2px 8px; border-radius:4px; margin-bottom:6px; }
+  .substep-label.learn { color:var(--blue); background:var(--blue-dim); }
+  .substep-label.build { color:var(--green); background:var(--green-dim); }
+  .substep-label.verify { color:var(--orange); background:var(--orange-dim); }
+  .substep-label.ask { color:var(--purple); background:var(--purple-dim); }
+  .substep p { font-size:13.5px; color:var(--muted); line-height:1.7; }
+  .substep strong { color:var(--text); }
+  .substep ul { padding-left:18px; margin:4px 0; }
+  .substep li { font-size:13.5px; color:var(--muted); margin-bottom:3px; }
+  .concept-tag { display:inline-block; font-size:10px; font-weight:600; letter-spacing:0.5px; padding:2px 7px; border-radius:4px; margin-left:4px; vertical-align:middle; }
+  .concept-tag.c1 { color:var(--green); background:var(--green-dim); }
+  .concept-tag.c2 { color:var(--blue); background:var(--blue-dim); }
+  .concept-tag.c3 { color:var(--orange); background:var(--orange-dim); }
+  .concept-tag.c4 { color:var(--purple); background:var(--purple-dim); }
+  .checkpoint { background:linear-gradient(135deg,rgba(52,211,153,0.06),rgba(96,165,250,0.06)); border:1px solid rgba(52,211,153,0.15); border-radius:8px; padding:14px 18px; margin-top:18px; }
+  .checkpoint p { font-size:13.5px; color:var(--text); }
+  .checkpoint strong { color:var(--green); }
+  .warn { background:var(--surface2); border-left:3px solid var(--orange); border-radius:0 8px 8px 0; padding:12px 16px; margin:12px 0; }
+  .warn p { font-size:13px; color:var(--muted); }
+  code { font-family:var(--mono); font-size:12px; color:var(--green); background:var(--green-dim); padding:1px 5px; border-radius:3px; }
+  .toc { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:24px 28px; margin-bottom:32px; }
+  .toc h2 { font-size:16px; font-weight:600; margin-bottom:14px; color:var(--muted); }
+  .toc-item { display:flex; align-items:center; gap:10px; padding:6px 0; font-size:14px; }
+  .toc-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+  .toc-dot.p1{background:var(--green);} .toc-dot.p2{background:var(--blue);} .toc-dot.p25{background:var(--teal);}
+  .toc-dot.p3{background:var(--orange);} .toc-dot.p4{background:var(--purple);} .toc-dot.p5{background:var(--red);} .toc-dot.p6{background:var(--teal);}
+  .toc-steps { color:var(--muted); margin-left:auto; font-size:12px; font-family:var(--mono); }
+  @media(max-width:600px){ .step-header{flex-direction:column;align-items:flex-start;} .step-file{margin-left:0;} }
+</style>
+</head>
+<body>
+  
+<div class="container">
+
+  <div class="header">
+    <div class="tag">rfq_manager_ms — Historical Snapshot</div>
+    <h1>Historical Implementation Status</h1>
+    <p>Archived planning/status snapshot kept for traceability. It is not authoritative for the current baseline.</p>
+  </div>
+
+  <div class="toc">
+    <h2>Phases</h2>
+    <div class="toc-item"><div class="toc-dot p1"></div> Phase 1 — Plumbing <span class="toc-steps">Steps 1–3</span></div>
+    <div class="toc-item"><div class="toc-dot p2"></div> Phase 2 — First vertical slice: RFQ <span class="toc-steps">Steps 4–10</span></div>
+    <div class="toc-item"><div class="toc-dot p25"></div> Phase 2.5 — First integration tests <span class="toc-steps">Step 11</span></div>
+    <div class="toc-item"><div class="toc-dot p3"></div> Phase 3 — Remaining models <span class="toc-steps">Step 12</span></div>
+    <div class="toc-item"><div class="toc-dot p4"></div> Phase 4 — Resource by resource <span class="toc-steps">Steps 13–17</span></div>
+    <div class="toc-item"><div class="toc-dot p5"></div> Phase 5 — Cross-cutting concerns <span class="toc-steps">Steps 18–20</span></div>
+    <div class="toc-item"><div class="toc-dot p6"></div> Phase 6 — Stats &amp; analytics <span class="toc-steps">Steps 21–22</span></div>
+  </div>
+
+  <!-- ═══════════════ PHASE 1 ═══════════════ -->
+  <div class="phase">
+    <div class="phase-header"><span class="phase-num p1">Phase 1</span><h2>Plumbing</h2></div>
+    <p class="goal">App starts, health check works, error handling ready.</p>
+
+    <div class="step">
+      <div class="step-header"><span class="step-num">Step 1</span><h3>Settings</h3><span class="step-file">config/settings.py</span></div>
+      <div class="substep"><div class="substep-label learn">Concept</div>
+        <p><strong>What is <code>BaseSettings</code>?</strong> Pydantic has a special class for configuration. Instead of <code>os.getenv("DATABASE_URL")</code> everywhere, you define one class that reads <code>.env</code> automatically and validates nothing is missing. If <code>DATABASE_URL</code> isn't set, the app crashes at startup with a clear error — not 10 minutes later. <span class="concept-tag c2">Pydantic</span></p></div>
+      <div class="substep"><div class="substep-label build">Status</div>
+        <p><code>Settings</code> class with <code>BaseSettings</code>. Fields: <code>DATABASE_URL</code> (required), <code>APP_ENV</code> (default "development"), <code>APP_PORT</code> (default 8000), <code>IAM_SERVICE_URL</code>, <code>EVENT_BUS_URL</code>, <code>FILE_STORAGE_PATH</code>, <code>CORS_ORIGINS</code>, <code>JWT_SECRET</code>. Add <code>model_config = SettingsConfigDict(env_file=".env")</code>. Export: <code>settings = Settings()</code>. Update <code>.env.example</code>.</p></div>
+      <div class="substep"><div class="substep-label verify">Details</div>
+        <p>Python shell: <code>from src.config.settings import settings</code> → <code>print(settings.DATABASE_URL)</code>. Delete DATABASE_URL from .env → re-import → crashes. Put it back.</p></div>
+    </div>
+
+    <div class="step">
+      <div class="step-header"><span class="step-num">Step 2</span><h3>Database connection</h3><span class="step-file">database.py</span></div>
+      <div class="substep"><div class="substep-label learn">Concept</div>
+        <p><strong>Three objects.</strong> <code>engine</code> = connection to PostgreSQL (once). <code>SessionLocal</code> = factory that creates sessions. <code>get_db()</code> = generator using <code>yield</code> — one session per request, closed when done. <span class="concept-tag c3">SQLAlchemy</span> <span class="concept-tag c1">yield</span></p>
+        <p style="margin-top:6px;"><strong>Critical:</strong> <code>get_db()</code> does NOT <code>commit()</code>. The controller decides when. This is transaction safety — RFQ + 5 stages = one session, one commit, one rollback if anything fails.</p></div>
+      <div class="substep"><div class="substep-label build">Status</div>
+        <p>Import settings. <code>engine = create_engine(settings.DATABASE_URL)</code>. <code>SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)</code>. <code>Base = declarative_base()</code>. <code>get_db()</code> with try/yield/finally.</p></div>
+      
+      <div class="substep"><div class="substep-label verify">Details</div>
+        <p>Python shell: <code>from src.database import engine</code> → <code>engine.connect()</code>. PostgreSQL running → connects. Not running → clear error.</p></div>
+    </div>
+
+    <div class="step">
+      <div class="step-header"><span class="step-num">Step 3</span><h3>App + error handling</h3><span class="step-file">app.py + utils/errors.py</span></div>
+      <div class="substep"><div class="substep-label learn">Concept</div>
+        <p><strong>App factory:</strong> <code>create_app()</code> builds the FastAPI app — easier testing. <strong>CORS:</strong> Browsers block cross-domain requests; middleware says "let these origins through." <strong>Exception handler:</strong> One global handler — "whenever <code>NotFoundError</code> is raised, return 404 JSON." All routes benefit.</p></div>
+      <div class="substep"><div class="substep-label build">Status</div>
+        <p><strong><code>utils/errors.py</code>:</strong> Base <code>AppError(Exception)</code> with status_code + message. 5 subclasses: NotFound (404), BadRequest (400), Unprocessable (422), Conflict (409), Forbidden (403).</p>
+        <p style="margin-top:8px;"><strong><code>app.py</code>:</strong> <code>create_app()</code> → FastAPI instance, CORS middleware, global AppError handler → <code>JSONResponse</code>, <code>GET /health</code>. Bottom: <code>app = create_app()</code>.</p></div>
+      <div class="substep"><div class="substep-label verify">Details</div>
+        <p><code>uvicorn src.app:app --reload</code> → browser <code>localhost:8000/health</code> → <code>{"status": "ok"}</code>. <code>localhost:8000/docs</code> → Swagger UI.</p></div>
+    </div>
+
+    <div class="checkpoint"><p><strong>✓ Completed:</strong> App starts. Health check responds. Error classes ready. <strong>Commit.</strong></p></div>
+  </div>
+
+  <!-- ═══════════════ PHASE 2 ═══════════════ -->
+  <div class="phase">
+    <div class="phase-header"><span class="phase-num p2">Phase 2</span><h2>First vertical slice: RFQ</h2></div>
+    <p class="goal">Prove the layered pattern end-to-end. Includes stage auto-creation — core behavior, not a side effect.</p>
+
+    <div class="step">
+      <div class="step-header"><span class="step-num">Step 4</span><h3>Models: RFQ + Workflow + RFQ_Stage</h3><span class="step-file">models/*.py</span></div>
+      <div class="substep"><div class="substep-label learn">Concept</div>
+        <p><strong>Why 3 at once?</strong> Create-RFQ auto-generates stages from a workflow → needs all 3 tables. <span class="concept-tag c3">SQLAlchemy</span></p>
+        <p style="margin-top:6px;"><strong>Column types:</strong> <code>Column(String(200))</code> = VARCHAR. <code>Column(UUID, primary_key=True)</code> = UUID PK. <code>Column(ForeignKey("rfq.id"))</code> = FK reference.</p>
+        <p style="margin-top:6px;"><strong>Alembic</strong> reads your models, compares to DB, generates migration. You never write CREATE TABLE SQL.</p></div>
+      <div class="substep"><div class="substep-label build">Status</div>
+        <p>OpenAPI spec → schemas → each field becomes a Column(). Write 3 models. <strong>Add <code>index=True</code> on filtered/sorted columns:</strong> <code>rfq.status</code>, <code>rfq.deadline</code>, <code>rfq.client_name</code>, <code>rfq.current_stage_id</code>, <code>rfq_stage.rfq_id</code>, <code>rfq_stage.order</code>. Indexes are like a book's table of contents — PostgreSQL jumps to matching rows instead of scanning every row. Run: <code>alembic revision --autogenerate -m "create rfq workflow rfq_stage"</code> → <code>alembic upgrade head</code>. Alembic includes the indexes automatically.</p></div>
+      
+      <div class="substep"><div class="substep-label verify">Details</div>
+        <p><code>psql -d rfq_manager_db -c "\dt"</code> → 3 tables. <code>\d rfq</code> → columns match model.</p></div>
+      <div class="warn"><p><strong>Seed data:</strong> Insert at least one workflow with stages so POST /rfqs works.</p></div>
+    </div>
+
+    <div class="step">
+      <div class="step-header"><span class="step-num">Step 5</span><h3>RFQ datasource</h3><span class="step-file">datasources/rfq_datasource.py</span></div>
+      <div class="substep"><div class="substep-label learn">Concept</div>
+        <p><strong>Pure DB queries.</strong> Class receives session in <code>__init__</code>. Every method uses <code>self.session</code>. Does NOT <code>commit()</code> — controller commits. <span class="concept-tag c3">SQLAlchemy</span></p></div>
+      <div class="substep"><div class="substep-label build">Status</div>
+        <p><code>create(data)</code> — session.add, no commit. <code>get_by_id(id)</code> — query + filter, NotFoundError if None. <code>list(...)</code> — filters + pagination. <code>update(id, data)</code> — get, update, no commit.</p></div>
+      <div class="substep"><div class="substep-label verify">Details</div>
+        <p><code>python -c "from src.datasources.rfq_datasource import RfqDatasource"</code> → no import errors.</p></div>
+    </div>
+
+    <div class="step">
+      <div class="step-header"><span class="step-num">Step 6</span><h3>RFQ translator</h3><span class="step-file">translators/rfq_translator.py</span></div>
+      <div class="substep"><div class="substep-label learn">Concept</div>
+        <p><strong>Two jobs:</strong> (1) Pydantic schemas for request/response shapes. (2) Convert SQLAlchemy models ↔ Pydantic objects. Separate schemas per action — CreateRequest has fewer fields than Detail. UpdateRequest makes everything optional. <span class="concept-tag c2">Pydantic</span></p></div>
+      <div class="substep"><div class="substep-label build">Status</div>
+        <p>Schemas: <code>RfqCreateRequest</code>, <code>RfqUpdateRequest</code> (all optional), <code>RfqSummary</code>, <code>RfqDetail</code>, <code>RfqListResponse</code>. Functions: <code>to_detail(model)</code>, <code>to_summary(model)</code>.</p></div>
+      <div class="substep"><div class="substep-label verify">Details</div>
+        <p>Shell: <code>RfqCreateRequest(client_name="Test", ...)</code> → works. Missing field → ValidationError.</p></div>
+    </div>
+
+    <div class="step">
+      <div class="step-header"><span class="step-num">Step 7</span><h3>Pagination</h3><span class="step-file">utils/pagination.py</span></div>
+      <div class="substep"><div class="substep-label learn">Concept</div>
+        <p><strong>Return 20 at a time</strong> with metadata: page, size, total, pages. Frontend uses this for navigation. <span class="concept-tag c2">Pydantic</span></p></div>
+      <div class="substep"><div class="substep-label build">Status</div>
+        <p><code>PaginationParams</code> model. <code>paginated_response(query, page, size)</code> → data + metadata.</p></div>
+      <div class="substep"><div class="substep-label verify">Details</div><p>Through list endpoint in Step 9.</p></div>
+    </div>
+
+    <div class="step">
+      <div class="step-header"><span class="step-num">Step 8</span><h3>RFQ controller (+ stage auto-creation)</h3><span class="step-file">controllers/rfq_controller.py</span></div>
+      <div class="substep"><div class="substep-label learn">Concept</div>
+        <p><strong>The brain.</strong> Create method is the most complex in the project:</p>
+        <ul>
+          <li>Look up workflow → get stage templates</li>
+          <li>Create RFQ record</li>
+          <li>Loop stages → create rfq_stage row for each</li>
+          <li>Back-calculate planned_start/planned_end from deadline</li>
+          <li>Set current_stage_id = first stage</li>
+          <li>One session.commit() — everything or nothing</li>
+        </ul>
+        <p style="margin-top:6px;"><span class="concept-tag c3">SQLAlchemy</span> All session.add() share the same session. One commit. Fail → rollback → nothing saved.</p></div>
+      <div class="substep"><div class="substep-label build">Status</div>
+        <p><code>RfqController</code> receives datasources + session. Methods: create (full logic), get, list, update (deadline → recalc).</p></div>
+      
+      <div class="warn"><p><strong>Date back-calculation logic:</strong> Work backwards from the deadline using each stage's <code>planned_duration_days</code>. Example: deadline = day 30, stage 3 = 5 days, stage 2 = 10 days, stage 1 = 8 days → stage 3: day 25–30, stage 2: day 15–25, stage 1: day 7–15. <strong>V1 uses calendar days only — no weekends/holidays.</strong> Keep the logic in a private method <code>_calculate_stage_dates(deadline, stages)</code> so it's easy to unit test and extend later.</p></div>
+      <div class="warn"><p><strong>Needs minimal <code>WorkflowDatasource.get_by_id()</code> and <code>RfqStageDatasource.create()</code></strong> — build just those methods.</p></div>
+    </div>
+
+    <div class="step">
+      <div class="step-header"><span class="step-num">Step 9</span><h3>RFQ routes</h3><span class="step-file">routes/rfq_route.py</span></div>
+      <div class="substep"><div class="substep-label learn">Concept</div>
+        <p><strong>Routes are boring on purpose.</strong> Receive request, call controller, return response. 3–5 lines each. If longer, logic leaked. <span class="concept-tag c2">Pydantic</span> <span class="concept-tag c4">Depends()</span></p></div>
+      <div class="substep"><div class="substep-label build">Status</div>
+        <p><code>APIRouter(prefix="/rfqs", tags=["RFQ"])</code>. 4 endpoints: POST /rfqs (#1), GET /rfqs (#2), GET /rfqs/{id} (#3), PATCH /rfqs/{id} (#4).</p></div>
+      <div class="substep"><div class="substep-label verify">Details</div><p>After Step 10, test with Postman.</p></div>
+    </div>
+
+    <div class="step">
+      <div class="step-header"><span class="step-num">Step 10</span><h3>Wire everything</h3><span class="step-file">app_context.py + app.py</span></div>
+      <div class="substep"><div class="substep-label learn">Concept</div>
+        <p><strong><code>Depends()</code> chains defined here.</strong> get_db → datasources → controller. One session shared = transaction safety. <span class="concept-tag c4">Depends()</span> <span class="concept-tag c1">yield</span></p></div>
+      <div class="substep"><div class="substep-label build">Status</div>
+        <p><code>app_context.py</code>: get_rfq_datasource, get_workflow_datasource, get_rfq_stage_datasource, get_rfq_controller. <code>app.py</code>: include_router.</p></div>
+      <div class="substep"><div class="substep-label verify">Details</div>
+        <p><strong>The big test.</strong> Postman: POST /rfqs → 201 + stages. GET /rfqs → list. GET /rfqs/{id} → detail. PATCH → update. Bad JSON → 422.</p></div>
+    </div>
+
+    <div class="checkpoint"><p><strong>✓ Completed:</strong> One resource works end-to-end. Pattern proven. Every future resource = same flow. <strong>Commit.</strong></p></div>
+  </div>
+
+  <!-- ═══════════════ PHASE 2.5 ═══════════════ -->
+  <div class="phase">
+    <div class="phase-header"><span class="phase-num p25">Phase 2.5</span><h2>First integration tests</h2></div>
+    <p class="goal">Prove the test pattern. Replicate alongside each resource.</p>
+
+    <div class="step">
+      <div class="step-header"><span class="step-num">Step 11</span><h3>Test setup + RFQ tests</h3><span class="step-file">tests/conftest.py + test_rfq.py</span></div>
+      <div class="substep"><div class="substep-label learn">Concept</div>
+        <p><strong>TestClient</strong> = fake HTTP client, like Postman but automated. <strong>conftest.py</strong> = shared setup: test DB, test client, seed data.</p></div>
+      <div class="substep"><div class="substep-label build">Status</div>
+        <p><strong>conftest.py:</strong> Test DB, override get_db, TestClient, seed workflow. <strong>test_rfq.py:</strong> 6 tests — create (verify stages), list, get, update, 404, 422.</p></div>
+      <div class="substep"><div class="substep-label verify">Details</div>
+        <p><code>pytest tests/integration/test_rfq.py -v</code> → all green.</p></div>
+      <div class="warn"><p><strong>SQLite limitation:</strong> PostgreSQL types (UUID, JSONB) may fail. Use portable types or test PostgreSQL container.</p></div>
+    </div>
+
+    <div class="checkpoint"><p><strong>✓ Completed:</strong> Test pattern proven. <strong>Commit.</strong></p></div>
+  </div>
+
+  <!-- ═══════════════ PHASE 3 ═══════════════ -->
+  <div class="phase">
+    <div class="phase-header"><span class="phase-num p3">Phase 3</span><h2>Remaining models</h2></div>
+    <p class="goal">All 9 tables exist in PostgreSQL.</p>
+
+    <div class="step">
+      <div class="step-header"><span class="step-num">Step 12</span><h3>6 remaining models</h3><span class="step-file">models/*.py</span></div>
+      <div class="substep"><div class="substep-label learn">Concept</div>
+        <p><strong>All at once</strong> because of FK dependencies. Alembic handles ordering in one migration. <span class="concept-tag c3">SQLAlchemy</span></p></div>
+      <div class="substep"><div class="substep-label build">Status</div>
+        <p>subtask, reminder, rfq_note, rfq_file, rfq_stage_field_value, rfq_history. <strong>Add <code>index=True</code> on filtered columns:</strong> <code>subtask.rfq_stage_id</code>, <code>subtask.deleted_at</code>, <code>reminder.status</code>, <code>reminder.due_date</code>, <code>reminder.rfq_id</code>, <code>rfq_note.rfq_stage_id</code>, <code>rfq_file.rfq_stage_id</code>, <code>rfq_file.deleted_at</code>, <code>rfq_history.rfq_id</code>. Run: <code>alembic revision --autogenerate</code> → <code>alembic upgrade head</code>.</p></div>
+      <div class="substep"><div class="substep-label verify">Details</div>
+        <p><code>\dt</code> → 9 tables. Spot-check columns.</p></div>
+    </div>
+
+    <div class="checkpoint"><p><strong>✓ Completed:</strong> All 9 tables exist. <strong>Commit.</strong></p></div>
+  </div>
+
+  <!-- ═══════════════ PHASE 4 ═══════════════ -->
+  <div class="phase">
+    <div class="phase-header"><span class="phase-num p4">Phase 4</span><h2>Resource by resource</h2></div>
+    <p class="goal">All 28 endpoints. Business logic built inline.</p>
+
+    <div class="step">
+      <div class="step-header"><span class="step-num">Step 13</span><h3>Workflow</h3><span class="step-file">#7–#9</span></div>
+      <div class="substep"><div class="substep-label learn">Concept</div>
+        <p><strong>Simplest resource — warm-up.</strong> Mostly read-only. Only write: toggle is_active, change is_default (uniqueness check).</p></div>
+      <div class="substep"><div class="substep-label build">Status</div><p>Full slice: datasource → translator → controller → route → wire → register.</p></div>
+      <div class="substep"><div class="substep-label verify">Details</div><p>Postman: list, get (includes stages[]), update. Integration tests.</p></div>
+    </div>
+
+    <div class="step">
+      <div class="step-header"><span class="step-num">Step 14</span><h3>RFQ_Stage (+ advance logic)</h3><span class="step-file">#10–#15</span></div>
+      <div class="substep"><div class="substep-label learn">Concept</div>
+        <p><strong>Biggest step.</strong> Advance (#15): validate mandatory fields, check blocker ≠ Blocked, set actual_end/actual_start, update RFQ progress. Notes (#13) + files (#14) = append-only.</p></div>
+      
+      <div class="substep"><div class="substep-label build">Status</div><p>#10–#12 first, then #13 (note), #14 (file), then #15 (advance). <strong>Organize advance logic as private methods in the controller:</strong> <code>_validate_mandatory_fields()</code>, <code>_check_blockers()</code>, <code>_compute_next_stage()</code>, <code>_update_rfq_progress()</code>. Keeps the main <code>advance()</code> method readable without adding a separate services layer.</p></div>
+      <div class="substep"><div class="substep-label verify">Details</div><p>Advance blocked stage → 409. Unblock + advance → transitions + progress update.</p></div>
+    </div>
+
+    <div class="step">
+      <div class="step-header"><span class="step-num">Step 15</span><h3>Subtask</h3><span class="step-file">#16–#19</span></div>
+      <div class="substep"><div class="substep-label learn">Concept</div>
+        <p><strong>Soft delete</strong> (deleted_at, filter WHERE NULL) + <strong>auto-update parent</strong> stage progress when all subtasks = 100%.</p></div>
+      <div class="substep"><div class="substep-label build">Status</div><p>Full slice: CRUD + soft delete + parent progress.</p></div>
+      <div class="substep"><div class="substep-label verify">Details</div><p>Update to 100% → stage updates. Delete → gone from list, in DB.</p></div>
+    </div>
+
+    <div class="step">
+      <div class="step-header"><span class="step-num">Step 16</span><h3>File (shortcuts)</h3><span class="step-file">#26–#28</span></div>
+      <div class="substep"><div class="substep-label learn">Concept</div>
+        <p><strong>Shortcut pattern:</strong> Upload under stage, download/delete by file ID alone. Globally unique UUIDs.</p></div>
+      <div class="substep"><div class="substep-label build">Status</div><p>List (#26), download (#27), soft delete (#28).</p></div>
+      <div class="substep"><div class="substep-label verify">Details</div><p>Upload → list → download → delete → gone.</p></div>
+    </div>
+
+    <div class="step">
+      <div class="step-header"><span class="step-num">Step 17</span><h3>Reminder</h3><span class="step-file">#20–#25</span></div>
+      <div class="substep"><div class="substep-label learn">Concept</div>
+        <p><strong>Manual + rule-based.</strong> Rules define auto-creation conditions. <code>delay_days</code> computed at query time, NOT stored.</p></div>
+      <div class="substep"><div class="substep-label build">Status</div><p>Create, list, rules CRUD, toggle, test email (log stub fine).</p></div>
+      <div class="substep"><div class="substep-label verify">Details</div><p>Create, list by status, toggle rule, check delay_days.</p></div>
+    </div>
+
+    <div class="checkpoint"><p><strong>✓ Completed:</strong> Endpoints work. Tests pass. <strong>Commit per resource.</strong></p></div>
+  </div>
+
+  <!-- ═══════════════ PHASE 5 ═══════════════ -->
+  <div class="phase">
+    <div class="phase-header"><span class="phase-num p5">Phase 5</span><h2>Cross-cutting concerns</h2></div>
+    <p class="goal">History, events, auth. Architectural components that are currently marked as dormant or backlog.</p>
+
+    <div class="step">
+      <div class="step-header"><span class="step-num">Step 18</span><h3>History logging <span class="tag-removed" style="font-size:10px;color:#f87171;background:rgba(248,113,113,0.1);padding:2px 6px;border-radius:4px;margin-left:8px;">Dormant</span></h3><span class="step-file">rfq_history in controllers</span></div>
+      <div class="substep"><div class="substep-label learn">Concept</div>
+        <p><strong>Audit trail.</strong> Every mutation → row in rfq_history (entity_type, action, JSON diff). Reusable helper, not copy-paste.</p></div>
+      <div class="substep"><div class="substep-label build">Status</div><p><code>log_history(session, entity_type, id, action, changes, user)</code>. Call from every mutating controller. Same session = same transaction.</p></div>
+      <div class="substep"><div class="substep-label verify">Details</div><p>Create RFQ → check rfq_history → row exists. Update → row with diff.</p></div>
+    </div>
+
+    <div class="step">
+      <div class="step-header"><span class="step-num">Step 19</span><h3>Event publishing <span class="tag-removed" style="font-size:10px;color:#f87171;background:rgba(248,113,113,0.1);padding:2px 6px;border-radius:4px;margin-left:8px;">Dormant</span></h3><span class="step-file">connectors/event_bus.py</span></div>
+      <div class="substep"><div class="substep-label learn">Concept</div>
+        <p><strong>Events notify other services.</strong> "rfq.created" → communication_ms might email. Your service publishes, doesn't care who listens.</p></div>
+      
+      <div class="substep"><div class="substep-label build">Status</div><p><code>publish(event_type, payload)</code>. 6 events: rfq.created, rfq.status_changed, stage.advanced, stage.blocked, reminder.created, file.uploaded.</p></div>
+      <div class="substep"><div class="substep-label verify">Details</div><p>Create RFQ → console log. Advance → event fires.</p></div>
+    </div>
+
+    <div class="step">
+      <div class="step-header"><span class="step-num">Step 20</span><h3>Auth guard <span class="tag-removed" style="font-size:10px;color:#f87171;background:rgba(248,113,113,0.1);padding:2px 6px;border-radius:4px;margin-left:8px;">Dormant</span></h3><span class="step-file">connectors/iam_service.py</span></div>
+      <div class="substep"><div class="substep-label learn">Concept</div>
+        <p><strong>Connector, not feature.</strong> Sends JWT to rfq_iam_ms, gets user info. Add as Depends() on protected routes. Dev mode bypasses. <span class="concept-tag c4">Depends()</span></p></div>
+      <div class="substep"><div class="substep-label build">Status</div><p><code>get_current_user(token)</code>, <code>verify_team_access(user, team)</code>. Dev bypass when APP_ENV=development.</p></div>
+      <div class="substep"><div class="substep-label verify">Details</div><p>No token → 401. Invalid → 403. Valid → normal. Dev → bypassed.</p></div>
+    </div>
+
+    <div class="checkpoint"><p><strong>✓ Completed:</strong> Core logic implemented. <strong>Commit.</strong></p></div>
+  </div>
+
+  <!-- ═══════════════ PHASE 6 ═══════════════ -->
+  <div class="phase">
+    <div class="phase-header"><span class="phase-num p6">Phase 6</span><h2>Stats &amp; analytics</h2></div>
+    <p class="goal">Read-only aggregation. No mutations.</p>
+
+    <div class="step">
+      <div class="step-header"><span class="step-num">Step 21</span><h3>RFQ stats + analytics</h3><span class="step-file">#5 + #6</span></div>
+      <div class="substep"><div class="substep-label learn">Concept</div>
+        <p><strong>SQL aggregations.</strong> #5 = 4 KPI numbers (total, open, critical, avg cycle). #6 = heavier (accuracy, win rate, by-client). Both read-only.</p></div>
+      <div class="substep"><div class="substep-label build">Status</div><p>Datasource methods with <code>func.count()</code>, <code>func.avg()</code>. Routes #5 and #6.</p></div>
+      <div class="substep"><div class="substep-label verify">Details</div><p>Postman: GET /rfqs/stats → numbers. Cross-check with psql.</p></div>
+    </div>
+
+    <div class="step">
+      <div class="step-header"><span class="step-num">Step 22</span><h3>Reminder stats</h3><span class="step-file">#22</span></div>
+      <div class="substep"><div class="substep-label learn">Concept</div><p><strong>Same pattern, smaller.</strong> 4 numbers: open, overdue, due this week, with active rules.</p></div>
+      <div class="substep"><div class="substep-label build">Status</div><p>Datasource <code>get_stats()</code>. Wire through controller and route.</p></div>
+      <div class="substep"><div class="substep-label verify">Details</div><p>GET /reminders/stats → 4 numbers.</p></div>
+    </div>
+
+    <div class="checkpoint"><p><strong>✓ Completed:</strong> All 28 endpoints operational. Postman green. Tests pass. <strong>Commit.</strong></p></div>
+  </div>
+
+</div>
+</body>
+</html>

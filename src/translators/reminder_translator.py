@@ -13,7 +13,7 @@ from typing import Optional, List, Literal
 from pydantic import BaseModel, model_validator
 
 
-ACTIVE_REMINDER_STATUSES = frozenset({"open", "overdue", "sent"})
+ACTIVE_REMINDER_STATUSES = frozenset({"open", "overdue"})
 REMINDER_STATUS_OPEN = "open"
 REMINDER_STATUS_OVERDUE = "overdue"
 REMINDER_STATUS_RESOLVED = "resolved"

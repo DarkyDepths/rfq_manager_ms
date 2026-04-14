@@ -46,7 +46,7 @@ paths:
         Creates a new RFQ and auto-generates all rfq_stage instances from the selected workflow.
         Back-calculates planned_start / planned_end from deadline.
         Sets current_stage_id = first stage, status = "In preparation".
-        Note: Draft status is reserved for a future "save without submitting" flow — this endpoint always creates in "In preparation".
+        V1 live behavior always creates RFQs directly in "In preparation".
       operationId: createRfq
       requestBody:
         required: true
@@ -72,7 +72,7 @@ paths:
       description: |
         Paginated list with search, status filter, priority filter, and sort.
         Used by index.html portfolio table and workspace.html RFQ selector.
-        Excludes Draft RFQs by default — pass ?status=Draft to include them.
+        Live filtering supports only operational statuses.
       operationId: listRfqs
       parameters:
         - $ref: '#/components/parameters/SearchParam'
@@ -589,7 +589,7 @@ paths:
           in: query
           schema:
             type: string
-            enum: [open, sent, overdue, resolved]
+            enum: [open, overdue, resolved]
         - name: rfq_id
           in: query
           schema:
@@ -672,7 +672,7 @@ paths:
     post:
       tags: [Reminder]
       summary: "#26 — Test reminder email"
-      description: Sends a test email to the current user (log output only in V1).
+      description: Records a test reminder delivery attempt for the current user (log output only in V1; no real email send).
       operationId: testReminderEmail
       responses:
         '200':
@@ -684,7 +684,7 @@ paths:
       description: |
         Admin endpoint to manually trigger the background worker logic.
         Finds all 'open' or 'overdue' reminders where due_date <= today.
-        Sends them according to rate limits, increments send_count, updates last_sent_at cooldowns, and updates temporal status.
+        Applies log-only delivery and rate-limit processing, increments send_count, updates last_sent_at cooldowns, and resolves reminders whose generating condition no longer holds.
       operationId: processDueReminders
       responses:
         '200':
@@ -696,7 +696,7 @@ paths:
                 properties:
                   message:
                     type: string
-                    example: "Test email sent to user@company.com"
+                    example: "Processed 3 due reminders; skipped 1 at max attempts and 0 due to cooldown."
 
 # ═══════════════════════════════════════════════════
 # COMPONENTS
@@ -767,7 +767,7 @@ components:
         type: array
         items:
           type: string
-          enum: [Draft, In preparation, Submitted, Awarded, Lost, Cancelled]
+          enum: [In preparation, Awarded, Lost, Cancelled]
       style: form
       explode: true
     PriorityFilterParam:
@@ -929,7 +929,7 @@ components:
           type: string
         status:
           type: string
-          enum: [Draft, In preparation, Submitted, Awarded, Lost, Cancelled]
+          enum: [In preparation, Awarded, Lost, Cancelled]
         outcome_reason:
           type: string
           description: "Covers all outcomes: why awarded, why lost, why cancelled"
@@ -962,7 +962,7 @@ components:
           enum: [normal, critical]
         status:
           type: string
-          enum: [Draft, In preparation, Submitted, Awarded, Lost, Cancelled]
+          enum: [In preparation, Awarded, Lost, Cancelled]
         progress:
           type: integer
           example: 42
@@ -992,7 +992,7 @@ components:
               type: string
               format: uuid
               nullable: true
-              description: "NULL when RFQ is in Draft (no stages yet). Set to first stage on finalization."
+              description: "NULL when RFQ has reached a terminal status with no active stage."
             outcome_reason:
               type: string
               nullable: true
@@ -1041,13 +1041,16 @@ components:
       properties:
         avg_margin_submitted:
           type: number
-          example: 17.8
+          nullable: true
+          example: null
         avg_margin_awarded:
           type: number
-          example: 18.1
+          nullable: true
+          example: null
         estimation_accuracy:
           type: number
-          example: 94
+          nullable: true
+          example: null
         win_rate:
           type: number
           example: 32
@@ -1355,7 +1358,7 @@ components:
           nullable: true
         status:
           type: string
-          enum: [open, sent, overdue, resolved]
+          enum: [open, overdue, resolved]
         delay_days:
           type: integer
           description: "Computed at query time: MAX(0, NOW()::date - due_date). NOT stored."

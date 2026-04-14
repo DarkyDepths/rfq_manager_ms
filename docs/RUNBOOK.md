@@ -11,45 +11,30 @@ This runbook is for day-to-day operation of the current `rfq_manager_ms` V1 serv
 
 ## 2) Start / Stop
 
-### Option A: Docker Compose (preferred)
+### Option A: Scenario stack (preferred for end-to-end testing)
 
 Start:
 
 ```bash
-docker compose up -d --build
+python ../scripts/rfqmgmt_scenario_stack.py all --seed-set full
 ```
 
 Bootstrap note:
 
-- The API container runs Alembic migrations before starting Uvicorn.
-- If migrations fail, API container startup fails fast and logs the error.
+- The scenario stack starts `docker-compose.scenario.yml` for the manager side.
+- It seeds curated RFQ scenarios through `scripts/seed_rfqmgmt_scenarios.py`.
+- It also coordinates the paired intelligence-side scenario stack.
 
 Inspect status:
 
 ```bash
-docker compose ps
-```
-
-Inspect logs:
-
-```bash
-docker compose logs --tail 200 api
-docker compose logs --tail 200 postgres
-docker compose logs -f api
+python ../scripts/rfqmgmt_scenario_stack.py verify --seed-set full
 ```
 
 Stop:
 
 ```bash
-docker compose down
-```
-
-### Option B: Local venv
-
-```bash
-pip install -r requirements.txt
-alembic upgrade head
-uvicorn src.app:app --reload --port 8000
+python ../scripts/rfqmgmt_scenario_stack.py down --remove-volumes
 ```
 
 ## 3) Health and Smoke Checks
@@ -58,10 +43,15 @@ Run after startup and after any operational change.
 
 For the leadership/reviewer proof sequence (single authoritative demo path), use `docs/SMOKE_DEMO.md`.
 
+Contract source note:
+
+- `docs/rfq_manager_ms_openapi_current.yaml` is the authoritative API contract file.
+- `docs/rfq_manager_ms_api_contract_current.html` and `docs/rfq_manager_ms_swagger_current.html` are derived convenience views and should not be edited or trusted ahead of the YAML.
+
 PowerShell:
 
 ```powershell
-$env:BASE_URL = "http://localhost:8000"
+$env:BASE_URL = "http://localhost:18000"
 
 # 1) Health
 Invoke-RestMethod "$env:BASE_URL/health"
@@ -79,16 +69,16 @@ Invoke-RestMethod "$env:BASE_URL/rfq-manager/v1/rfqs"
 Invoke-RestMethod "$env:BASE_URL/rfq-manager/v1/reminders/stats"
 
 # 5) Mock event bus health
-(Invoke-WebRequest "http://localhost:8081/").Content
+(Invoke-WebRequest "http://localhost:18081/").Content
 
 # 6) Event delivery log check
-docker compose logs --tail 100 event_bus_mock
+docker compose -p rfq-manager-scenario -f docker-compose.scenario.yml logs --tail 100 event_bus_mock
 ```
 
 Bash / zsh:
 
 ```bash
-BASE_URL="http://localhost:8000"
+BASE_URL="http://localhost:18000"
 
 # 1) Health
 curl -sS "$BASE_URL/health"
@@ -114,31 +104,10 @@ Apply latest migrations:
 alembic upgrade head
 ```
 
-Seed (Docker Compose authoritative path):
+Seed curated platform scenarios:
 
 ```bash
-docker compose exec -e PYTHONPATH=/app api python scripts/seed.py --scenario=demo --reset --seed=42
-```
-
-Reset and reseed (Compose):
-
-```bash
-docker compose exec -e PYTHONPATH=/app api python scripts/seed.py --scenario=demo --reset --seed=42
-```
-
-Seed scenarios (local venv / non-compose):
-
-```bash
-python scripts/seed.py --scenario=minimal
-python scripts/seed.py --scenario=demo --seed=42
-python scripts/seed.py --scenario=blocked-rfqs
-python scripts/seed.py --scenario=completed-lifecycle
-```
-
-Reset and reseed:
-
-```bash
-python scripts/seed.py --scenario=demo --reset --seed=42
+python ../scripts/rfqmgmt_scenario_stack.py all --seed-set full
 ```
 
 ## 5) Reminder Processing (Current V1 Behavior)
@@ -171,7 +140,7 @@ python scripts/seed.py --scenario=demo --reset --seed=42
   - publish failures are logged and do not roll back completed business writes
 - Tune publication timeout with `EVENT_BUS_REQUEST_TIMEOUT_SECONDS`.
 
-Validated local compose wiring for stage-advance demo path:
+Validated scenario-stack wiring for stage-advance demo path:
 
 - `AUTH_BYPASS_ENABLED: "true"`
 - `AUTH_BYPASS_TEAM: Estimation`
@@ -215,9 +184,9 @@ Actions:
 Useful log commands:
 
 ```bash
-docker compose ps
-docker compose logs --tail 200 api
-docker compose logs --tail 200 postgres
+python ../scripts/rfqmgmt_scenario_stack.py verify --seed-set full
+docker compose -p rfq-manager-scenario -f docker-compose.scenario.yml logs --tail 200 api
+docker compose -p rfq-manager-scenario -f docker-compose.scenario.yml logs --tail 200 postgres
 ```
 
 ### Incident: reminder processing returns zero processed
