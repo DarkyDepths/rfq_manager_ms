@@ -585,9 +585,17 @@ class RfqController:
         return workflow.name if workflow else None
 
     def _get_intelligence_milestones(self, rfq_id) -> dict[str, Any]:
+        query = self.session.query(RFQFile)
+        if not hasattr(query, "join"):
+            return {
+                "source_package_available": False,
+                "source_package_updated_at": None,
+                "workbook_available": False,
+                "workbook_updated_at": None,
+            }
+
         files = (
-            self.session.query(RFQFile)
-            .join(RFQStage, RFQStage.id == RFQFile.rfq_stage_id)
+            query.join(RFQStage, RFQStage.id == RFQFile.rfq_stage_id)
             .filter(
                 RFQStage.rfq_id == rfq_id,
                 RFQFile.deleted_at.is_(None),
