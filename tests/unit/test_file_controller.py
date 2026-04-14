@@ -2,10 +2,11 @@ import pytest
 import uuid
 from datetime import datetime
 from unittest.mock import patch
+
 from src.controllers.file_controller import FileController
 from src.models.rfq_file import RFQFile
 from src.models.rfq_stage import RFQStage
-from src.utils.errors import NotFoundError
+from src.utils.errors import ForbiddenError, NotFoundError
 
 RFQ1 = str(uuid.uuid4())
 ST1 = str(uuid.uuid4())
@@ -17,7 +18,7 @@ class MockFileDatasource:
         
     def get_by_id(self, file_id):
         if str(file_id) == F1:
-            return RFQFile(id=F1, filename="doc.pdf", file_path="/fake/path/doc.pdf", uploaded_at=datetime.now())
+            return RFQFile(id=F1, rfq_stage_id=ST1, filename="doc.pdf", file_path="/fake/path/doc.pdf", uploaded_at=datetime.now())
         return None
         
     def soft_delete(self, file):
@@ -26,7 +27,7 @@ class MockFileDatasource:
 class MockStageDatasource:
     def get_by_id(self, stage_id):
         if str(stage_id) == ST1:
-            return RFQStage(id=ST1, rfq_id=RFQ1)
+            return RFQStage(id=ST1, rfq_id=RFQ1, assigned_team="Engineering")
         return None
 
 class MockSession:
@@ -80,5 +81,28 @@ def test_resolve_physical_path_new():
 def test_delete_success():
     ds = MockFileDatasource()
     ctrl = FileController(ds, MockStageDatasource(), MockSession())
-    ctrl.delete(F1)
+    ctrl.delete(F1, actor_team="Engineering", actor_permissions=["file:delete"])
     assert ds.deleted is True
+
+
+def test_delete_requires_matching_stage_team_without_override():
+    ds = MockFileDatasource()
+    ctrl = FileController(ds, MockStageDatasource(), MockSession())
+
+    with pytest.raises(ForbiddenError):
+        ctrl.delete(F1, actor_team="Sales", actor_permissions=["file:delete"])
+
+
+def test_delete_allows_explicit_cross_team_override():
+    ds = MockFileDatasource()
+    ctrl = FileController(ds, MockStageDatasource(), MockSession())
+
+    ctrl.delete(F1, actor_team="Sales", actor_permissions=["file:delete:any"])
+    assert ds.deleted is True
+
+
+def test_resolve_physical_path_rejects_escape_from_storage_root():
+    from src.controllers.file_controller import _resolve_physical_path
+
+    with pytest.raises(NotFoundError):
+        _resolve_physical_path("../../windows/system32/drivers/etc/hosts")

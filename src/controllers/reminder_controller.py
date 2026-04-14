@@ -96,17 +96,22 @@ class ReminderController:
         self.session.commit()
         return reminder_translator.rule_to_response(rule)
 
-    def test_email(self):
+    def test_email(self, *, actor_name: str | None = None):
         """V1: outbound delivery is stubbed to logger. Reminder ownership remains inside rfq_manager_ms."""
-        logger.info("TEST EMAIL: Would send test reminder email to current user")
-        return {"message": "Test email logged (V1 — no actual send)"}
+        recipient = actor_name or "current user"
+        logger.info("TEST EMAIL: Would send test reminder email to %s", recipient)
+        return {
+            "message": (
+                f"Test reminder delivery is log-only in V1; no email was sent to {recipient}."
+            )
+        }
 
     def process_reminders(self):
         """Invoke the pure batch processing logic."""
         from src.services.notification_service import NotificationService
         svc = NotificationService(self.session)
         result = svc.process_due_reminders()
-        return {"message": "Manual/admin reminder batch run complete", "data": result}
+        return {"message": result["message"], "data": result}
 
     def resolve(self, reminder_id):
         reminder = self.ds.get_by_id(reminder_id)

@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Literal
@@ -12,7 +12,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from scripts.seed import _make_engine_and_session, _run_migrations, seed_base_data  # noqa: E402
+from scripts.bootstrap_base_data import make_engine_and_session, run_migrations, seed_base_data  # noqa: E402
 from src.controllers.rfq_controller import RfqController  # noqa: E402
 from src.datasources.rfq_datasource import RfqDatasource  # noqa: E402
 from src.datasources.rfq_stage_datasource import RfqStageDatasource  # noqa: E402
@@ -31,7 +31,7 @@ from src.utils.rfq_lifecycle import calculate_rfq_lifecycle_progress  # noqa: E4
 BatchName = Literal["must-have", "later", "optional"]
 SCENARIO_TAG_PREFIX = "[SCENARIO:"
 GOLDEN_SCENARIO_KEY = "RFQ-06"
-MANIFEST_VERSION = "rfqmgmt_manager_scenarios_v2"
+MANIFEST_VERSION = "rfqmgmt_manager_scenarios_v3"
 
 
 @dataclass(frozen=True)
@@ -106,6 +106,7 @@ class ManagerScenarioSpec:
     files: tuple[FileSeed, ...] = ()
     skip_stage_names: tuple[str, ...] = ()
     captured_data_by_stage: dict[str, dict] = field(default_factory=dict)
+    verification_roles: tuple[str, ...] = ()
     manual_only: bool = False
 
     @property
@@ -163,6 +164,7 @@ SCENARIOS: tuple[ManagerScenarioSpec, ...] = (
         current_stage_progress=60,
         completed_stage_names=("RFQ received",),
         intelligence_profile="early_partial",
+        verification_roles=("intelligence_snapshot_anchor",),
         captured_data_by_stage={
             "Go / No-Go": {"go_nogo_decision": "proceed"},
         },
@@ -288,6 +290,7 @@ SCENARIOS: tuple[ManagerScenarioSpec, ...] = (
         current_stage_progress=90,
         completed_stage_names=("RFQ received", "Go / No-Go", "Pre-bid clarifications"),
         intelligence_profile="stale_partial",
+        verification_roles=("stale_snapshot_anchor",),
         captured_data_by_stage={
             "Go / No-Go": {"go_nogo_decision": "proceed"},
         },
@@ -450,6 +453,7 @@ SCENARIOS: tuple[ManagerScenarioSpec, ...] = (
             "Go / No-Go": {"go_nogo_decision": "proceed"},
         },
         intelligence_profile="failed_workbook",
+        verification_roles=("failed_workbook_anchor",),
         notes=(
             NoteSeed(
                 stage_name="Cost estimation",
@@ -522,15 +526,16 @@ SCENARIOS: tuple[ManagerScenarioSpec, ...] = (
         country="Saudi Arabia",
         owner="GHI Estimator",
         priority="critical",
-        status="Submitted",
+        status="In preparation",
         deadline_offset_days=-2,
         created_days_ago=28,
         updated_days_ago=1,
-        summary="Submitted RFQ awaiting client decision with mature but still partial intelligence.",
+        summary="Offer already delivered; RFQ is waiting in the final decision stage with mature but still partial intelligence.",
         current_stage_name="Award / Lost",
         current_stage_progress=25,
         completed_stage_names=("RFQ received", "Go / No-Go", "Cost estimation", "Internal approval", "Offer submission"),
         intelligence_profile="mature_partial",
+        verification_roles=("decision_wait_anchor", "workbook_artifact_anchor"),
         captured_data_by_stage={
             "Go / No-Go": {"go_nogo_decision": "proceed"},
             "Cost estimation": {"estimation_completed": True},
@@ -541,13 +546,13 @@ SCENARIOS: tuple[ManagerScenarioSpec, ...] = (
             NoteSeed(
                 stage_name="Offer submission",
                 user_name="Ahmed Proposal Ops",
-                text="Commercial offer submitted through client portal; awaiting technical clarification feedback.",
+                text="Commercial offer delivered through client portal; awaiting technical clarification feedback.",
                 days_before_updated=1,
             ),
         ),
         reminders=(
             ReminderSeed(
-                message="Internal follow-up on submitted RFQ outcome window.",
+                message="Internal follow-up on the post-offer decision window.",
                 due_offset_days=1,
                 status="open",
                 reminder_type="internal",
@@ -555,7 +560,7 @@ SCENARIOS: tuple[ManagerScenarioSpec, ...] = (
                 stage_name="Award / Lost",
             ),
             ReminderSeed(
-                message="External follow-up with client buyer after submission.",
+                message="External follow-up with client buyer after offer delivery.",
                 due_offset_days=2,
                 status="open",
                 reminder_type="external",
@@ -815,7 +820,7 @@ def _default_note_text(family: str, stage_name: str, summary: str) -> str:
         "blocked_client_hold": "Client-side clarifications remain the main blocker to advancing the workflow.",
         "blocked_internal_hold": "An internal workflow decision is holding the stage until the technical/commercial position is cleared.",
         "stale_execution": "Execution has slowed and the stage is now leaning on catch-up actions rather than normal cadence.",
-        "submitted_followup": "Offer has been submitted and follow-up cadence is being tracked while awaiting outcome.",
+        "decision_wait_followup": "Offer has been delivered and follow-up cadence is being tracked while awaiting the award decision.",
         "awarded_terminal": "Award confirmed and closeout notes captured for handoff readiness.",
         "lost_terminal": "Loss rationale captured with follow-up actions for lessons learned.",
         "cancelled_terminal": "Cancellation was recorded and downstream stages were intentionally not executed.",
@@ -951,10 +956,10 @@ def _default_reminders(
             ),
         )
 
-    if family == "submitted_followup":
+    if family == "decision_wait_followup":
         return (
             ReminderSeed(
-                message="Internal follow-up on submitted RFQ outcome window.",
+                message="Internal follow-up on the post-offer decision window.",
                 due_offset_days=1,
                 status="open",
                 reminder_type="internal",
@@ -962,7 +967,7 @@ def _default_reminders(
                 stage_name="Award / Lost",
             ),
             ReminderSeed(
-                message="External follow-up with client after submission.",
+                message="External follow-up with client after offer delivery.",
                 due_offset_days=2,
                 status="open",
                 reminder_type="external",
@@ -981,35 +986,118 @@ def _default_files(
     family: str,
     current_stage_name: str | None,
     completed_stage_names: tuple[str, ...],
+    intelligence_profile: str,
+    status: str,
     owner: str,
 ) -> tuple[FileSeed, ...]:
+    reached_stage_names = set(completed_stage_names)
+    if current_stage_name:
+        reached_stage_names.add(current_stage_name)
+
     target_stage = current_stage_name or (completed_stage_names[-1] if completed_stage_names else None)
-    if target_stage is None:
+    if not reached_stage_names or target_stage is None:
         return ()
 
-    if family in {"fresh_intake", "blocked_client_hold"} and target_stage == "RFQ received":
-        return ()
+    seeded_files: list[FileSeed] = []
 
-    file_templates = {
+    def add_file(
+        stage_name: str,
+        filename: str,
+        file_type: str,
+        *,
+        size_bytes: int,
+        days_before_updated: int,
+    ) -> None:
+        if stage_name not in reached_stage_names:
+            return
+        if any(
+            item.stage_name == stage_name
+            and item.filename == filename
+            and item.file_type == file_type
+            for item in seeded_files
+        ):
+            return
+        seeded_files.append(
+            FileSeed(
+                stage_name=stage_name,
+                filename=filename,
+                file_type=file_type,
+                uploaded_by=owner,
+                size_bytes=size_bytes,
+                days_before_updated=days_before_updated,
+            ),
+        )
+
+    include_source_package = (
+        "RFQ received" in reached_stage_names
+        and not (
+            current_stage_name == "RFQ received"
+            and intelligence_profile in {"none", "manual_golden"}
+        )
+    )
+    if include_source_package:
+        add_file(
+            "RFQ received",
+            "client-rfq-source-package.zip",
+            "Client RFQ",
+            size_bytes=1_850_000,
+            days_before_updated=2,
+        )
+
+    cost_estimation_reached = "Cost estimation" in reached_stage_names
+    workbook_is_late_lifecycle = (
+        current_stage_name in {"Internal approval", "Offer submission", "Post-bid clarifications", "Award / Lost"}
+        or status in {"Awarded", "Lost", "Cancelled"}
+    )
+    workbook_profile_requires_seed = intelligence_profile in {
+        "failed_workbook",
+        "mature_partial",
+        "mature_partial_stale_award",
+        "thin_partial_stale",
+    }
+    if cost_estimation_reached and (workbook_is_late_lifecycle or workbook_profile_requires_seed):
+        add_file(
+            "Cost estimation",
+            "estimation-workbook.xlsx",
+            "Estimation Workbook",
+            size_bytes=325_000,
+            days_before_updated=1,
+        )
+
+    supplementary_templates = {
         "Preliminary design": ("design-basis-review.pdf", "Design report"),
         "BOQ / BOM preparation": ("boq-bom-register.xlsx", "BOQ / BOM"),
         "Vendor inquiry": ("vendor-inquiry-log.xlsx", "Other"),
-        "Cost estimation": ("estimation-workbook.xlsx", "Estimation Workbook"),
         "Internal approval": ("approval-brief.pdf", "Other"),
-        "Offer submission": ("submission-package-summary.pdf", "Client RFQ"),
+        "Offer submission": ("offer-submission-summary.pdf", "Other"),
         "Award / Lost": ("closeout-summary.pdf", "Other"),
     }
-    filename, file_type = file_templates.get(target_stage, ("rfq-stage-note.pdf", "Other"))
-    return (
-        FileSeed(
-            stage_name=target_stage,
-            filename=filename,
-            file_type=file_type,
-            uploaded_by=owner,
-            size_bytes=245_000,
-            days_before_updated=1,
-        ),
+    filename, file_type = supplementary_templates.get(target_stage, ("rfq-stage-note.pdf", "Other"))
+    add_file(
+        target_stage,
+        filename,
+        file_type,
+        size_bytes=245_000,
+        days_before_updated=1,
     )
+
+    return tuple(seeded_files)
+
+
+def _materialize_scenario_defaults(spec: ManagerScenarioSpec) -> ManagerScenarioSpec:
+    if spec.manual_only and not spec.files:
+        return spec
+
+    default_files = _default_files(
+        family=spec.family,
+        current_stage_name=spec.current_stage_name,
+        completed_stage_names=spec.completed_stage_names,
+        intelligence_profile=spec.intelligence_profile,
+        status=spec.status,
+        owner=spec.owner,
+    )
+
+    return replace(spec, files=spec.files if spec.files else default_files)
 
 
 def _portfolio_scenario(
@@ -1093,6 +1181,8 @@ def _portfolio_scenario(
             family=family,
             current_stage_name=current_stage_name,
             completed_stage_names=completed_stage_names,
+            intelligence_profile=intelligence_profile,
+            status=status,
             owner=owner,
         ),
         skip_stage_names=skip_stage_names,
@@ -1420,7 +1510,7 @@ def _build_must_have_extension_scenarios() -> tuple[ManagerScenarioSpec, ...]:
         _portfolio_scenario(
             key="RFQ-27",
             batch="must-have",
-            family="submitted_followup",
+            family="decision_wait_followup",
             workflow_code="GHI-LONG",
             name="SWCC Demineralized Water Recovery Package",
             client="SWCC",
@@ -1428,11 +1518,11 @@ def _build_must_have_extension_scenarios() -> tuple[ManagerScenarioSpec, ...]:
             country="Saudi Arabia",
             owner="Maya Fares",
             priority="critical",
-            status="Submitted",
+            status="In preparation",
             deadline_offset_days=-5,
             created_days_ago=34,
             updated_days_ago=2,
-            summary="Submitted long-workflow RFQ with follow-up reminders and slightly stale post-submission posture.",
+            summary="Offer already delivered; long-workflow RFQ is waiting in the final decision stage with follow-up reminders and slightly stale post-offer posture.",
             current_stage_name="Award / Lost",
             current_stage_progress=30,
             completed_stage_names=(
@@ -1447,12 +1537,12 @@ def _build_must_have_extension_scenarios() -> tuple[ManagerScenarioSpec, ...]:
                 "Offer submission",
             ),
             intelligence_profile="thin_partial_stale",
-            tags=("submitted", "stale_followup"),
+            tags=("decision_wait", "stale_followup"),
         ),
         _portfolio_scenario(
             key="RFQ-28",
             batch="must-have",
-            family="submitted_followup",
+            family="decision_wait_followup",
             workflow_code="GHI-SHORT",
             name="Marafiq Cooling Tower Dosing Retrofit",
             client="Marafiq",
@@ -1460,21 +1550,21 @@ def _build_must_have_extension_scenarios() -> tuple[ManagerScenarioSpec, ...]:
             country="Saudi Arabia",
             owner="Sara Ben Ali",
             priority="normal",
-            status="Submitted",
+            status="In preparation",
             deadline_offset_days=-1,
             created_days_ago=19,
             updated_days_ago=1,
-            summary="Submitted short-workflow RFQ with healthy follow-up posture and no active blocker.",
+            summary="Offer already delivered; short-workflow RFQ is waiting in the final decision stage with healthy follow-up posture and no active blocker.",
             current_stage_name="Award / Lost",
             current_stage_progress=22,
             completed_stage_names=("RFQ received", "Go / No-Go", "Cost estimation", "Internal approval", "Offer submission"),
             intelligence_profile="mature_partial",
-            tags=("submitted", "healthy_followup"),
+            tags=("decision_wait", "healthy_followup"),
         ),
         _portfolio_scenario(
             key="RFQ-29",
             batch="must-have",
-            family="submitted_followup",
+            family="decision_wait_followup",
             workflow_code="GHI-CUSTOM",
             name="ADCO Chemical Feed Pump Renewal",
             client="ADCO",
@@ -1482,11 +1572,11 @@ def _build_must_have_extension_scenarios() -> tuple[ManagerScenarioSpec, ...]:
             country="UAE",
             owner="Karim Ben Ali",
             priority="normal",
-            status="Submitted",
+            status="In preparation",
             deadline_offset_days=-3,
             created_days_ago=31,
             updated_days_ago=1,
-            summary="Submitted RFQ where client follow-up remains active but the package itself is complete.",
+            summary="Offer already delivered; RFQ is waiting in the final decision stage while client follow-up remains active and the package itself is complete.",
             current_stage_name="Award / Lost",
             current_stage_progress=26,
             completed_stage_names=(
@@ -1499,13 +1589,13 @@ def _build_must_have_extension_scenarios() -> tuple[ManagerScenarioSpec, ...]:
                 "Offer submission",
             ),
             intelligence_profile="mature_partial",
-            tags=("submitted", "client_followup", "custom_workflow"),
+            tags=("decision_wait", "client_followup", "custom_workflow"),
             skip_stage_names=("Pre-bid clarifications", "BOQ / BOM preparation", "Post-bid clarifications"),
         ),
         _portfolio_scenario(
             key="RFQ-30",
             batch="must-have",
-            family="submitted_followup",
+            family="decision_wait_followup",
             workflow_code="GHI-LONG",
             name="SABIC Effluent Neutralization Rack",
             client="SABIC",
@@ -1513,11 +1603,11 @@ def _build_must_have_extension_scenarios() -> tuple[ManagerScenarioSpec, ...]:
             country="Saudi Arabia",
             owner="Omar Rahman",
             priority="critical",
-            status="Submitted",
+            status="In preparation",
             deadline_offset_days=-4,
             created_days_ago=37,
             updated_days_ago=1,
-            summary="Critical submitted RFQ used to validate follow-up pressure in the queue and reminder center.",
+            summary="Critical post-offer RFQ waiting in the final decision stage to validate follow-up pressure in the queue and reminder center.",
             current_stage_name="Award / Lost",
             current_stage_progress=34,
             completed_stage_names=(
@@ -1532,7 +1622,7 @@ def _build_must_have_extension_scenarios() -> tuple[ManagerScenarioSpec, ...]:
                 "Offer submission",
             ),
             intelligence_profile="mature_partial",
-            tags=("submitted", "critical_watch"),
+            tags=("decision_wait", "critical_watch"),
         ),
     )
 
@@ -1542,7 +1632,7 @@ def _build_later_extension_scenarios() -> tuple[ManagerScenarioSpec, ...]:
         _portfolio_scenario(
             key="RFQ-31",
             batch="later",
-            family="submitted_followup",
+            family="decision_wait_followup",
             workflow_code="GHI-SHORT",
             name="SEC Sodium Hypochlorite Skid Replacement",
             client="Saudi Electricity Company",
@@ -1550,16 +1640,16 @@ def _build_later_extension_scenarios() -> tuple[ManagerScenarioSpec, ...]:
             country="Saudi Arabia",
             owner="Ahmed Proposal Ops",
             priority="critical",
-            status="Submitted",
+            status="In preparation",
             deadline_offset_days=-2,
             created_days_ago=23,
             updated_days_ago=0,
-            summary="Short-workflow submission sitting in a compressed outcome window and worth watching closely.",
+            summary="Short-workflow post-offer RFQ waiting in a compressed outcome window and worth watching closely.",
             current_stage_name="Award / Lost",
             current_stage_progress=28,
             completed_stage_names=("RFQ received", "Go / No-Go", "Cost estimation", "Internal approval", "Offer submission"),
             intelligence_profile="mature_partial",
-            tags=("submitted", "deadline_near"),
+            tags=("decision_wait", "deadline_near"),
         ),
         _portfolio_scenario(
             key="RFQ-32",
@@ -1861,11 +1951,18 @@ SCENARIOS = (
 
 
 def scenario_registry() -> dict[str, ManagerScenarioSpec]:
-    return {scenario.key: scenario for scenario in SCENARIOS}
+    return {
+        scenario.key: _materialize_scenario_defaults(scenario)
+        for scenario in SCENARIOS
+    }
 
 
 def seeded_scenarios_for_batch(batch: Literal["must-have", "later", "optional", "all"]) -> list[ManagerScenarioSpec]:
-    scenarios = [scenario for scenario in SCENARIOS if not scenario.manual_only]
+    scenarios = [
+        _materialize_scenario_defaults(scenario)
+        for scenario in SCENARIOS
+        if not scenario.manual_only
+    ]
     if batch == "all":
         return scenarios
     return [scenario for scenario in scenarios if scenario.batch == batch]
@@ -1885,6 +1982,50 @@ def _manual_reserved_entries() -> list[dict]:
         for scenario in SCENARIOS
         if scenario.manual_only
     ]
+
+
+VERIFICATION_ROLE_EXPECTATIONS: dict[str, dict] = {
+    "intelligence_snapshot_anchor": {
+        "expected_snapshot_artifact_type": "rfq_intelligence_snapshot",
+    },
+    "stale_snapshot_anchor": {
+        "expected_snapshot_stale_relative_to_manager": True,
+    },
+    "decision_wait_anchor": {
+        "expected_status": "In preparation",
+        "expected_current_stage_name": "Award / Lost",
+    },
+    "workbook_artifact_anchor": {
+        "expected_profile_artifact_type": "workbook_profile",
+        "expected_review_artifact_type": "workbook_review_report",
+        "requires_artifacts": True,
+    },
+    "failed_workbook_anchor": {
+        "expected_workbook_review_http_status": 404,
+    },
+}
+
+
+def _build_verification_targets(entries: list[dict]) -> dict[str, dict]:
+    entry_by_key = {entry["scenario_key"]: entry for entry in entries}
+    targets: dict[str, dict] = {}
+
+    for scenario in SCENARIOS:
+        if scenario.manual_only or not scenario.verification_roles:
+            continue
+        entry = entry_by_key.get(scenario.key)
+        if entry is None:
+            continue
+        for role in scenario.verification_roles:
+            targets[role] = {
+                "scenario_key": scenario.key,
+                "rfq_id": entry["rfq_id"],
+                "status": entry["status"],
+                "current_stage_name": entry["current_stage_name"],
+                **VERIFICATION_ROLE_EXPECTATIONS.get(role, {}),
+            }
+
+    return targets
 
 
 def _stage_lookup(session, workflow_code: str) -> Workflow:
@@ -2234,13 +2375,15 @@ def seed_manager_scenarios(
         _create_scenario_rfq(session, scenario)
         created.append(scenario.key)
 
+    manifest_entries = _load_existing_seeded_entries(session)
     manifest = {
         "manifest_version": MANIFEST_VERSION,
         "generated_at": _utc_now().isoformat(),
         "requested_batch": batch,
         "golden_reserved_scenario": GOLDEN_SCENARIO_KEY,
         "manual_reserved": _manual_reserved_entries(),
-        "scenarios": _load_existing_seeded_entries(session),
+        "verification_targets": _build_verification_targets(manifest_entries),
+        "scenarios": manifest_entries,
     }
     return {
         "created_scenarios": created,
@@ -2287,8 +2430,8 @@ def main() -> int:
     parser = _build_parser()
     args = parser.parse_args()
 
-    _run_migrations(reset=args.reset)
-    _, session_factory = _make_engine_and_session()
+    run_migrations(reset=args.reset)
+    _, session_factory = make_engine_and_session()
     session = session_factory()
     try:
         result = seed_manager_scenarios(session, batch=args.batch)

@@ -6,33 +6,30 @@ This is the single authoritative smoke/demo path for leadership and reviewer val
 
 - Docker Desktop / Docker Engine is running.
 - Docker Compose v2 is available.
-- Port `8000` (API) and `5432` (PostgreSQL) are free.
+- Ports `18000` (manager API), `18081` (manager mock event bus), and `15432` (manager scenario PostgreSQL) are free.
 
 ## 2) Authoritative Startup
 
 ```bash
-docker compose up -d --build
-docker compose ps
+python ../scripts/rfqmgmt_scenario_stack.py all --seed-set full
 ```
 
 Expected outcome:
 
-- `postgres` is `healthy`.
-- `api` is `running` (and becomes `healthy` shortly after startup).
-- `event_bus_mock` is `running`.
+- The curated scenario stack completes successfully.
+- The manager API is reachable on `http://localhost:18000/health`.
+- The manager-side scenario data is already seeded.
 
 If it fails:
 
 ```bash
-docker compose logs --tail 200 postgres
-docker compose logs --tail 200 api
-docker compose logs --tail 200 event_bus_mock
+python ../scripts/rfqmgmt_scenario_stack.py verify --seed-set full
 ```
 
 Mock event bus quick check:
 
 ```bash
-curl -sS http://localhost:8081/
+curl -sS http://localhost:18081/
 ```
 
 Expected response:
@@ -44,27 +41,26 @@ Expected response:
 Minimal local proof sequence (PowerShell):
 
 ```powershell
-docker compose up -d --build
-(Invoke-WebRequest http://localhost:8000/health).Content
-(Invoke-WebRequest http://localhost:8081/).Content
-docker compose logs --tail 100 event_bus_mock
+python ../scripts/rfqmgmt_scenario_stack.py all --seed-set full
+(Invoke-WebRequest http://localhost:18000/health).Content
+(Invoke-WebRequest http://localhost:18081/).Content
 ```
 
-## 3) Authoritative Seed Command
+## 3) UI Startup
 
 ```bash
-docker compose exec -e PYTHONPATH=/app api python scripts/seed.py --scenario=demo --reset --seed=42
+cd ../rfq_ui_ms
+npm run dev
 ```
 
 Expected outcome:
 
-- Command completes successfully.
-- Summary shows `rfqs_created` > 0.
+- The UI starts locally and can target the scenario-stack APIs.
 
 If it fails:
 
-- Check API logs: `docker compose logs --tail 200 api`
-- Confirm API container is up: `docker compose ps`
+- Check the UI dev server output.
+- Re-run `python ../scripts/rfqmgmt_scenario_stack.py verify --seed-set full`.
 
 ## 3.1) Required Local Compose Wiring (Validated)
 
@@ -73,7 +69,7 @@ If it fails:
 - `AUTH_BYPASS_USER_NAME: Mohamed Guidara`
 - `EVENT_BUS_URL: http://event_bus_mock:8081/events`
 
-These values are set in `docker-compose.yml` and are required for the validated local stage-advance + event-delivery workflow.
+These values are set through the scenario stack and manager-side `docker-compose.scenario.yml`.
 
 ## 3.2) Postman Validation Order (Validated)
 
@@ -85,7 +81,7 @@ Run Postman in this order:
 Then verify event delivery:
 
 ```bash
-docker compose logs --tail 100 event_bus_mock
+docker compose -p rfq-manager-scenario -f docker-compose.scenario.yml logs --tail 100 event_bus_mock
 ```
 
 ## 4) Authoritative Smoke/Demo Sequence
@@ -95,7 +91,7 @@ Use one of the two equivalent paths below.
 ### PowerShell
 
 ```powershell
-$env:BASE_URL = "http://localhost:8000"
+$env:BASE_URL = "http://localhost:18000"
 
 # Step 1: /health
 $health = Invoke-RestMethod "$env:BASE_URL/health"
@@ -127,7 +123,7 @@ Invoke-RestMethod "$env:BASE_URL/health"
 ### Bash / zsh
 
 ```bash
-BASE_URL="http://localhost:8000"
+BASE_URL="http://localhost:18000"
 
 # Step 1: /health
 curl -fsS "$BASE_URL/health"
@@ -164,25 +160,23 @@ Expected outcomes:
 
 If a step fails:
 
-1. Re-check container status: `docker compose ps`
-2. Re-check logs: `docker compose logs --tail 200 api`
-3. Re-run seed command once: `docker compose exec -e PYTHONPATH=/app api python scripts/seed.py --scenario=demo --reset --seed=42`
-4. Retry only the failed smoke step.
+1. Re-run verification: `python ../scripts/rfqmgmt_scenario_stack.py verify --seed-set full`
+2. Re-check the UI dev server
+3. Retry only the failed smoke step
 
 ## 5) Stop / Reset After Demo
 
 Stop services:
 
 ```bash
-docker compose down
+python ../scripts/rfqmgmt_scenario_stack.py down --remove-volumes
 ```
 
 Full reset (containers + DB volume):
 
 ```bash
-docker compose down -v
-docker compose up -d --build
-docker compose exec -e PYTHONPATH=/app api python scripts/seed.py --scenario=demo --reset --seed=42
+python ../scripts/rfqmgmt_scenario_stack.py down --remove-volumes
+python ../scripts/rfqmgmt_scenario_stack.py all --seed-set full
 ```
 
 ## 6) Local Event Delivery Verification (H4 + mock bus)
@@ -192,23 +186,23 @@ After seed and smoke list/get steps:
 PowerShell:
 
 ```powershell
-$env:BASE_URL = "http://localhost:8000"
+$env:BASE_URL = "http://localhost:18000"
 $rfqList = Invoke-RestMethod "$env:BASE_URL/rfq-manager/v1/rfqs"
 $rfqId = $rfqList.data[0].id
 $stages = Invoke-RestMethod "$env:BASE_URL/rfq-manager/v1/rfqs/$rfqId/stages"
 $stageId = $stages.data[0].id
 Invoke-RestMethod -Method Post "$env:BASE_URL/rfq-manager/v1/rfqs/$rfqId/stages/$stageId/advance"
-docker compose logs --tail 100 event_bus_mock
+docker compose -p rfq-manager-scenario -f docker-compose.scenario.yml logs --tail 100 event_bus_mock
 ```
 
 Bash / zsh:
 
 ```bash
-BASE_URL="http://localhost:8000"
+BASE_URL="http://localhost:18000"
 RFQ_ID=$(curl -fsS "$BASE_URL/rfq-manager/v1/rfqs" | python -c "import sys,json; print(json.load(sys.stdin)['data'][0]['id'])")
 STAGE_ID=$(curl -fsS "$BASE_URL/rfq-manager/v1/rfqs/$RFQ_ID/stages" | python -c "import sys,json; print(json.load(sys.stdin)['data'][0]['id'])")
 curl -fsS -X POST "$BASE_URL/rfq-manager/v1/rfqs/$RFQ_ID/stages/$STAGE_ID/advance"
-docker compose logs --tail 100 event_bus_mock
+docker compose -p rfq-manager-scenario -f docker-compose.scenario.yml logs --tail 100 event_bus_mock
 ```
 
 Expected outcome:

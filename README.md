@@ -22,6 +22,10 @@ utils/           →  Shared helpers (errors, pagination)
 - [Architecture one-pager](docs/ARCHITECTURE_ONE_PAGER.md)
 - [Known limitations](docs/KNOWN_LIMITATIONS.md)
 - [Smoke demo (authoritative)](docs/SMOKE_DEMO.md)
+- API contract sources:
+  - [OpenAPI YAML (authoritative)](docs/rfq_manager_ms_openapi_current.yaml)
+  - [HTML contract view (derived convenience view)](docs/rfq_manager_ms_api_contract_current.html)
+  - [Swagger explorer shell (derived convenience view)](docs/rfq_manager_ms_swagger_current.html)
 
 ## Quality Verification (Authoritative)
 
@@ -134,109 +138,24 @@ Operational endpoints outside v1: `/health`, `/metrics`.
 
 ## Quick Start
 
-### Docker Compose (recommended)
+### Scenario Stack (authoritative for local platform testing)
 
 ```bash
-# Prerequisite: Docker Desktop / Docker Engine must be running
+# From rfq_manager_ms, start the curated scenario stack in the parent workspace
+python ../scripts/rfqmgmt_scenario_stack.py all --seed-set full
 
-# Build and start API + PostgreSQL + local mock event bus
-docker compose up -d --build
+# Start the UI separately in rfq_ui_ms
+# npm run dev
 
-# Confirm both services are up
-docker compose ps
-
-# Check API health, mock event bus health, and docs
-# http://localhost:8000/health
-# http://localhost:8081/
-# http://localhost:8000/docs
-
-# Seed demo data inside the API container (authoritative demo command)
-docker compose exec -e PYTHONPATH=/app api python scripts/seed.py --scenario=demo --reset --seed=42
-
-# Verify event delivery logs from local mock bus
-docker compose logs --tail 100 event_bus_mock
-
-# Run the leadership/reviewer smoke path
-# docs/SMOKE_DEMO.md
-
-# Inspect bootstrap/runtime logs
-docker compose logs --tail 200 api
-
-# Stop services
-docker compose down
+# Stop and wipe the scenario stack when finished
+python ../scripts/rfqmgmt_scenario_stack.py down --remove-volumes
 ```
 
-Validated local compose wiring:
+This is the official local source of truth for end-to-end testing because it:
 
-- `AUTH_BYPASS_ENABLED: "true"`
-- `AUTH_BYPASS_TEAM: Estimation`
-- `AUTH_BYPASS_USER_NAME: Mohamed Guidara`
-- `EVENT_BUS_URL: http://event_bus_mock:8081/events`
-
-Minimal local proof sequence (PowerShell):
-
-```powershell
-docker compose up -d --build
-(Invoke-WebRequest http://localhost:8000/health).Content
-(Invoke-WebRequest http://localhost:8081/).Content
-docker compose logs --tail 100 event_bus_mock
-```
-
-### Local venv
-
-```bash
-# 1. Start PostgreSQL in Docker
-docker run --name rfq_db -e POSTGRES_USER=rfq_user -e POSTGRES_PASSWORD=changeme -e POSTGRES_DB=rfq_manager_db -p 5432:5432 -d postgres:16
-# Linux/Mac: same command
-
-# If the container already exists, start it instead
-# docker start rfq_db
-# Linux/Mac: same command
-
-# 2. Create virtual environment
-python -m venv .venv
-# Linux/Mac: python3 -m venv .venv
-
-# 3. Activate virtual environment
-.venv\Scripts\Activate.ps1
-# Linux/Mac: source .venv/bin/activate
-
-# 4. Install dependencies
-pip install -r requirements.txt
-# Linux/Mac: pip install -r requirements.txt
-
-# Optional but required for local tests/lint
-# (seed works with runtime deps; dev deps provide richer Faker-generated data)
-pip install -r requirements-dev.txt
-# Linux/Mac: pip install -r requirements-dev.txt
-
-# 5. Create local environment file
-Copy-Item .env.example .env
-# Linux/Mac: cp .env.example .env
-
-# 6. Make repo root importable for scripts
-$env:PYTHONPATH="."
-# Linux/Mac: export PYTHONPATH=.
-
-# 7. Configure database connection
-$env:DATABASE_URL="postgresql+psycopg2://rfq_user:changeme@localhost:5432/rfq_manager_db"
-# Linux/Mac: export DATABASE_URL="postgresql+psycopg2://rfq_user:changeme@localhost:5432/rfq_manager_db"
-
-# 8. Run migrations
-alembic upgrade head
-# Linux/Mac: alembic upgrade head
-
-# 9. Seed demo data
-python scripts/seed.py --scenario=demo
-# Linux/Mac: python scripts/seed.py --scenario=demo
-
-# 10. Start the API
-uvicorn src.app:app --reload --port 8000
-# Linux/Mac: uvicorn src.app:app --reload --port 8000
-
-# 11. Open Swagger
-# http://localhost:8000/docs
-```
+- boots the manager scenario compose file
+- seeds curated RFQ scenarios via `scripts/seed_rfqmgmt_scenarios.py`
+- produces the manifest consumed by the intelligence-side scenario stack
 
 ## Configuration
 
@@ -278,12 +197,12 @@ rfq_manager_ms/
 │   └── database.py      # Engine + session
 ├── migrations/          # Alembic migrations
 ├── tests/               # Unit + integration tests
-├── scripts/             # DB init + sample data (`seed.py`)
+├── scripts/             # Bootstrap + dev/scenario seeding
 ├── alembic.ini          # Migration config
 ├── requirements.txt     # Python dependencies
 ├── requirements-dev.txt # Test/dev dependencies
 ├── Dockerfile           # API container image
-├── docker-compose.yml   # Local API + Postgres stack
+├── docker-compose.scenario.yml # Manager-side compose for the curated scenario stack
 ├── .github/workflows/ci.yml  # Lint + tests on push/PR
 ├── .env.example         # Environment template
 └── README.md

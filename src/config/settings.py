@@ -31,6 +31,8 @@ class Settings(BaseSettings):
     AUTH_BYPASS_USER_ID: str = "v1-demo-user"
     AUTH_BYPASS_USER_NAME: str = "System"
     AUTH_BYPASS_TEAM: str = "workspace"
+    AUTH_BYPASS_PERMISSIONS: str = "rfq:*,workflow:*,rfq_stage:*,subtask:*,reminder:*,file:*"
+    AUTH_BYPASS_DEBUG_HEADERS_ENABLED: bool = False
     IAM_REQUEST_TIMEOUT_SECONDS: float = 3.0
     EVENT_BUS_REQUEST_TIMEOUT_SECONDS: float = 3.0
 

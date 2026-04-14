@@ -51,6 +51,8 @@ class NotificationService:
         )
 
         processed = 0
+        skipped_max_attempts = 0
+        skipped_rate_limited = 0
 
         for reminder in due_reminders:
             # 1. Update lifecycle state based purely on date, regardless of sending
@@ -60,10 +62,12 @@ class NotificationService:
             #    If attempts are exhausted, we simply skip sending. We do NOT mark
             #    as 'sent' or 'resolved' since true resolution is a business action.
             if reminder.send_count >= max_sends:
+                skipped_max_attempts += 1
                 continue
 
             #    Daily cadence block: prevents spamming if processed multiple times a day
             if reminder.last_sent_at and reminder.last_sent_at.date() == today:
+                skipped_rate_limited += 1
                 continue
 
             # 3. Mock sending logic
@@ -77,14 +81,25 @@ class NotificationService:
 
         self.session.commit()
         if processed == 0:
-            message = "0 reminders processed (no active reminders due, max attempts reached, or daily rate-limit enforced)"
+            message = (
+                "0 reminders sent "
+                f"(due={len(due_reminders)}, max-attempt-skips={skipped_max_attempts}, "
+                f"rate-limit-skips={skipped_rate_limited})"
+            )
         else:
-            message = f"Successfully processed and sent {processed} reminder(s)"
+            message = (
+                f"Processed {processed} reminder(s) "
+                f"(due={len(due_reminders)}, max-attempt-skips={skipped_max_attempts}, "
+                f"rate-limit-skips={skipped_rate_limited})"
+            )
             
         return {
             "generated_count": reconciliation["generated_count"],
+            "due_count": len(due_reminders),
             "processed_count": processed,
             "resolved_count": reconciliation["resolved_count"],
+            "skipped_max_attempts_count": skipped_max_attempts,
+            "skipped_rate_limited_count": skipped_rate_limited,
             "message": message,
             "skipped_rule_count": reconciliation["skipped_rule_count"],
         }

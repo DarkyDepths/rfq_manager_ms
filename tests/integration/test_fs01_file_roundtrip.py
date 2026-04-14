@@ -64,6 +64,7 @@ def fs01_env(tmp_path):
         rfq_id=rfq_id,
         name="FS01 Stage",
         order=1,
+        assigned_team="workspace",
         status="In Progress",
         progress=0,
     )
@@ -187,3 +188,28 @@ def test_fs01_download_returns_404_when_file_missing_on_disk(fs01_env):
     payload = response.json()
     assert payload["error"] == "NotFoundError"
     assert "not found on disk" in payload["message"]
+
+
+def test_fs01_upload_sanitizes_path_segments_in_filename(fs01_env):
+    client = fs01_env["client"]
+    session_factory = fs01_env["session_factory"]
+    rfq_id = fs01_env["rfq_id"]
+    stage_id = fs01_env["stage_id"]
+
+    upload_resp = client.post(
+        f"/rfq-manager/v1/rfqs/{rfq_id}/stages/{stage_id}/files",
+        files={"file": ("../nested/evil.txt", b"payload", "text/plain")},
+        data={"type": "Other"},
+    )
+    assert upload_resp.status_code == 201, upload_resp.text
+
+    file_id = uuid.UUID(upload_resp.json()["id"])
+    db = session_factory()
+    try:
+        file_row = db.query(RFQFile).filter(RFQFile.id == file_id).first()
+        assert file_row is not None
+        assert file_row.file_path.endswith(f"{file_id}_evil.txt")
+        assert "../" not in file_row.file_path
+        assert "..\\" not in file_row.file_path
+    finally:
+        db.close()

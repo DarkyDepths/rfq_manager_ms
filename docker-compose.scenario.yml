@@ -1,3 +1,5 @@
+# Authoritative manager-side compose file for the curated scenario stack.
+# Used by ../scripts/rfqmgmt_scenario_stack.py.
 services:
   postgres:
     image: postgres:16

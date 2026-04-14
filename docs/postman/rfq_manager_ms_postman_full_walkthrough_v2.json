@@ -108,7 +108,7 @@
           "request": {
             "method": "GET",
             "url": "{{base_url}}/workflows/{{workflow_short_id}}",
-            "description": "Captures short-workflow template stage IDs (`tpl_short_s1` ... `tpl_short_s5`)."
+            "description": "Captures short-workflow template stage IDs (`tpl_short_s1` ... `tpl_short_s6`)."
           },
           "event": [
             {
@@ -118,7 +118,7 @@
                 "exec": [
                   "pm.test('Workflow detail -> 200', () => pm.response.to.have.status(200));",
                   "const wf = pm.response.json();",
-                  "pm.test('Expected 5 template stages', () => pm.expect(wf.stages.length).to.eql(5));",
+                  "pm.test('Expected 6 template stages', () => pm.expect(wf.stages.length).to.eql(6));",
                   "wf.stages.forEach(s => pm.environment.set('tpl_short_s' + s.order, s.id));",
                   "console.log('Saved tpl_short template stages:', wf.stages.map(s => s.order + ':' + s.name).join(' | '));"
                 ]
@@ -1645,7 +1645,7 @@
                   "if (typeof rfq.progress === 'number' && rfq.progress !== expectedProgress) issues.push(`Progress mismatch: rfq.progress=${rfq.progress}, expected\u2248${expectedProgress}`);",
                   "if (active && rfq.current_stage_name && rfq.current_stage_name !== active.name) issues.push(`Current stage name mismatch: rfq='${rfq.current_stage_name}', live='${active.name}'`);",
                   "if (active && rfq.current_stage_id && rfq.current_stage_id !== active.id) issues.push('Current stage id mismatch between RFQ aggregate and stage chain');",
-                  "if (active && rfq.status === 'Submitted' && completed < stages.length - 1) issues.push('RFQ aggregate status is Submitted while live stage chain is still mid-workflow');",
+                  "if (rfq.status && !['In preparation','Awarded','Lost','Cancelled'].includes(rfq.status)) issues.push(`RFQ aggregate status is outside the live operational set: ${rfq.status}`);",
                   "pm.environment.set('seeded_diagnostic_issues', JSON.stringify(issues));",
                   "console.log('Seeded data diagnostic issues:', issues);",
                   "pm.test('Seeded diagnostic comparison executed (non-blocking)', () => true);"

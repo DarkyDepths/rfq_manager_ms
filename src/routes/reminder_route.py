@@ -79,11 +79,11 @@ def update_rule(
 
 @router.post("/test")
 def test_reminder(
-    _auth=Depends(require_permission(Permissions.REMINDER_TEST)),
+    auth: AuthContext = Depends(require_permission(Permissions.REMINDER_TEST)),
     ctrl: ReminderController = Depends(get_reminder_controller),
 ):
     """#26 — Test reminder email (log-only in V1)."""
-    return ctrl.test_email()
+    return ctrl.test_email(actor_name=auth.user_name)
 
 @router.post("/process")
 def process_reminders(

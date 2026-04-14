@@ -23,6 +23,7 @@ from src.datasources.workflow_datasource import WorkflowDatasource
 from src.datasources.rfq_stage_datasource import RfqStageDatasource
 from src.connectors.event_bus import EventBusConnector
 from src.models.rfq_stage import RFQStage
+from src.models.rfq_file import RFQFile
 from src.translators import rfq_translator
 from src.utils.errors import NotFoundError, BadRequestError, ConflictError
 from src.utils.rfq_lifecycle import (
@@ -175,7 +176,7 @@ class RfqController:
             metadata=self._build_event_metadata(actor_user_id, actor_name, actor_team),
         )
 
-        return rfq_translator.to_detail(
+        return self._to_detail_response(
             rfq,
             current_stage_name=first_stage.name if first_stage else None,
             workflow_name=workflow.name,
@@ -190,9 +191,7 @@ class RfqController:
         if not rfq:
             raise NotFoundError(f"RFQ '{rfq_id}' not found")
 
-        current_stage_name = self._get_current_stage_name(rfq)
-        workflow_name = self._get_workflow_name(rfq.workflow_id)
-        return rfq_translator.to_detail(rfq, current_stage_name=current_stage_name, workflow_name=workflow_name)
+        return self._to_detail_response(rfq)
 
     # ══════════════════════════════════════════════════
     # LIST
@@ -210,10 +209,14 @@ class RfqController:
         size: int = 20,
     ) -> dict:
         """List RFQs with filters, sort, and pagination."""
-        query = self.rfq_ds.list(
-            search=search, status=status, priority=priority, 
-            owner=owner, created_after=created_after, created_before=created_before, 
-            sort=sort
+        query = self._build_filtered_rfq_query(
+            search=search,
+            status=status,
+            priority=priority,
+            owner=owner,
+            created_after=created_after,
+            created_before=created_before,
+            sort=sort,
         )
 
         params = PaginationParams(page=page, size=size)
@@ -234,10 +237,14 @@ class RfqController:
         sort: str = None,
     ) -> str:
         """Export filtered RFQs as a CSV string."""
-        query = self.rfq_ds.list(
-            search=search, status=status, priority=priority, 
-            owner=owner, created_after=created_after, created_before=created_before, 
-            sort=sort
+        query = self._build_filtered_rfq_query(
+            search=search,
+            status=status,
+            priority=priority,
+            owner=owner,
+            created_after=created_after,
+            created_before=created_before,
+            sort=sort,
         )
         rfqs = query.all()
 
@@ -259,8 +266,30 @@ class RfqController:
                 rfq.owner,
                 rfq.created_at.isoformat() if rfq.created_at else ""
             ])
-            
+
         return output.getvalue()
+
+    def _build_filtered_rfq_query(
+        self,
+        *,
+        search: str = None,
+        status: List[str] = None,
+        priority: str = None,
+        owner: str = None,
+        created_after=None,
+        created_before=None,
+        sort: str = None,
+    ):
+        return self.rfq_ds.list(
+            search=search,
+            status=status,
+            priority=priority,
+            owner=owner,
+            created_after=created_after,
+            created_before=created_before,
+            sort=sort,
+        )
+            
 
     # ══════════════════════════════════════════════════
     # STATS (#5)
@@ -346,9 +375,7 @@ class RfqController:
                 metadata=metadata,
             )
 
-        current_stage_name = self._get_current_stage_name(rfq)
-        workflow_name = self._get_workflow_name(rfq.workflow_id)
-        return rfq_translator.to_detail(rfq, current_stage_name=current_stage_name, workflow_name=workflow_name)
+        return self._to_detail_response(rfq)
 
     def cancel(
         self,
@@ -371,13 +398,7 @@ class RfqController:
             update_data["status"] = RFQ_STATUS_CANCELLED
             self._apply_terminal_stage_freeze(rfq, update_data)
         elif not update_data:
-            current_stage_name = self._get_current_stage_name(rfq)
-            workflow_name = self._get_workflow_name(rfq.workflow_id)
-            return rfq_translator.to_detail(
-                rfq,
-                current_stage_name=current_stage_name,
-                workflow_name=workflow_name,
-            )
+            return self._to_detail_response(rfq)
 
         rfq = self.rfq_ds.update(rfq, update_data)
         self.session.commit()
@@ -400,13 +421,7 @@ class RfqController:
                 ),
             )
 
-        current_stage_name = self._get_current_stage_name(rfq)
-        workflow_name = self._get_workflow_name(rfq.workflow_id)
-        return rfq_translator.to_detail(
-            rfq,
-            current_stage_name=current_stage_name,
-            workflow_name=workflow_name,
-        )
+        return self._to_detail_response(rfq)
 
     # ══════════════════════════════════════════════════
     # PRIVATE HELPERS
@@ -433,6 +448,8 @@ class RfqController:
             wf_name = wf_map.get(rfq.workflow_id)
             current_stage = st_map.get(rfq.current_stage_id)
             st_name = current_stage.name if current_stage else None
+            rfq.current_stage_order = current_stage.order if current_stage else None
+            rfq.current_stage_status = current_stage.status if current_stage else None
             rfq.current_stage_blocker_status = (
                 current_stage.blocker_status
                 if current_stage and current_stage.blocker_status == "Blocked"
@@ -566,6 +583,56 @@ class RfqController:
             return None
         workflow = self.workflow_ds.get_by_id(workflow_id)
         return workflow.name if workflow else None
+
+    def _get_intelligence_milestones(self, rfq_id) -> dict[str, Any]:
+        files = (
+            self.session.query(RFQFile)
+            .join(RFQStage, RFQStage.id == RFQFile.rfq_stage_id)
+            .filter(
+                RFQStage.rfq_id == rfq_id,
+                RFQFile.deleted_at.is_(None),
+            )
+            .order_by(RFQFile.uploaded_at.desc())
+            .all()
+        )
+
+        source_package = next((file for file in files if file.type == "Client RFQ"), None)
+        workbook = next((file for file in files if file.type == "Estimation Workbook"), None)
+
+        return {
+            "source_package_available": source_package is not None,
+            "source_package_updated_at": (
+                source_package.uploaded_at if source_package is not None else None
+            ),
+            "workbook_available": workbook is not None,
+            "workbook_updated_at": workbook.uploaded_at if workbook is not None else None,
+        }
+
+    def _to_detail_response(
+        self,
+        rfq,
+        *,
+        current_stage_name: str | None = None,
+        workflow_name: str | None = None,
+    ) -> rfq_translator.RfqDetail:
+        milestones = self._get_intelligence_milestones(rfq.id)
+        return rfq_translator.to_detail(
+            rfq,
+            current_stage_name=(
+                current_stage_name
+                if current_stage_name is not None
+                else self._get_current_stage_name(rfq)
+            ),
+            workflow_name=(
+                workflow_name
+                if workflow_name is not None
+                else self._get_workflow_name(rfq.workflow_id)
+            ),
+            source_package_available=milestones["source_package_available"],
+            source_package_updated_at=milestones["source_package_updated_at"],
+            workbook_available=milestones["workbook_available"],
+            workbook_updated_at=milestones["workbook_updated_at"],
+        )
 
     def _apply_terminal_stage_freeze(self, rfq, update_data: dict[str, Any]) -> None:
         apply_terminal_stage_freeze(self.session, rfq, update_data)

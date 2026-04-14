@@ -70,6 +70,16 @@
       color: var(--text-dim);
     }
 
+    .header .source-note {
+      margin-top: 12px;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: #f5f7fb;
+      color: var(--text-dim);
+      font-size: 12px;
+    }
+
     section {
       margin-bottom: 48px;
     }
@@ -433,8 +443,12 @@
         <span><strong>Version:</strong> 1.0</span>
         <span><strong>Date:</strong> February 2026</span>
         <span><strong>Endpoints:</strong> 31</span>
-        <span><strong>Tables:</strong> 9</span>
+        <span><strong>Tables:</strong> 11</span>
         <span><strong>Status:</strong> Live / Active</span>
+      </div>
+      <div class="source-note">
+        Authoritative contract source: <code>docs/rfq_manager_ms_openapi_current.yaml</code>.
+        This HTML file is a derived convenience view.
       </div>
     </div>
 
@@ -455,7 +469,7 @@
         <div class="flow-arrow">→</div>
         <div class="flow-step">31 Endpoints<br>specified</div>
         <div class="flow-arrow">→</div>
-        <div class="flow-step">9 Tables<br>modeled</div>
+        <div class="flow-step">11 Tables<br>tracked</div>
       </div>
 
       <h3>What Changed vs. Old Model</h3>
@@ -565,9 +579,8 @@
             <li>Back-calculates planned_start / planned_end from deadline</li>
             <li>Sets current_stage_id = first stage, status = "In preparation"</li>
           </ul>
-          <div class="table-note"><code>Draft</code> = saved without finalizing (no stages, current_stage_id = NULL). On
-            create, backend skips Draft and goes straight to "In preparation". Draft is reserved for a future "save
-            without submitting" flow.</div>
+          <div class="table-note">V1 live behavior creates RFQs directly in <code>In preparation</code> and assigns the
+            first active stage immediately.</div>
         </div>
       </div>
 
@@ -632,8 +645,8 @@
         <div class="endpoint-body">
           <div class="body-label">Response — heavy, business data with client breakdown</div>
           <pre>{
-  <span class="k">"avg_margin_submitted"</span>: <span class="n">17.8</span>, <span class="k">"avg_margin_awarded"</span>: <span class="n">18.1</span>,
-  <span class="k">"estimation_accuracy"</span>: <span class="n">94</span>, <span class="k">"win_rate"</span>: <span class="n">32</span>,
+  <span class="k">"avg_margin_submitted"</span>: <span class="kc">null</span>, <span class="k">"avg_margin_awarded"</span>: <span class="kc">null</span>,
+  <span class="k">"estimation_accuracy"</span>: <span class="kc">null</span>, <span class="k">"win_rate"</span>: <span class="n">32</span>,
   <span class="k">"by_client"</span>: [
     { <span class="k">"client"</span>: <span class="s">"Saudi Aramco"</span>, <span class="k">"rfq_count"</span>: <span class="n">24</span>, <span class="k">"avg_margin"</span>: <span class="n">18.5</span> }
   ]
@@ -888,7 +901,7 @@
     <!-- ═══════════════════════════════════════════ -->
     <section>
       <h2>3. Data Model</h2>
-      <span class="section-sub">9 tables — every column exists because an endpoint reads or writes it.</span>
+      <span class="section-sub">11 tables — 9 active plus 2 intentionally dormant schema-present tables.</span>
 
       <!-- Full Endpoint Summary -->
       <h3>All 31 Endpoints</h3>
@@ -1167,7 +1180,7 @@
               <td>UUID</td>
               <td>FK → rfq_stage, NULL</td>
             </tr>
-            <!-- current_stage_id NULL = Draft (no stages yet) or circular FK insert -->
+            <!-- current_stage_id NULL = terminal RFQ with no active stage -->
             <tr>
               <td>name</td>
               <td>VARCHAR(200)</td>
@@ -1211,7 +1224,7 @@
             <tr>
               <td>status</td>
               <td>ENUM</td>
-              <td>NOT NULL, DEFAULT 'Draft'</td>
+              <td>NOT NULL, DEFAULT 'In preparation'</td>
             </tr>
             <tr>
               <td>progress</td>
@@ -1236,15 +1249,13 @@
           </tbody>
         </table>
         <div class="enum-line"><strong>priority:</strong> <code>normal</code> <code>critical</code></div>
-        <div class="enum-line"><strong>status:</strong> <code>Draft</code> <code>In preparation</code>
-          <code>Submitted</code> <code>Awarded</code> <code>Lost</code> <code>Cancelled</code>
+        <div class="enum-line"><strong>status:</strong> <code>In preparation</code> <code>Awarded</code>
+          <code>Lost</code> <code>Cancelled</code>
         </div>
         <div class="table-note"><code>outcome_reason</code> (not <code>loss_reason</code>) — covers all outcomes: why
           awarded, why lost, why cancelled.</div>
-        <div class="table-note"><code>Draft</code> = saved without finalizing (no stages generated,
-          <code>current_stage_id = NULL</code>, <code>progress = 0</code>). <code>GET /rfqs</code> excludes Drafts by
-          default — pass <code>?status=Draft</code> to see them. On finalization, backend generates stages and sets
-          status = "In preparation".</div>
+        <div class="table-note"><code>current_stage_id = NULL</code> is used for terminal RFQs with no active stage.
+          Live filtering and status truth use only operational statuses.</div>
       </div>
 
       <!-- rfq_stage -->
@@ -1626,7 +1637,7 @@
           </tbody>
         </table>
         <div class="enum-line"><strong>type:</strong> <code>internal</code> <code>external</code></div>
-        <div class="enum-line"><strong>status:</strong> <code>open</code> <code>sent</code> <code>overdue</code>
+        <div class="enum-line"><strong>status:</strong> <code>open</code> <code>overdue</code>
           <code>resolved</code>
         </div>
         <div class="table-note"><code>delay_days</code> is NOT a stored column — computed at query time as

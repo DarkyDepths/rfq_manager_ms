@@ -8,7 +8,7 @@ Columns:
 - industry        VARCHAR  — industry sector (nullable)
 - country         VARCHAR  — country (nullable)
 - priority        VARCHAR  — 'normal' | 'critical'
-- status          VARCHAR  — Draft | In preparation | Submitted | Awarded | Lost | Cancelled
+- status          VARCHAR  — In preparation | Awarded | Lost | Cancelled
 - progress        INTEGER  — 0-100, auto-calculated from stages
 - deadline        DATE     — submission / response deadline
 - owner           VARCHAR  — responsible team or person
@@ -58,12 +58,12 @@ class RFQ(Base):
         String(50),
         nullable=False,
         default="In preparation",
-        index=True,  # filtered in list endpoint: ?status=Submitted
+        index=True,  # filtered in list endpoint for operational statuses
     )
     progress = Column(Integer, nullable=False, default=0)  # 0–100
 
     # Points to the currently active rfq_stage.
-    # NULL when status = Draft (no stages instantiated yet).
+    # NULL when no current live stage is active.
     current_stage_id = Column(
         UUID(as_uuid=True),
         ForeignKey("rfq_stage.id"),

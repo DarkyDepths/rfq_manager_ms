@@ -9,8 +9,8 @@ Functions:
 - file_to_schema(model) — RfqFile model → StageFile response schema
 """
 
-from uuid import UUID
-from datetime import date, datetime
+from uuid import UUID, uuid4
+from datetime import date, datetime, timezone
 from typing import Optional, List, Literal
 import math
 
@@ -96,6 +96,22 @@ LOST_REASON_LABELS = {
     "client_strategy_change": "Client strategy change",
     "no_feedback": "No feedback received",
     "other": "Other",
+}
+
+TRACKED_STAGE_HISTORY_FIELDS = (
+    GO_NO_GO_DECISION_FIELD,
+    DESIGN_APPROVED_FIELD,
+    BOQ_COMPLETED_FIELD,
+    TERMINAL_OUTCOME_FIELD,
+    LOST_REASON_CODE_FIELD,
+)
+
+LIFECYCLE_HISTORY_EVENT_TYPES = {
+    "decision_recorded",
+    "blocker_created",
+    "blocker_updated",
+    "blocker_resolved",
+    "terminal_outcome_recorded",
 }
 
 COMMERCIAL_FIELD_CONFIG = {
@@ -323,7 +339,153 @@ def get_lifecycle_history_events_from_captured_data(captured_data: dict | None) 
     if not isinstance(value, list):
         return []
 
-    return [event for event in value if isinstance(event, dict)]
+    normalized_events = []
+    for event in value:
+        normalized_event = normalize_lifecycle_history_event(event)
+        if normalized_event is not None:
+            normalized_events.append(normalized_event)
+
+    return normalized_events
+
+
+def normalize_lifecycle_history_event(event: dict | None) -> dict | None:
+    if not isinstance(event, dict):
+        return None
+
+    event_type = event.get("type")
+    if not isinstance(event_type, str):
+        return None
+
+    normalized_type = event_type.strip()
+    if normalized_type not in LIFECYCLE_HISTORY_EVENT_TYPES:
+        return None
+
+    normalized_event = {"type": normalized_type}
+
+    for key in ("id", "at", "actor_name", "field_key", "value", "reason", "detail"):
+        value = event.get(key)
+        if not isinstance(value, str):
+            continue
+        normalized_value = value.strip()
+        if normalized_value:
+            normalized_event[key] = normalized_value
+
+    source = event.get("source")
+    if isinstance(source, str):
+        normalized_source = source.strip().lower()
+        if normalized_source in {"manual", "automatic"}:
+            normalized_event["source"] = normalized_source
+
+    return normalized_event
+
+
+def sanitize_stage_captured_data_for_response(captured_data: dict | None) -> dict | None:
+    if not isinstance(captured_data, dict):
+        return captured_data
+
+    next_captured_data = dict(captured_data)
+    normalized_events = get_lifecycle_history_events_from_captured_data(next_captured_data)
+    if normalized_events:
+        next_captured_data[LIFECYCLE_HISTORY_EVENTS_FIELD] = normalized_events
+    else:
+        next_captured_data.pop(LIFECYCLE_HISTORY_EVENTS_FIELD, None)
+
+    return next_captured_data
+
+
+def normalize_stage_history_text_value(value) -> str | None:
+    if not isinstance(value, str):
+        return None
+    normalized = value.strip()
+    return normalized or None
+
+
+def normalize_stage_history_blocker_status(value) -> str | None:
+    return value if value in {"Blocked", "Resolved"} else None
+
+
+def get_tracked_stage_history_field_value(
+    captured_data: dict | None,
+    field_key: str,
+) -> str | None:
+    if not isinstance(captured_data, dict):
+        return None
+
+    if field_key == TERMINAL_OUTCOME_FIELD:
+        return get_terminal_outcome_from_captured_data(captured_data)
+    if field_key == LOST_REASON_CODE_FIELD:
+        return get_lost_reason_code_from_captured_data(captured_data)
+    if field_key == GO_NO_GO_DECISION_FIELD:
+        try:
+            return normalize_go_no_go_decision_value(captured_data.get(field_key))
+        except ValueError:
+            return None
+    if is_controlled_yes_no_decision_field(field_key):
+        try:
+            return normalize_controlled_stage_decision_value(
+                field_key,
+                captured_data.get(field_key),
+                allow_legacy_text=True,
+            )
+        except ValueError:
+            return None
+
+    return normalize_stage_history_text_value(captured_data.get(field_key))
+
+
+def build_stage_history_event(
+    event_type: str,
+    *,
+    actor_name: str | None = None,
+    field_key: str | None = None,
+    value: str | None = None,
+    reason: str | None = None,
+    source: str | None = None,
+) -> dict:
+    event = {
+        "id": str(uuid4()),
+        "type": event_type,
+        "at": datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
+    }
+    if actor_name:
+        event["actor_name"] = actor_name
+    if field_key:
+        event["field_key"] = field_key
+    if value:
+        event["value"] = value
+    if reason:
+        event["reason"] = reason
+    if source:
+        event["source"] = source
+    return event
+
+
+def append_terminal_outcome_history_event(
+    events: list[dict],
+    *,
+    actor_name: str | None,
+    value: str,
+    reason: str | None,
+) -> None:
+    last_event = events[-1] if events else None
+    if (
+        isinstance(last_event, dict)
+        and last_event.get("type") == "terminal_outcome_recorded"
+        and last_event.get("field_key") == TERMINAL_OUTCOME_FIELD
+        and last_event.get("value") == value
+        and last_event.get("reason") == reason
+    ):
+        return
+
+    events.append(
+        build_stage_history_event(
+            "terminal_outcome_recorded",
+            actor_name=actor_name,
+            field_key=TERMINAL_OUTCOME_FIELD,
+            value=value,
+            reason=reason,
+        )
+    )
 
 
 def get_terminal_outcome_from_captured_data(captured_data: dict | None) -> str | None:
@@ -830,7 +992,7 @@ def to_detail(stage, notes=None, files=None, subtasks=None) -> RfqStageDetailRes
         actual_end=stage.actual_end,
         blocker_status=blocker_status,
         blocker_reason_code=_normalize_blocker_reason(blocker_status, stage.blocker_reason_code),
-        captured_data=stage.captured_data,
+        captured_data=sanitize_stage_captured_data_for_response(stage.captured_data),
         mandatory_fields=stage.mandatory_fields,
         notes=[StageNoteResponse.model_validate(n) for n in (notes or [])],
         files=[file_to_schema(f) for f in (files or [])],

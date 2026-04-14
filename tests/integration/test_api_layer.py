@@ -27,6 +27,10 @@ class MockRfqController:
             "description": "API test payload",
             "workflow_id": "00000000-0000-0000-0000-000000000002",
             "current_stage_id": "00000000-0000-0000-0000-000000000003",
+            "source_package_available": False,
+            "source_package_updated_at": None,
+            "workbook_available": False,
+            "workbook_updated_at": None,
             "outcome_reason": None,
             "created_at": "2026-01-01T00:00:00Z",
             "updated_at": "2026-01-01T00:00:00Z",
@@ -43,6 +47,11 @@ class MockRfqController:
             "page": kwargs.get("page", 1),
             "size": kwargs.get("size", 20)
         }
+
+    def get(self, rfq_id):
+        payload = self._detail_payload()
+        payload["id"] = str(rfq_id)
+        return payload
 
     def export_csv(self, **kwargs):
         self.last_kwargs = kwargs
@@ -248,7 +257,7 @@ def test_rich_filters_parsing(api_client):
     response = api_client.get(
         "/rfq-manager/v1/rfqs",
         params={
-            "status": ["Submitted", "In preparation"],
+            "status": ["Awarded", "In preparation"],
             "priority": "critical",
             "owner": "Engineering Team",
             "created_after": "2023-01-01",
@@ -261,7 +270,7 @@ def test_rich_filters_parsing(api_client):
     filters = mock_ctrl.last_kwargs
     
     # Assert FastAPI correctly extracted the multi-value status as a list
-    assert filters["status"] == ["Submitted", "In preparation"]
+    assert filters["status"] == ["Awarded", "In preparation"]
     
     # Assert other parameters
     assert filters["priority"] == "critical"
@@ -272,7 +281,7 @@ def test_rich_filters_parsing(api_client):
 
 def test_export_csv_endpoint(api_client):
     """Verify that the GET /rfqs/export natively returns CSV files and attachment headers"""
-    response = api_client.get("/rfq-manager/v1/rfqs/export?status=Submitted")
+    response = api_client.get("/rfq-manager/v1/rfqs/export?status=Awarded")
     
     assert response.status_code == 200
     # Allow for optional charset=utf-8 which FastAPI injects
@@ -280,6 +289,28 @@ def test_export_csv_endpoint(api_client):
     assert "attachment; filename" in response.headers["content-disposition"]
     assert "rfqs_export.csv" in response.headers["content-disposition"]
     assert "RFQ Code,Name" in response.text
+
+
+def test_get_rfq_detail_exposes_intelligence_milestones(api_client):
+    response = api_client.get(
+        "/rfq-manager/v1/rfqs/00000000-0000-0000-0000-000000000009",
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["source_package_available"] is False
+    assert payload["source_package_updated_at"] is None
+    assert payload["workbook_available"] is False
+    assert payload["workbook_updated_at"] is None
+
+
+def test_list_rejects_dormant_operational_status_filter(api_client):
+    response = api_client.get("/rfq-manager/v1/rfqs?status=Submitted")
+
+    assert response.status_code == 422
+    payload = response.json()
+    assert payload["error"] == "UnprocessableEntityError"
+    assert "query.status.0" in payload["message"]
 
 
 def test_invalid_sort_returns_clean_400_error(api_client, app):
@@ -310,7 +341,7 @@ def test_metadata_only_patch_calls_controller_update(api_client):
     assert mock_ctrl.update_calls[0]["body"].name == "Updated Name"
 
 
-@pytest.mark.parametrize("status_value", ["Submitted", "Awarded"])
+@pytest.mark.parametrize("status_value", ["In preparation", "Awarded"])
 def test_generic_patch_rejects_status_field_before_controller_runs(api_client, status_value):
     mock_ctrl.update_calls.clear()
     response = api_client.patch(
@@ -368,7 +399,8 @@ def test_stage_advance_accepts_no_go_confirmation_body(stage_api_client):
     request = mock_stage_ctrl.advance_calls[0]["request"]
     assert request.confirm_no_go_cancel is True
     assert request.outcome_reason == "Client withdrew the opportunity after go/no-go review."
-    assert mock_stage_ctrl.advance_calls[0]["kwargs"]["actor_permissions"] == ["*"]
+    assert "rfq_stage:*" in mock_stage_ctrl.advance_calls[0]["kwargs"]["actor_permissions"]
+    assert "*" not in mock_stage_ctrl.advance_calls[0]["kwargs"]["actor_permissions"]
     assert response.json()["status"] == "Skipped"
 
 
@@ -403,7 +435,8 @@ def test_stage_advance_accepts_terminal_outcome_body(stage_api_client):
     request = mock_stage_ctrl.advance_calls[0]["request"]
     assert request.terminal_outcome == "lost"
     assert request.lost_reason_code == "commercial_gap"
-    assert mock_stage_ctrl.advance_calls[0]["kwargs"]["actor_permissions"] == ["*"]
+    assert "rfq_stage:*" in mock_stage_ctrl.advance_calls[0]["kwargs"]["actor_permissions"]
+    assert "*" not in mock_stage_ctrl.advance_calls[0]["kwargs"]["actor_permissions"]
 
 
 def test_reminder_create_accepts_stage_link(reminder_api_client):

@@ -58,7 +58,10 @@ def create_rfq(
 @router.get("", response_model=RfqListResponse)
 def list_rfqs(
     search: Optional[str] = Query(None, description="Search in name and client"),
-    status: Optional[List[RfqStatusLiteral]] = Query(None, description="Filter by multiple statuses"),
+    status: Optional[List[RfqStatusLiteral]] = Query(
+        None,
+        description="Filter by multiple operational statuses",
+    ),
     priority: Optional[Literal["normal", "critical"]] = Query(None, description="Filter by priority"),
     owner: Optional[str] = Query(None, description="Filter by exact owner"),
     created_after: Optional[date] = Query(None, description="Filter RFQs created on or after this date"),
@@ -77,7 +80,10 @@ def list_rfqs(
 @router.get("/export", response_class=Response)
 def export_rfqs(
     search: Optional[str] = Query(None, description="Search in name and client"),
-    status: Optional[List[RfqStatusLiteral]] = Query(None, description="Filter by multiple statuses"),
+    status: Optional[List[RfqStatusLiteral]] = Query(
+        None,
+        description="Filter by multiple operational statuses",
+    ),
     priority: Optional[Literal["normal", "critical"]] = Query(None, description="Filter by priority"),
     owner: Optional[str] = Query(None, description="Filter by exact owner"),
     created_after: Optional[date] = Query(None, description="Filter RFQs created on or after this date"),

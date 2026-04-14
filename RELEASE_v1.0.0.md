@@ -6,9 +6,11 @@ rfq_manager_ms reaches a clean and supportable V1 baseline on top of completed c
 ## What is clean/stable now
 - Core API baseline is stabilized with 31 documented endpoints and aligned contracts.
 - Migration chain is active and used by seed/startup flows.
-- Local container workflow exists (`Dockerfile`, `docker-compose.yml`).
+- Local scenario-stack workflow exists (`Dockerfile`, `docker-compose.scenario.yml`, `../scripts/rfqmgmt_scenario_stack.py`).
 - CI workflow runs lint + tests on push/PR to `main`.
 - Seed/runtime semantics are aligned (codes, stage-template links, terminal-stage pointers).
+- Scenario verification now reads manifest-declared anchor roles instead of duplicating seed assumptions in the stack script.
+- Tracked workflow/docs truth is aligned with the live operational contract (no draft/submitted live statuses; short workflow = 6 stages).
 - Stage 1 closure housekeeping completed (stale/dead files removed, config docs finalized, DB fail-fast added).
 
 ## Cleanup/industrialization baseline completed

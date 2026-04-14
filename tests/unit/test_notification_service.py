@@ -147,8 +147,11 @@ def test_process_due_reminders_updates_business_status_and_send_trace():
         session.refresh(overdue)
 
         assert result["generated_count"] == 0
+        assert result["due_count"] == 2
         assert result["resolved_count"] == 0
         assert result["processed_count"] == 2
+        assert result["skipped_max_attempts_count"] == 0
+        assert result["skipped_rate_limited_count"] == 0
         assert due_today.status == REMINDER_STATUS_OPEN
         assert due_today.send_count == 1
         assert isinstance(due_today.last_sent_at, datetime)
@@ -196,11 +199,55 @@ def test_process_due_reminders_respects_daily_rate_limit_and_max_attempts():
         session.refresh(already_sent_today)
         session.refresh(exhausted)
 
+        assert result["due_count"] == 2
         assert result["processed_count"] == 0
+        assert result["skipped_max_attempts_count"] == 1
+        assert result["skipped_rate_limited_count"] == 1
         assert already_sent_today.status == REMINDER_STATUS_OVERDUE
         assert already_sent_today.send_count == 1
         assert exhausted.status == REMINDER_STATUS_OPEN
         assert exhausted.send_count == 3
+    finally:
+        session.close()
+
+
+def test_process_due_reminders_exposes_truthful_skip_breakdown_in_message():
+    session = _make_session()
+    try:
+        workflow = _seed_workflow(session)
+        rfq = _seed_rfq(session, workflow.id, deadline=date.today() + timedelta(days=2))
+
+        already_sent_today = Reminder(
+            id=uuid.uuid4(),
+            rfq_id=rfq.id,
+            type="internal",
+            message="Already sent today",
+            due_date=date.today(),
+            assigned_to="User 1",
+            status=REMINDER_STATUS_OPEN,
+            source=REMINDER_SOURCE_MANUAL,
+            send_count=1,
+            last_sent_at=datetime.now(),
+        )
+        exhausted = Reminder(
+            id=uuid.uuid4(),
+            rfq_id=rfq.id,
+            type="internal",
+            message="Exhausted attempts",
+            due_date=date.today() - timedelta(days=1),
+            assigned_to="User 2",
+            status=REMINDER_STATUS_OPEN,
+            source=REMINDER_SOURCE_MANUAL,
+            send_count=3,
+        )
+        session.add_all([already_sent_today, exhausted])
+        session.commit()
+
+        result = NotificationService(session).process_due_reminders(max_sends=3)
+
+        assert "due=2" in result["message"]
+        assert "max-attempt-skips=1" in result["message"]
+        assert "rate-limit-skips=1" in result["message"]
     finally:
         session.close()
 

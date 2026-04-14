@@ -105,7 +105,10 @@ class RfqSummary(BaseModel):
     status: str
     progress: int
     deadline: date
+    current_stage_id: Optional[UUID] = None
     current_stage_name: Optional[str] = None
+    current_stage_order: Optional[int] = None
+    current_stage_status: Optional[str] = None
     current_stage_blocker_status: Optional[str] = None
     current_stage_blocker_reason_code: Optional[str] = None
     workflow_name: Optional[str] = None
@@ -132,6 +135,10 @@ class RfqDetail(BaseModel):
     description: Optional[str] = None
     workflow_id: UUID
     current_stage_id: Optional[UUID] = None
+    source_package_available: bool = False
+    source_package_updated_at: Optional[datetime] = None
+    workbook_available: bool = False
+    workbook_updated_at: Optional[datetime] = None
     outcome_reason: Optional[str] = None
     created_at: datetime
     updated_at: datetime
@@ -159,14 +166,14 @@ class RfqStats(BaseModel):
 class RfqAnalyticsByClient(BaseModel):
     client: str
     rfq_count: int
-    avg_margin: float
+    avg_margin: Optional[float] = None
 
 
 class RfqAnalytics(BaseModel):
     """GET /rfqs/analytics response — business analytics."""
-    avg_margin_submitted: float
-    avg_margin_awarded: float
-    estimation_accuracy: float
+    avg_margin_submitted: Optional[float] = None
+    avg_margin_awarded: Optional[float] = None
+    estimation_accuracy: Optional[float] = None
     win_rate: float
     by_client: List[RfqAnalyticsByClient]
 
@@ -188,14 +195,26 @@ def to_summary(rfq, current_stage_name: str = None, workflow_name: str = None) -
         status=rfq.status,
         progress=rfq.progress,
         deadline=rfq.deadline,
+        current_stage_id=rfq.current_stage_id,
         current_stage_name=current_stage_name,
+        current_stage_order=getattr(rfq, "current_stage_order", None),
+        current_stage_status=getattr(rfq, "current_stage_status", None),
         current_stage_blocker_status=getattr(rfq, "current_stage_blocker_status", None),
         current_stage_blocker_reason_code=getattr(rfq, "current_stage_blocker_reason_code", None),
         workflow_name=workflow_name,
     )
 
 
-def to_detail(rfq, current_stage_name: str = None, workflow_name: str = None) -> RfqDetail:
+def to_detail(
+    rfq,
+    current_stage_name: str = None,
+    workflow_name: str = None,
+    *,
+    source_package_available: bool = False,
+    source_package_updated_at: Optional[datetime] = None,
+    workbook_available: bool = False,
+    workbook_updated_at: Optional[datetime] = None,
+) -> RfqDetail:
     """SQLAlchemy RFQ model → RfqDetail (for detail responses)."""
     return RfqDetail(
         id=rfq.id,
@@ -214,6 +233,10 @@ def to_detail(rfq, current_stage_name: str = None, workflow_name: str = None) ->
         description=rfq.description,
         workflow_id=rfq.workflow_id,
         current_stage_id=rfq.current_stage_id,
+        source_package_available=source_package_available,
+        source_package_updated_at=source_package_updated_at,
+        workbook_available=workbook_available,
+        workbook_updated_at=workbook_updated_at,
         outcome_reason=rfq.outcome_reason,
         created_at=rfq.created_at,
         updated_at=rfq.updated_at,
